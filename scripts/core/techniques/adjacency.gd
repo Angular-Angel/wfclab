@@ -57,18 +57,35 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 		step = parts[0].size   # grid tiles are uniform; see class comment
 
 	var edge_mode: int = params.get("edge_evidence", EdgeEvidence.IGNORE)
+	var variants: Dictionary = {}   # canonical_id -> {transform_key -> part_id}
+	for part: Part in parts:
+		for source: Dictionary in part.transform_sources:
+			var canonical_id: String = source["canonical_id"]
+			var transform_key: String = source["transform_key"]
+			if not variants.has(canonical_id):
+				variants[canonical_id] = {}
+			variants[canonical_id][transform_key] = part.id
 
 	# Position lookup: image_id -> {Vector2i -> part_id}, plus each image's
 	# tile-grid extent (tile coordinates) for wrap/border decisions.
 	var by_image: Dictionary = {}
 	var grid_rect: Dictionary = {}   # img_id -> Rect2i in tile coords
+	var seen_samples: Dictionary = {} # "image|x,y|canonical" -> true
 	for part: Part in parts:
 		for occ: Dictionary in part.occurrences:
 			var img_id: String = occ["image_id"]
+			var pos: Vector2i = occ["position"]
+			var canonical_id: String = occ.get("canonical_id", part.canonical_id)
+			var sample_key := "%s|%d,%d|%s" % [img_id, pos.x, pos.y, canonical_id]
+			if seen_samples.has(sample_key):
+				continue   # every variant carries source provenance; read it once
+			seen_samples[sample_key] = true
 			if not by_image.has(img_id):
 				by_image[img_id] = {}
-			var pos: Vector2i = occ["position"]
-			by_image[img_id][pos] = part.id
+			# Variants share source occurrences. Map each source location back
+			# to the canonical tile that produced it, then expand its relation
+			# into the transform variants selected for that canonical tile.
+			by_image[img_id][pos] = canonical_id
 			@warning_ignore("integer_division")
 			var tc := Vector2i(pos.x / step.x, pos.y / step.y)
 			var r: Rect2i = grid_rect.get(img_id, Rect2i(tc, Vector2i.ONE))
@@ -131,16 +148,14 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 									+ Vector2i(signi(offset.x), signi(offset.y))
 							if rect.has_point(ptc):
 								continue
-							_record_outside(aggregate, a_id, offset, img_id, pos, npos)
+							_record_outside_transforms(aggregate, variants, a_id,
+									offset, img_id, pos, npos)
 							continue
 						_:
 							continue
 				var b_id: String = grid[npos]
-				var c := _get_or_create(aggregate, directional, a_id, b_id, offset)
-				c.evidence.append({
-					"image_id": img_id,
-					"positions": [pos, npos],
-				})
+				_record_pair_transforms(aggregate, variants, directional,
+						a_id, b_id, offset, img_id, pos, npos)
 
 			# Pair extraction uses canonical directions so every real pair is
 			# visited once. Border evidence is directional, though: inspecting
@@ -159,7 +174,7 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 					var rect: Rect2i = grid_rect[img_id]
 					if rect.has_point(edge_tc):
 						continue   # interior gap: no outside evidence
-					_record_outside(aggregate, a_id, edge_offset,
+					_record_outside_transforms(aggregate, variants, a_id, edge_offset,
 							img_id, pos, edge_pos)
 
 		report_progress.call(float(img_index + 1) / image_ids.size())
@@ -171,6 +186,39 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 	for c: Constraint in result:
 		c.weight = c.evidence.size()
 	return result
+
+
+func _record_pair_transforms(aggregate: Dictionary, variants: Dictionary,
+		directional: bool, a_id: String, b_id: String, offset: Vector2i,
+		img_id: String, pos: Vector2i, npos: Vector2i) -> void:
+	var a_variants: Dictionary = variants.get(a_id, {})
+	var b_variants: Dictionary = variants.get(b_id, {})
+	for key: String in a_variants:
+		if not b_variants.has(key):
+			continue
+		var c := _get_or_create(aggregate, directional, a_variants[key],
+				b_variants[key], _transform_offset(offset, key))
+		c.evidence.append({"image_id": img_id, "positions": [pos, npos]})
+
+
+func _record_outside_transforms(aggregate: Dictionary, variants: Dictionary,
+		a_id: String, offset: Vector2i, img_id: String, pos: Vector2i,
+		npos: Vector2i) -> void:
+	for key: String in (variants.get(a_id, {}) as Dictionary):
+		_record_outside(aggregate, variants[a_id][key], _transform_offset(offset, key),
+				img_id, pos, npos)
+
+
+func _transform_offset(offset: Vector2i, key: String) -> Vector2i:
+	match key:
+		# Image.rotate_90(true) is clockwise in screen coordinates: a source
+		# relation (x, y) maps to (-y, x), including virtual outside edges.
+		"rot90": return Vector2i(-offset.y, offset.x)
+		"rot180": return -offset
+		"rot270": return Vector2i(offset.y, -offset.x)
+		"flip_h": return Vector2i(-offset.x, offset.y)
+		"flip_v": return Vector2i(offset.x, -offset.y)
+	return offset
 
 
 func _get_or_create(aggregate: Dictionary, directional: bool,

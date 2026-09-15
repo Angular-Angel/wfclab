@@ -7,11 +7,7 @@
 			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Angular.png"
 		}
 	],
-	"part_edits": {
-		"p_128eb01b44cf": {
-			"weight_override": 1.0
-		}
-	},
+	"part_edits": {},
 	"run": {
 		"constraint_jobs": [
 			{
@@ -24,7 +20,8 @@
 						]
 					},
 					"directional": true,
-					"neighborhood": 0,
+					"edge_evidence": 2,
+					"neighborhood": 1,
 					"step_mode": 1
 				}
 			}

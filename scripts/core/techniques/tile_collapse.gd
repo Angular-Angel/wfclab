@@ -138,6 +138,9 @@ static func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
 				# The constraint extractor may only have evidence for selected
 				# directions (for example its canonical +X/+Y scan). Do not
 				# turn a missing directional observation into an impossible edge.
+				# N8 evidence is directional: a diagonal slot relation must be
+				# supported by the exact diagonal outside relation, even where
+				# only one coordinate crosses the output boundary.
 				if bordered and _has_outside_evidence(index, pixel_off):
 					# This direction faces the output edge: every candidate
 					# must be a tile observed touching a source border here.

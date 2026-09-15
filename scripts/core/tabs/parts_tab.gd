@@ -218,7 +218,7 @@ func _add_part_button(part: Part) -> void:
 	button.icon = part.get_texture()
 	button.expand_icon = true
 	button.tooltip_text = "%s\n%s occurrence(s)%s" % [
-		part.id, part.occurrence_count(),
+		"%s (%s)" % [part.id, _transform_label(part.transform_key)], part.occurrence_count(),
 		"" if part.enabled else "\n[disabled]"]
 	if not part.enabled:
 		button.modulate = Color(1.0, 1.0, 1.0, 0.35)
@@ -247,10 +247,20 @@ func _show_part(part: Part) -> void:
 
 
 func _part_info_text(part: Part) -> String:
-	return "%s\n%s × %s  |  occurrences: %s  |  weight: %s%s" % [
-		part.id, part.size.x, part.size.y, part.occurrence_count(),
+	return "%s\n%s  |  %s × %s  |  occurrences: %s  |  weight: %s%s" % [
+		part.id, _transform_label(part.transform_key), part.size.x, part.size.y, part.occurrence_count(),
 		part.get_effective_weight(),
 		"" if part.enabled else "  [disabled]"]
+
+
+func _transform_label(key: String) -> String:
+	match key:
+		"rot90": return "rotation 90°"
+		"rot180": return "rotation 180°"
+		"rot270": return "rotation 270°"
+		"flip_h": return "horizontal reflection"
+		"flip_v": return "vertical reflection"
+	return "rotation 0°"
 
 
 func _on_enabled_toggled(pressed: bool) -> void:

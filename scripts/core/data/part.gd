@@ -1,10 +1,11 @@
 class_name Part extends RefCounted
-## A decomposed component. Schema is D4-ready (canonical_id/transform) but the
-## pipeline treats them as identity for now.
+## A decomposed component. Variants retain their source tile's canonical id and
+## symbolic transform so constraint extraction can transform their relations.
 
 var id: String                  # "p_" + canonical_hash prefix
 var canonical_id: String        # == id until symmetry lands
-var transform := Transform2D.IDENTITY
+var transform_key := "identity"   # identity, rot90, rot180, rot270, flip_h, flip_v
+var transform_sources: Array[Dictionary] = [] # [{canonical_id, transform_key}]
 var canonical_hash: String      # exact hash of pixel data; the dedupe key
 var pixel_data: Image
 var size: Vector2i
@@ -24,7 +25,9 @@ func setup(tile: Image, hash_hex: String, image_id: String, position: Vector2i) 
 	canonical_hash = hash_hex
 	id = "p_" + hash_hex.substr(0, 12)
 	canonical_id = id
-	occurrences.append({"image_id": image_id, "position": position})
+	transform_sources.append({"canonical_id": id, "transform_key": transform_key})
+	occurrences.append({"image_id": image_id, "position": position,
+		"canonical_id": id})
 
 
 func get_texture() -> ImageTexture:
@@ -49,7 +52,8 @@ func clone() -> Part:
 	var p := Part.new()
 	p.id = id
 	p.canonical_id = canonical_id
-	p.transform = transform
+	p.transform_key = transform_key
+	p.transform_sources = transform_sources.duplicate(true)
 	p.canonical_hash = canonical_hash
 	p.pixel_data = pixel_data
 	p.size = size

@@ -33,7 +33,7 @@ func get_parameter_specs() -> Array[Dictionary]:
 		},
 		{
 			"key": "dedupe_tolerance", "label": "Dedupe Tolerance",
-			"type": "int", "default": 0, "min": 0, "max": 8,
+			"type": "int", "default": 0, "min": 0, "max": 256,
 		},
 	]
 

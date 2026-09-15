@@ -34,6 +34,14 @@
 		{
 			"id": "img_fcec308d5f",
 			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest4c.png"
+		},
+		{
+			"id": "img_c276dfbcc1",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest4c3.png"
+		},
+		{
+			"id": "img_baa07a54c0",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest4c4.png"
 		}
 	],
 	"part_edits": {},
@@ -49,18 +57,20 @@
 						]
 					},
 					"directional": true,
-					"neighborhood": 1,
-					"step_mode": 0
+					"neighborhood": 0,
+					"step_mode": 1
 				}
 			}
 		],
 		"image_ids": [
 			"img_e08df595e5",
-			"img_fcec308d5f"
+			"img_fcec308d5f",
+			"img_c276dfbcc1",
+			"img_baa07a54c0"
 		],
 		"params": {
 			"dedupe": true,
-			"dedupe_tolerance": 8,
+			"dedupe_tolerance": 12,
 			"edge_handling": 0,
 			"stride": {
 				"__v2i": [

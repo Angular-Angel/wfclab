@@ -3,9 +3,11 @@ extends Node
 
 signal images_changed
 signal parts_changed
+signal constraints_changed
 
 var images: Dictionary = {}        # id -> ImageAssetData
 var parts: Dictionary = {}         # id -> Part
+var constraints: Dictionary = {}   # id -> Constraint
 var last_run_stats: Dictionary = {}
 
 
@@ -27,7 +29,7 @@ func image_name(id: String) -> String:
 	return images[id].name if images.has(id) else id
 
 
-## Atomic snapshot swap — the UI never sees a half-computed part set.
+## Atomic snapshot swaps — the UI never sees a half-computed state.
 func set_parts(new_parts: Array[Part], stats: Dictionary) -> void:
 	parts = {}
 	for part: Part in new_parts:
@@ -39,4 +41,17 @@ func set_parts(new_parts: Array[Part], stats: Dictionary) -> void:
 func get_part_list() -> Array[Part]:
 	var list: Array[Part] = []
 	list.assign(parts.values())
+	return list
+
+
+func set_constraints(new_constraints: Array[Constraint]) -> void:
+	constraints = {}
+	for c: Constraint in new_constraints:
+		constraints[c.id] = c
+	constraints_changed.emit()
+
+
+func get_constraint_list() -> Array[Constraint]:
+	var list: Array[Constraint] = []
+	list.assign(constraints.values())
 	return list

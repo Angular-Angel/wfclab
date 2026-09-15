@@ -214,7 +214,7 @@ class Session extends SynthesisSession:
 	var steps_taken := 0
 	var _collapsed := 0
 	var _active_ms := 0
-
+	var last_rejection := ""
 
 	func _init(index: ConstraintIndex, params: Dictionary,
 			rng: RandomNumberGenerator) -> void:
@@ -413,12 +413,16 @@ class Session extends SynthesisSession:
 		## Pin part_id at slot and propagate. Fully reverts on contradiction,
 		## so a rejected edit leaves every domain exactly as it was.
 		if is_finished() or slot < 0 or slot >= candidates.size():
+			last_rejection = describe_pin(slot, part_id)
 			return false
 		if _index.get_part(part_id) == null:
+			last_rejection = describe_pin(slot, part_id)
 			return false
 		if assigned[slot] == part_id:
+			last_rejection = ""
 			return true
 		if not get_slot_domain(slot).has(part_id):
+			last_rejection = describe_pin(slot, part_id)
 			return false   # conflicts with pinned/singleton neighbors
 		var snap_c: Array[Dictionary] = []
 		snap_c.assign(candidates.duplicate(true))
@@ -441,7 +445,9 @@ class Session extends SynthesisSession:
 			assigned = snap_a
 			_queue = snap_q
 			_collapsed = snap_collapsed
+			last_rejection = "propagation contradiction (transitive)"
 			return false
+		last_rejection = ""
 		return true
 
 
@@ -493,3 +499,21 @@ class Session extends SynthesisSession:
 				if dom.is_empty():
 					return full
 		return dom
+
+	@warning_ignore("integer_division")
+	func describe_pin(slot: int, part_id: String) -> String:
+		## "" if the immediate neighborhood permits the pin; else why not.
+		if slot < 0 or slot >= candidates.size():
+			return "slot out of range"
+		if assigned[slot] == part_id:
+			return ""
+		if not get_slot_domain(slot).has(part_id):
+			return "not in the slot's current domain"
+		var pos := Vector2i(slot % _out_w, slot / _out_w)
+		for d: Vector2i in _deltas:
+			var n := pos + d
+			if n.x < 0 or n.x >= _out_w or n.y < 0 or n.y >= _out_h:
+				continue
+			if _index.get_neighbors(part_id, d * _cell).is_empty():
+				return "no observed neighbor at offset %s" % [d * _cell]
+		return ""

@@ -502,8 +502,11 @@ func _on_picker_picked(part_id: String) -> void:
 	var slot := _cursor_slot
 	var ok := _session.try_assign(slot, part_id)
 	_update_session_ui()
-	_status.text = ("%s %s at %s" % [
-			"Placed" if ok else "Rejected:", part_id, _slot_coords(slot)])
+	if ok:
+		_status.text = "Placed %s at %s" % [part_id, _slot_coords(slot)]
+	else:
+		_status.text = "Rejected: %s at %s — %s" % [
+				part_id, _slot_coords(slot), _session.last_rejection]
 
 
 func _on_picker_cleared() -> void:

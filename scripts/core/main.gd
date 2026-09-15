@@ -52,6 +52,10 @@ func _ready() -> void:
 				page = PartsTab.new()
 			"Constraints":
 				page = ConstraintsTab.new()
+			"Synthesizers":
+				page = SynthesizersTab.new()
+			"Outputs":
+				page = OutputsTab.new()
 			_:
 				page = _make_placeholder(tab_name)
 		page.name = tab_name

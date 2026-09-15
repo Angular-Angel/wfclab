@@ -6,12 +6,16 @@ signal images_changed
 signal parts_changed
 signal constraints_changed
 signal edits_changed
+signal synthesis_changed
 
 var images: Dictionary = {}          # id -> ImageAssetData
 var parts: Dictionary = {}           # id -> Part (materialized)
 var constraints: Dictionary = {}     # id -> Constraint (materialized)
 var last_run_stats: Dictionary = {}
 var last_run_config: Dictionary = {}   # JSON-safe: what produced the raw data
+var last_synthesis: Dictionary = {}   # {image, stats, meta}
+var _index: ConstraintIndex = null
+var _index_valid := false
 
 # --- User edits (applied on top of every materialization) ---
 var part_edits: Dictionary = {}        # part_id -> {enabled, weight_override}
@@ -22,6 +26,24 @@ var _raw_parts: Array[Part] = []
 var _raw_constraints: Array[Constraint] = []
 var _alias_mapping: Dictionary = {}    # merged-away id -> survivor id
 
+
+func _ready() -> void:
+	parts_changed.connect(func() -> void: _index_valid = false)
+	constraints_changed.connect(func() -> void: _index_valid = false)
+
+
+## The defined seam for synthesizers: built on the main thread, returned as
+## an immutable snapshot (safe to hand to a worker task).
+func get_constraint_index() -> ConstraintIndex:
+	if not _index_valid:
+		_index = ConstraintIndex.build(get_part_list(), get_constraint_list())
+		_index_valid = true
+	return _index
+
+
+func set_synthesis(image: Image, stats: Dictionary, meta: Dictionary) -> void:
+	last_synthesis = {"image": image, "stats": stats, "meta": meta}
+	synthesis_changed.emit()
 
 # --- Images -----------------------------------------------------------------
 

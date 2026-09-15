@@ -67,7 +67,7 @@ func _ready() -> void:
 		_ct_boxes[ct.get_id()] = box
 		_ct_enabled[ct.get_id()] = true
 		_ct_values[ct.get_id()] = {}
-		_build_param_widgets(ct.get_parameter_specs(), _ct_values[ct.get_id()], box)
+		ParamBuilder.build(ct.get_parameter_specs(), _ct_values[ct.get_id()], box)
 
 	left.add_child(_mk_label("Images (click to toggle inclusion)"))
 	_image_list = ItemList.new()
@@ -115,77 +115,6 @@ func _update_edits_label() -> void:
 		AppData.alias_records.size()]
 
 
-# --- Parameter widgets (generic, spec-driven, initial-value aware) -------------
-
-func _build_param_widgets(specs: Array[Dictionary], values: Dictionary,
-		box: Container, initial: Dictionary = {}) -> void:
-	for spec: Dictionary in specs:
-		var default: Variant = initial.get(spec["key"], spec["default"])
-		values[spec["key"]] = default
-		var row := HBoxContainer.new()
-		var label := _mk_label(spec["label"])
-		label.custom_minimum_size = Vector2(110.0, 0.0)
-		row.add_child(label)
-
-		match spec["type"]:
-			"int":
-				var spin := SpinBox.new()
-				spin.min_value = spec.get("min", 0)
-				spin.max_value = spec.get("max", 9999)
-				spin.value = default
-				spin.value_changed.connect(_set_int.bind(values, spec["key"]))
-				row.add_child(spin)
-			"vector2i":
-				var spin_x := SpinBox.new()
-				var spin_y := SpinBox.new()
-				for spin: SpinBox in [spin_x, spin_y]:
-					spin.min_value = spec.get("min", 0)
-					spin.max_value = spec.get("max", 9999)
-					spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				spin_x.value = default.x
-				spin_y.value = default.y
-				spin_x.value_changed.connect(_set_vec_x.bind(values, spec["key"]))
-				spin_y.value_changed.connect(_set_vec_y.bind(values, spec["key"]))
-				row.add_child(spin_x)
-				row.add_child(spin_y)
-			"bool":
-				var check := CheckButton.new()
-				check.button_pressed = default
-				check.toggled.connect(_set_bool.bind(values, spec["key"]))
-				row.add_child(check)
-			"enum":
-				var option := OptionButton.new()
-				for option_name: String in spec["options"]:
-					option.add_item(option_name)
-				option.selected = default
-				option.item_selected.connect(_set_enum.bind(values, spec["key"]))
-				row.add_child(option)
-
-		box.add_child(row)
-
-
-func _set_int(value: float, values: Dictionary, key: String) -> void:
-	values[key] = int(value)
-
-
-func _set_vec_x(value: float, values: Dictionary, key: String) -> void:
-	var cur: Vector2i = values.get(key, Vector2i())
-	values[key] = Vector2i(int(value), cur.y)
-
-
-func _set_vec_y(value: float, values: Dictionary, key: String) -> void:
-	var cur: Vector2i = values.get(key, Vector2i())
-	values[key] = Vector2i(cur.x, int(value))
-
-
-func _set_bool(pressed: bool, values: Dictionary, key: String) -> void:
-	values[key] = pressed
-
-
-func _set_enum(index: int, values: Dictionary, key: String) -> void:
-	values[key] = index
-
-
 func _on_ct_toggled(pressed: bool, tech_id: StringName) -> void:
 	_ct_enabled[tech_id] = pressed
 
@@ -198,8 +127,7 @@ func _on_technique_selected(index: int, initial_params: Dictionary = {}) -> void
 	for child in _params_box.get_children():
 		child.free()
 	_param_values = {}
-	_build_param_widgets(_current_technique.get_parameter_specs(),
-		_param_values, _params_box, initial_params)
+	ParamBuilder.build(_current_technique.get_parameter_specs(), _param_values, _params_box, initial_params)
 
 
 func _rebuild_image_list() -> void:
@@ -240,8 +168,7 @@ func apply_config(config: Dictionary) -> void:
 		for child in box.get_children():
 			child.free()
 		_ct_values[ct.get_id()] = {}
-		_build_param_widgets(ct.get_parameter_specs(),
-			_ct_values[ct.get_id()], box, job_params.get(ct_id, {}))
+		ParamBuilder.build(ct.get_parameter_specs(), _ct_values[ct.get_id()], box, job_params.get(ct_id, {}))
 
 	var include: Array = config.get("image_ids", [])
 	for i in _image_list.item_count:
@@ -332,7 +259,7 @@ func _publish_result(result: Dictionary, all_constraints: Array[Constraint],
 		stats["total_tiles"], stats["part_count"],
 		all_constraints.size(), stats["elapsed_ms"]]
 
-	var tabs := get_parent().get_parent() as TabContainer
+	var tabs := get_parent() as TabContainer
 	if tabs != null:
 		var target := tabs.get_node_or_null("Constraints")
 		if target != null:

@@ -78,7 +78,7 @@ func _ready() -> void:
 
 	right.add_child(_mk_label("Evidence"))
 	_evidence_list = ItemList.new()
-	_evidence_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_evidence_list.custom_minimum_size = Vector2(0.0, 160.0)
 	_evidence_list.item_selected.connect(_on_evidence_selected)
 	right.add_child(_evidence_list)
 

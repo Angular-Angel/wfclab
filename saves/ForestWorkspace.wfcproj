@@ -1,5 +1,22 @@
 {
-	"alias_records": [],
+	"alias_records": [
+		{
+			"from": "p_8aa54790dc90",
+			"into": "p_037f30d9f9f4"
+		},
+		{
+			"from": "p_f47092eacf7a",
+			"into": "p_868290d36641"
+		},
+		{
+			"from": "p_f41798bedc3f",
+			"into": "p_c4ccaa160cf9"
+		},
+		{
+			"from": "p_f03eec726b38",
+			"into": "p_d6d7ae116859"
+		}
+	],
 	"constraint_edits": {},
 	"images": [
 		{
@@ -28,7 +45,7 @@
 					"custom_step": {
 						"__v2i": [
 							1,
-							6
+							1
 						]
 					},
 					"directional": true,
@@ -38,6 +55,7 @@
 			}
 		],
 		"image_ids": [
+			"img_e08df595e5",
 			"img_fcec308d5f"
 		],
 		"params": {

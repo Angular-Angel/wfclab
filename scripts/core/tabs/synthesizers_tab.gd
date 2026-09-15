@@ -1,6 +1,7 @@
 class_name SynthesizersTab extends Control
 ## Configure and run a synthesizer over the current materialized state.
-## Synthesizers that support it can run interactively: step, play, watch.
+## Interactive sessions can be stepped, played, and hand-edited: click a
+## slot (or cursor onto it with arrows) to see its candidates and pin one.
 
 var _technique_option: OptionButton
 var _params_box: VBoxContainer
@@ -18,15 +19,18 @@ var _restart_button: Button
 var _cancel_button: Button
 
 var _preview: TextureRect
+var _overlay: SlotOverlay
 var _fit_check: CheckButton
 var _entropy_check: CheckButton
 var _dims: Label
+var _picker: SlotPicker
 
 var _param_values: Dictionary = {}
 var _current: Synthesizer = null
 var _session: SynthesisSession = null
 var _playing := false
 var _accum := 0.0
+var _cursor_slot := -1
 
 
 func _ready() -> void:
@@ -147,6 +151,10 @@ func _ready() -> void:
 	view_row.add_child(_entropy_check)
 	_dims = Label.new()
 	view_row.add_child(_dims)
+	var hint := Label.new()
+	hint.text = "Click a slot to place/clear · Arrows move · Enter picks"
+	hint.modulate = Color(1.0, 1.0, 1.0, 0.6)
+	view_row.add_child(hint)
 
 	var preview_scroll := ScrollContainer.new()
 	preview_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -157,7 +165,21 @@ func _ready() -> void:
 	_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_preview.focus_mode = Control.FOCUS_ALL
+	_preview.gui_input.connect(_on_preview_input)
 	preview_scroll.add_child(_preview)
+
+	_overlay = SlotOverlay.new()
+	_overlay._tab = self
+	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_preview.add_child(_overlay)
+	_preview.resized.connect(_overlay.queue_redraw)
+
+	_picker = SlotPicker.new()
+	_picker.picked.connect(_on_picker_picked)
+	_picker.clear_requested.connect(_on_picker_cleared)
+	add_child(_picker)
 
 	right.add_child(_mk_label("Notes"))
 	var notes := Label.new()
@@ -167,8 +189,9 @@ func _ready() -> void:
 		+ "Interactive mode steps the algorithm on the main thread: watch "
 		+ "observations collapse slots and propagation cascade outward; a "
 		+ "contradiction visibly wipes the board and restarts.\n\n"
-		+ "Finished runs are published to the Outputs tab exactly like batch "
-		+ "runs; the same seed reproduces the same output either way.")
+		+ "While a run is active, click a slot (or arrow onto it and press "
+		+ "Enter) to see its candidate tiles and pin one; propagation ripples "
+		+ "from your edit. Edits that contradict neighbors are rejected.")
 	notes.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right.add_child(notes)
 
@@ -269,12 +292,15 @@ func _start_session() -> void:
 
 
 func _stop_session() -> void:
+	_picker.hide()
 	_session = null
 	_playing = false
+	_cursor_slot = -1
 	_session_box.visible = false
 	_run_button.disabled = false
 	_preview.texture = null
 	_dims.text = ""
+	_overlay.queue_redraw()
 
 
 func _process(delta: float) -> void:
@@ -357,6 +383,7 @@ func _update_session_ui() -> void:
 	else:
 		_dims.text = ""
 	_status.text = _session.get_status()
+	_overlay.queue_redraw()
 
 
 func _apply_view_mode() -> void:
@@ -369,3 +396,246 @@ func _apply_view_mode() -> void:
 			_preview.custom_minimum_size = _preview.texture.get_size()
 		else:
 			_preview.custom_minimum_size = Vector2.ZERO
+	_overlay.queue_redraw()
+
+
+# --- Slot cursor & manual editing ------------------------------------------------
+
+func _on_preview_input(event: InputEvent) -> void:
+	if _session == null:
+		return
+	if event is InputEventMouseButton \
+			and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			var slot := _session.pixel_to_slot(_ctrl_to_tex(event.position))
+			if slot != -1:
+				_cursor_slot = slot
+				_overlay.queue_redraw()
+				_preview.accept_event()
+				_open_picker()
+		return
+	if event is InputEventMouseMotion and not _playing:
+		var slot := _session.pixel_to_slot(_ctrl_to_tex(event.position))
+		if slot != -1 and slot != _cursor_slot:
+			_cursor_slot = slot
+			_overlay.queue_redraw()
+		return
+	if event is InputEventKey and event.pressed:
+		if event.is_action_pressed("ui_left", true):
+			_move_cursor(Vector2i(-1, 0))
+		elif event.is_action_pressed("ui_right", true):
+			_move_cursor(Vector2i(1, 0))
+		elif event.is_action_pressed("ui_up", true):
+			_move_cursor(Vector2i(0, -1))
+		elif event.is_action_pressed("ui_down", true):
+			_move_cursor(Vector2i(0, 1))
+		elif event.is_action_pressed("ui_accept") and not event.is_echo():
+			_open_picker()
+		else:
+			return
+		_preview.accept_event()
+
+
+func _preview_xform() -> Transform2D:
+	## Texture-pixel space -> preview control space for the current mode.
+	if _preview.texture == null:
+		return Transform2D()
+	var ts := _preview.texture.get_size()
+	if _fit_check.button_pressed:
+		var cs := _preview.size
+		if ts.x <= 0.0 or ts.y <= 0.0 or cs.x <= 0.0 or cs.y <= 0.0:
+			return Transform2D()
+		var s := minf(cs.x / ts.x, cs.y / ts.y)
+		return Transform2D(0.0, Vector2(s, s), 0.0, (cs - ts * s) * 0.5)
+	return Transform2D()   # 1:1 inside the scroll container
+
+
+func _ctrl_to_tex(local: Vector2) -> Vector2i:
+	var p := _preview_xform().affine_inverse() * local
+	return Vector2i(floori(p.x), floori(p.y))
+
+
+@warning_ignore("integer_division")
+func _move_cursor(d: Vector2i) -> void:
+	if _session == null:
+		return
+	var dims := _session.get_slot_dims()
+	if dims == Vector2i.ZERO:
+		return
+	var pos: Vector2i
+	if _cursor_slot == -1:
+		pos = Vector2i(dims.x / 2, dims.y / 2)
+	else:
+		pos = Vector2i(_cursor_slot % dims.x, _cursor_slot / dims.x) + d
+	pos.x = clampi(pos.x, 0, dims.x - 1)
+	pos.y = clampi(pos.y, 0, dims.y - 1)
+	_cursor_slot = pos.y * dims.x + pos.x
+	_overlay.queue_redraw()
+
+
+@warning_ignore("integer_division")
+func _slot_coords(slot: int) -> Vector2i:
+	var d := _session.get_slot_dims()
+	return Vector2i(slot % d.x, slot / d.x)
+
+
+func _open_picker() -> void:
+	if _session == null or _cursor_slot == -1:
+		return
+	if _session.is_finished():
+		_status.text = "Run finished — restart to edit slots."
+		return
+	if _playing:
+		_on_play_pressed()   # don't race the picker
+	var domain := _session.get_slot_domain(_cursor_slot)
+	if domain.is_empty():
+		_status.text = "No candidates at %s." % _slot_coords(_cursor_slot)
+		return
+	_picker.open(_slot_coords(_cursor_slot),
+			_session.get_slot_assignment(_cursor_slot),
+			domain, _session.get_source_index())
+
+
+func _on_picker_picked(part_id: String) -> void:
+	if _session == null or _cursor_slot == -1:
+		return
+	var slot := _cursor_slot
+	var ok := _session.try_assign(slot, part_id)
+	_update_session_ui()
+	_status.text = ("%s %s at %s" % [
+			"Placed" if ok else "Rejected:", part_id, _slot_coords(slot)])
+
+
+func _on_picker_cleared() -> void:
+	if _session == null or _cursor_slot == -1:
+		return
+	var slot := _cursor_slot
+	var ok := _session.try_clear(slot)
+	_update_session_ui()
+	_status.text = ("Cleared %s" if ok else "Nothing to clear at %s") \
+			% _slot_coords(slot)
+
+
+class SlotOverlay extends Control:
+	## Draws the slot grid and cursor highlight over the live preview, in
+	## texture-pixel space mapped through the preview's stretch transform.
+
+	var _tab: SynthesizersTab
+
+
+	func _draw() -> void:
+		if _tab == null or _tab._session == null or _tab._preview.texture == null:
+			return
+		var sess := _tab._session
+		var size_px := sess.get_render_size()
+		if size_px.x <= 0 or size_px.y <= 0 or _tab._preview.size.x <= 0.0:
+			return
+		draw_set_transform_matrix(_tab._preview_xform())
+		var dims := sess.get_slot_dims()
+		var step := sess.get_slot_step()
+		var grid_col := Color(1.0, 1.0, 1.0, 0.10)
+		for c in dims.x + 1:
+			var x := float(mini(c * step.x, size_px.x))
+			draw_line(Vector2(x, 0.0), Vector2(x, size_px.y), grid_col)
+		for r in dims.y + 1:
+			var y := float(mini(r * step.y, size_px.y))
+			draw_line(Vector2(0.0, y), Vector2(size_px.x, y), grid_col)
+		if _tab._cursor_slot >= 0:
+			var rect := Rect2(sess.slot_rect(_tab._cursor_slot))
+			draw_rect(rect, Color(1.0, 0.9, 0.3, 0.18), true)
+			draw_rect(rect, Color(1.0, 0.9, 0.3, 0.95), false, 1.0)
+
+
+class SlotPicker extends PopupPanel:
+	## Chooses among a slot's candidate tiles. The grid buttons take focus
+	## on open; arrow keys walk between them (default focus neighbors),
+	## Enter picks, Esc closes.
+
+	signal picked(part_id: String)
+	signal clear_requested
+
+
+	func open(slot_pos: Vector2i, current: String, domain: Dictionary,
+			index: ConstraintIndex) -> void:
+		for c in get_children():
+			remove_child(c)
+			c.free()
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 6)
+		add_child(box)
+
+		var title := Label.new()
+		title.text = ("Slot %s — current: %s" % [slot_pos, current]) \
+				if current != "" else "Slot %s — empty" % slot_pos
+		box.add_child(title)
+
+		var scroll := ScrollContainer.new()
+		scroll.custom_minimum_size = Vector2(4 * 76 + 16, 240)
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		box.add_child(scroll)
+		var grid := GridContainer.new()
+		grid.columns = 4
+		grid.add_theme_constant_override("h_separation", 4)
+		grid.add_theme_constant_override("v_separation", 4)
+		scroll.add_child(grid)
+
+		var first: Button = null
+		for id: String in domain:
+			var b := _tile_button(id, index)
+			if first == null:
+				first = b
+			b.pressed.connect(func() -> void:
+				picked.emit(id)
+				hide())
+			grid.add_child(b)
+		if first == null:
+			var none := Label.new()
+			none.text = "No candidates."
+			grid.add_child(none)
+
+		var foot := HBoxContainer.new()
+		box.add_child(foot)
+		var clear_b := Button.new()
+		clear_b.text = "Unset"
+		clear_b.disabled = current == ""
+		clear_b.pressed.connect(func() -> void:
+			clear_requested.emit()
+			hide())
+		foot.add_child(clear_b)
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		foot.add_child(spacer)
+		var cancel := Button.new()
+		cancel.text = "Cancel"
+		cancel.pressed.connect(hide)
+		foot.add_child(cancel)
+
+		var hint := Label.new()
+		hint.text = "Arrows: move focus · Enter: choose · Esc: close"
+		hint.modulate = Color(1.0, 1.0, 1.0, 0.55)
+		box.add_child(hint)
+
+		popup_centered()
+		if first != null:
+			first.grab_focus()
+		else:
+			cancel.grab_focus()
+
+
+	func _tile_button(id: String, index: ConstraintIndex) -> Button:
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(72, 72)
+		b.tooltip_text = "%s\nweight: %.2f" % [id, index.get_weight(id)]
+		var img := index.get_part(id).pixel_data
+		if img.get_format() != Image.FORMAT_RGBA8:
+			img = img.duplicate()
+			img.convert(Image.FORMAT_RGBA8)
+		var tr := TextureRect.new()
+		tr.texture = ImageTexture.create_from_image(img)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE   # clicks go to the button
+		b.add_child(tr)
+		return b

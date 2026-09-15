@@ -1,0 +1,55 @@
+{
+	"alias_records": [],
+	"constraint_edits": {},
+	"images": [
+		{
+			"id": "img_47d36358ac",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Angular.png"
+		}
+	],
+	"part_edits": {
+		"p_128eb01b44cf": {
+			"weight_override": 1.0
+		}
+	},
+	"run": {
+		"constraint_jobs": [
+			{
+				"id": "adjacency",
+				"params": {
+					"custom_step": {
+						"__v2i": [
+							1,
+							1
+						]
+					},
+					"directional": true,
+					"neighborhood": 0,
+					"step_mode": 1
+				}
+			}
+		],
+		"image_ids": [
+			"img_47d36358ac"
+		],
+		"params": {
+			"dedupe": true,
+			"dedupe_tolerance": 0,
+			"edge_handling": 1,
+			"stride": {
+				"__v2i": [
+					1,
+					1
+				]
+			},
+			"tile_size": {
+				"__v2i": [
+					2,
+					2
+				]
+			}
+		},
+		"technique_id": "grid_tiles"
+	},
+	"version": 1
+}

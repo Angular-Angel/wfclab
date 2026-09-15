@@ -4,6 +4,9 @@ class_name TileCollapse extends Synthesizer
 ## extractions (stride < tile size) produce an overlapping raster, and
 ## tile-grid extractions produce a tiling. Restarts from scratch on
 ## contradiction (no backtracking yet).
+##
+## Batch synthesize() runs a Session to completion, so a given seed yields
+## identical output whether run in batch or stepped interactively.
 
 
 func get_id() -> StringName:
@@ -27,41 +30,25 @@ func get_parameter_specs() -> Array[Dictionary]:
 
 func synthesize(index: ConstraintIndex, params: Dictionary,
 		rng: RandomNumberGenerator, report_progress: Callable) -> Dictionary:
-	var started := Time.get_ticks_msec()
-	var out_w: int = maxi(1, params.get("output_width", 24))
-	var out_h: int = maxi(1, params.get("output_height", 16))
-	var max_restarts: int = maxi(0, params.get("max_restarts", 30))
-
-	if index.get_part_ids().is_empty():
-		push_error("TileCollapse: no enabled parts.")
-		return {}
-
-	var step := _derive_step(index)
-	var deltas := _derive_deltas(index, step)
-	if deltas.is_empty():
-		push_warning("TileCollapse: no usable offsets; output is unconstrained.")
-
-	for restart in max_restarts + 1:
-		report_progress.call(float(restart) / float(max_restarts + 1))
-		var attempt := _attempt(index, rng, out_w, out_h, step, deltas)
-		if not attempt.is_empty():
-			var image := _render(index, attempt["assigned"], out_w, out_h, step)
-			return {
-				"image": image,
-				"stats": {
-					"restarts": restart,
-					"elapsed_ms": Time.get_ticks_msec() - started,
-					"output_slots": Vector2i(out_w, out_h),
-					"step": step,
-				},
-			}
-	push_warning("TileCollapse: exhausted restarts.")
-	return {}
+	var session := create_session(index, params, rng)
+	while not session.is_finished():
+		session.step()
+		report_progress.call(session.get_progress())
+	return session.get_result()
 
 
-# --- Internals -----------------------------------------------------------------
+func supports_stepping() -> bool:
+	return true
 
-func _derive_step(index: ConstraintIndex) -> Vector2i:
+
+func create_session(index: ConstraintIndex, params: Dictionary,
+		rng: RandomNumberGenerator) -> SynthesisSession:
+	return Session.new(index, params, rng)
+
+
+# --- Internals (static so Session can drive them) -------------------------------
+
+static func _derive_step(index: ConstraintIndex) -> Vector2i:
 	## Pixel distance between adjacent slots: smallest positive constraint
 	## offset per axis, falling back to the tile size.
 	var step := index.tile_size
@@ -83,7 +70,8 @@ func _derive_step(index: ConstraintIndex) -> Vector2i:
 	return step
 
 
-func _derive_deltas(index: ConstraintIndex, step: Vector2i) -> Array[Vector2i]:
+@warning_ignore("integer_division")
+static func _derive_deltas(index: ConstraintIndex, step: Vector2i) -> Array[Vector2i]:
 	## Constraint offsets converted to slot units; non-grid offsets skipped.
 	var deltas: Array[Vector2i] = []
 	for off: Vector2i in index.get_offsets():
@@ -95,36 +83,8 @@ func _derive_deltas(index: ConstraintIndex, step: Vector2i) -> Array[Vector2i]:
 	return deltas
 
 
-func _attempt(index: ConstraintIndex, rng: RandomNumberGenerator,
-		out_w: int, out_h: int, step: Vector2i,
-		deltas: Array[Vector2i]) -> Dictionary:
-	var n := out_w * out_h
-	var template := {}
-	for id: String in index.get_part_ids():
-		template[id] = true
-
-	var candidates: Array[Dictionary] = []
-	candidates.resize(n)
-	var assigned: Array[String] = []
-	assigned.resize(n)
-	for i in n:
-		candidates[i] = template.duplicate()
-		assigned[i] = ""
-
-	while true:
-		var slot := _pick_slot(candidates, assigned)
-		if slot == -1:
-			return {"assigned": assigned}
-		var picked := _weighted_pick(candidates[slot], index, rng)
-		candidates[slot] = {picked: true}
-		assigned[slot] = picked
-		if not _propagate(index, candidates, assigned, slot,
-				out_w, out_h, step, deltas):
-			return {}
-	return {}
-
-
-func _pick_slot(candidates: Array[Dictionary], assigned: Array[String]) -> int:
+static func _pick_slot(candidates: Array[Dictionary],
+		assigned: Array[String]) -> int:
 	## Most-constrained-first (the cheap stand-in for WFC's entropy rule).
 	var best := -1
 	var best_size := 1 << 30
@@ -138,7 +98,7 @@ func _pick_slot(candidates: Array[Dictionary], assigned: Array[String]) -> int:
 	return best
 
 
-func _weighted_pick(options: Dictionary, index: ConstraintIndex,
+static func _weighted_pick(options: Dictionary, index: ConstraintIndex,
 		rng: RandomNumberGenerator) -> String:
 	var total := 0.0
 	for id: String in options:
@@ -154,11 +114,13 @@ func _weighted_pick(options: Dictionary, index: ConstraintIndex,
 	return keys[keys.size() - 1]
 
 
-func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
-		assigned: Array[String], start: int, out_w: int, out_h: int,
-		step: Vector2i, deltas: Array[Vector2i]) -> bool:
+@warning_ignore("integer_division")
+static func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
+		assigned: Array[String], out_w: int, out_h: int, step: Vector2i,
+		deltas: Array[Vector2i], queue: Array[int], single: bool) -> bool:
 	## AC-3 style: when a slot's domain changes, revise neighboring domains.
-	var queue: Array[int] = [start]
+	## The queue persists across calls; with single=true exactly one queue
+	## entry is processed per call so a UI can step through the cascade.
 	while not queue.is_empty():
 		var s: int = queue.pop_front()
 		var sx := s % out_w
@@ -190,10 +152,13 @@ func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
 					return false   # contradiction -> restart
 				candidates[q] = new_q
 				queue.append(q)
+		if single:
+			return true
 	return true
 
 
-func _render(index: ConstraintIndex, assigned: Array[String],
+@warning_ignore("integer_division")
+static func _render(index: ConstraintIndex, assigned: Array[String],
 		out_w: int, out_h: int, step: Vector2i) -> Image:
 	var ts := index.tile_size
 	var width := maxi(1, (out_w - 1) * step.x + ts.x)
@@ -211,3 +176,165 @@ func _render(index: ConstraintIndex, assigned: Array[String],
 		var y := (i / out_w) * step.y
 		img.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), Vector2i(x, y))
 	return img
+
+
+class Session extends SynthesisSession:
+	## One resumable TileCollapse run. Batch synthesize() drives this class,
+	## so RNG consumption (one _weighted_pick per observation) is identical
+	## in both modes and a seed reproduces the same output either way.
+
+	var _index: ConstraintIndex
+	var _rng: RandomNumberGenerator
+	var _out_w: int
+	var _out_h: int
+	var _cell: Vector2i
+	var _deltas: Array[Vector2i]
+	var _max_attempts: int
+
+	var candidates: Array[Dictionary] = []
+	var assigned: Array[String] = []
+	var _queue: Array[int] = []
+	var last_slot := -1
+	var attempt := 0
+	var steps_taken := 0
+	var _collapsed := 0
+	var _active_ms := 0
+
+
+	func _init(index: ConstraintIndex, params: Dictionary,
+			rng: RandomNumberGenerator) -> void:
+		_index = index
+		_rng = rng
+		_out_w = maxi(1, params.get("output_width", 24))
+		_out_h = maxi(1, params.get("output_height", 16))
+		_max_attempts = maxi(0, params.get("max_restarts", 30)) + 1
+		if _index.get_part_ids().is_empty():
+			push_error("TileCollapse: no enabled parts.")
+			phase = Phase.FAILED
+			return
+		_cell = TileCollapse._derive_step(_index)
+		_deltas = TileCollapse._derive_deltas(_index, _cell)
+		if _deltas.is_empty():
+			push_warning("TileCollapse: no usable offsets; output is unconstrained.")
+		_reset_attempt()
+
+
+	func _reset_attempt() -> void:
+		var template := {}
+		for id: String in _index.get_part_ids():
+			template[id] = true
+		candidates.clear()
+		assigned.clear()
+		candidates.resize(_out_w * _out_h)
+		assigned.resize(_out_w * _out_h)
+		for i in candidates.size():
+			candidates[i] = template.duplicate()
+			assigned[i] = ""
+		_queue.clear()
+		last_slot = -1
+		_collapsed = 0
+
+
+	func step() -> bool:
+		## One observation plus propagation to a fixpoint. If a micro-step
+		## left a cascade half-done, this finishes it first.
+		return _advance(false)
+
+
+	func micro_step() -> bool:
+		## One observation OR one propagation queue entry — the wavefront
+		## becomes watchable, and contradictions happen in plain sight.
+		return _advance(true)
+
+
+	func _advance(micro: bool) -> bool:
+		if is_finished():
+			return false
+		steps_taken += 1
+		var t0 := Time.get_ticks_msec()
+		var keep_going := _advance_inner(micro)
+		_active_ms += Time.get_ticks_msec() - t0
+		return keep_going
+
+
+	func _advance_inner(micro: bool) -> bool:
+		if _queue.is_empty():
+			var slot := TileCollapse._pick_slot(candidates, assigned)
+			if slot == -1:
+				phase = Phase.DONE
+				return false
+			var picked := TileCollapse._weighted_pick(
+					candidates[slot], _index, _rng)
+			candidates[slot] = {picked: true}
+			assigned[slot] = picked
+			last_slot = slot
+			_collapsed += 1
+			_queue.append(slot)
+			if micro:
+				return true   # leave the cascade pending so it can be watched
+		if not TileCollapse._propagate(_index, candidates, assigned,
+				_out_w, _out_h, _cell, _deltas, _queue, micro):
+			# Contradiction: restart from scratch (no backtracking yet).
+			attempt += 1
+			if attempt >= _max_attempts:
+				push_warning("TileCollapse: exhausted restarts.")
+				phase = Phase.FAILED
+				return false
+			_reset_attempt()
+		return true
+
+
+	func get_result() -> Dictionary:
+		if phase != Phase.DONE:
+			return {}
+		return {
+			"image": TileCollapse._render(
+					_index, assigned, _out_w, _out_h, _cell),
+			"stats": {
+				"restarts": attempt,
+				"elapsed_ms": _active_ms,
+				"output_slots": Vector2i(_out_w, _out_h),
+				"step": _cell,
+				"steps": steps_taken,
+			},
+		}
+
+
+	@warning_ignore("integer_division")
+	func get_status() -> String:
+		if phase == Phase.FAILED:
+			return "Failed: contradiction, restarts exhausted (%d)." % attempt
+		if phase == Phase.DONE:
+			return "Done: %d slots, %d restarts, %d steps." % [
+					_out_w * _out_h, attempt, steps_taken]
+		var base := "Attempt %d/%d — %d/%d collapsed" % [
+				attempt + 1, _max_attempts, _collapsed, _out_w * _out_h]
+		if last_slot == -1:
+			return base
+		return base + " — last: %s" % Vector2i(
+				last_slot % _out_w, last_slot / _out_w)
+
+
+	func get_progress() -> float:
+		return float(_collapsed) / float(_out_w * _out_h)
+
+
+	func get_preview() -> Image:
+		return TileCollapse._render(_index, assigned, _out_w, _out_h, _cell)
+
+
+	@warning_ignore("integer_division")
+	func get_entropy_image() -> Image:
+		## Slot-space map: white = collapsed, warm = few candidates,
+		## cool = many. Dims are output_slots, not pixels.
+		var img := Image.create_empty(
+				_out_w, _out_h, false, Image.FORMAT_RGBA8)
+		for i in candidates.size():
+			var col: Color
+			if assigned[i] != "":
+				col = Color(0.95, 0.95, 0.95)
+			else:
+				var t := clampf(candidates[i].size() / 8.0, 0.0, 1.0)
+				col = Color(1.0, 0.3, 0.2).lerp(Color(0.15, 0.25, 0.7), t)
+			img.set_pixel(i % _out_w, i / _out_w, col)
+		return img

@@ -192,13 +192,13 @@ func _rebuild() -> void:
 		return a.occurrence_count() > b.occurrence_count())
 
 	var stats: Dictionary = AppData.last_run_stats
-	_grid_status.text = "%d parts (%d tiles extracted, %d ms)" % [
+	_grid_status.text = "%s parts (%s tiles extracted, %s ms)" % [
 		parts.size(), stats.get("total_tiles", 0), stats.get("elapsed_ms", 0)]
 
 	for i in mini(parts.size(), MAX_SHOWN):
 		_add_part_button(parts[i])
 	if parts.size() > MAX_SHOWN:
-		_grid_status.text += "  — showing first %d" % MAX_SHOWN
+		_grid_status.text += "  — showing first %s" % MAX_SHOWN
 
 	_pinned = AppData.parts.get(pinned_id) if pinned_id != "" else null
 	if selected_id != "" and AppData.parts.has(selected_id):
@@ -217,7 +217,7 @@ func _add_part_button(part: Part) -> void:
 	button.custom_minimum_size = THUMB
 	button.icon = part.get_texture()
 	button.expand_icon = true
-	button.tooltip_text = "%s\n%d occurrence(s)%s" % [
+	button.tooltip_text = "%s\n%s occurrence(s)%s" % [
 		part.id, part.occurrence_count(),
 		"" if part.enabled else "\n[disabled]"]
 	if not part.enabled:
@@ -240,14 +240,14 @@ func _show_part(part: Part) -> void:
 	_occurrences.clear()
 	for occ: Dictionary in part.occurrences:
 		var pos: Vector2i = occ["position"]
-		_occurrences.add_item("%s  (%d, %d)" % [
+		_occurrences.add_item("%s  (%s, %s)" % [
 			AppData.image_name(occ["image_id"]), pos.x, pos.y])
 	_refresh_compare()
 	_refresh_neighbors()
 
 
 func _part_info_text(part: Part) -> String:
-	return "%s\n%d × %d  |  occurrences: %d  |  weight: %g%s" % [
+	return "%s\n%s × %s  |  occurrences: %s  |  weight: %s%s" % [
 		part.id, part.size.x, part.size.y, part.occurrence_count(),
 		part.get_effective_weight(),
 		"" if part.enabled else "  [disabled]"]
@@ -300,7 +300,7 @@ func _refresh_compare() -> void:
 	if _pinned.size == _selected.size:
 		var diff := _make_diff_image(_pinned.pixel_data, _selected.pixel_data)
 		_cmp_diff.texture = ImageTexture.create_from_image(diff)
-		_cmp_label.text = "%d of %d pixels differ" % [
+		_cmp_label.text = "%s of %s pixels differ" % [
 			_diff_count, _pinned.size.x * _pinned.size.y]
 	else:
 		_cmp_diff.texture = null
@@ -346,7 +346,7 @@ func _refresh_neighbors() -> void:
 			return nb[a] > nb[b])
 
 		var header := Label.new()
-		header.text = "offset (%d, %d) — %d part(s)" % [off.x, off.y, ids.size()]
+		header.text = "offset (%s, %s) — %s part(s)" % [off.x, off.y, ids.size()]
 		_neighbors_box.add_child(header)
 
 		var grid := GridContainer.new()
@@ -369,7 +369,7 @@ func _refresh_neighbors() -> void:
 
 		if ids.size() > MAX_NEIGHBORS_PER_OFFSET:
 			var more := Label.new()
-			more.text = "  … and %d more" % (ids.size() - MAX_NEIGHBORS_PER_OFFSET)
+			more.text = "  … and %s more" % (ids.size() - MAX_NEIGHBORS_PER_OFFSET)
 			_neighbors_box.add_child(more)
 
 

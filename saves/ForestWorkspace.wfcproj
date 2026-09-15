@@ -44,7 +44,11 @@
 			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest4c4.png"
 		}
 	],
-	"part_edits": {},
+	"part_edits": {
+		"p_fd9d9769f7ec": {
+			"enabled": false
+		}
+	},
 	"run": {
 		"constraint_jobs": [
 			{
@@ -57,6 +61,7 @@
 						]
 					},
 					"directional": true,
+					"edge_evidence": 2,
 					"neighborhood": 0,
 					"step_mode": 1
 				}
@@ -71,7 +76,13 @@
 		"params": {
 			"dedupe": true,
 			"dedupe_tolerance": 12,
-			"edge_handling": 0,
+			"edge_handling": 1,
+			"reflect_horizontal": true,
+			"reflect_vertical": false,
+			"rotation_0": true,
+			"rotation_180": false,
+			"rotation_270": false,
+			"rotation_90": false,
 			"stride": {
 				"__v2i": [
 					1,

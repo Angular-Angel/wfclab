@@ -31,8 +31,6 @@ static func build(parts: Array[Part], constraints: Array[Constraint]) -> Constra
 			continue
 		var a: String = c.participants[0]["part_id"]
 		var b: String = c.participants[1]["part_id"]
-		if not idx._parts.has(a) or not idx._parts.has(b):
-			continue   # references a disabled part; can never be placed
 		var offset: Vector2i = c.params.get("offset", Vector2i())
 		var w: float = c.get_effective_weight()
 		if a == OUTSIDE or b == OUTSIDE:
@@ -42,6 +40,8 @@ static func build(parts: Array[Part], constraints: Array[Constraint]) -> Constra
 			idx._add(real, offset, OUTSIDE, w)
 			idx._has_outside = true
 			continue   # no reverse entry: OUTSIDE never occupies a slot
+		if not idx._parts.has(a) or not idx._parts.has(b):
+			continue   # references a disabled part; can never be placed
 		idx._add(a, offset, b, w)
 		idx._add(b, -offset, a, w)
 		if c.params.get("symmetric", false):

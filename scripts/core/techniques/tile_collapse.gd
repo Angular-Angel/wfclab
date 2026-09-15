@@ -135,7 +135,10 @@ static func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
 			var qy := sy + delta.y
 			var pixel_off := Vector2i(delta.x * step.x, delta.y * step.y)
 			if qx < 0 or qx >= out_w or qy < 0 or qy >= out_h:
-				if bordered:
+				# The constraint extractor may only have evidence for selected
+				# directions (for example its canonical +X/+Y scan). Do not
+				# turn a missing directional observation into an impossible edge.
+				if bordered and _has_outside_evidence(index, pixel_off):
 					# This direction faces the output edge: every candidate
 					# must be a tile observed touching a source border here.
 					var keep: Dictionary = {}
@@ -193,6 +196,13 @@ static func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
 		if single:
 			return true
 	return true
+
+
+static func _has_outside_evidence(index: ConstraintIndex, offset: Vector2i) -> bool:
+	for id: String in index.get_part_ids():
+		if index.get_neighbors(id, offset).has(ConstraintIndex.OUTSIDE):
+			return true
+	return false
 
 
 @warning_ignore("integer_division")
@@ -497,17 +507,57 @@ class Session extends SynthesisSession:
 
 
 	func try_clear(slot: int) -> bool:
-		## Unpin a slot. Neighbor domains keep the pruning the pin caused
-		## (conservative: over-constrained, never invalid).
+		## Unpin a slot and rebuild domains from the remaining observations.
+		## Propagation only removes candidates, so simply clearing the slot
+		## would leave stale pruning behind and make a visually blank board
+		## reject tiles that are actually valid.
 		if is_finished() or slot < 0 or slot >= candidates.size():
 			return false
 		if assigned[slot] == "":
 			return false
+		var snap_c: Array[Dictionary] = []
+		snap_c.assign(candidates.duplicate(true))
+		var snap_a: Array[String] = []
+		snap_a.assign(assigned.duplicate())
+		var snap_q: Array[int] = []
+		snap_q.assign(_queue.duplicate())
+		var snap_collapsed := _collapsed
 		assigned[slot] = ""
-		candidates[slot] = _domain_excluding_self(slot)
-		_collapsed -= 1
+		if not _rebuild_domains_from_assignments():
+			candidates = snap_c
+			assigned = snap_a
+			_queue = snap_q
+			_collapsed = snap_collapsed
+			return false
 		last_slot = slot
 		return true
+
+
+	func _rebuild_domains_from_assignments() -> bool:
+		## Recreate the monotonic AC-3 state so removals can expand domains.
+		var template := {}
+		for id: String in _index.get_part_ids():
+			template[id] = true
+		for i in candidates.size():
+			candidates[i] = {assigned[i]: true} if assigned[i] != "" else template.duplicate()
+		_queue.clear()
+		_collapsed = 0
+		for i in assigned.size():
+			if assigned[i] != "":
+				_collapsed += 1
+				_queue.append(i)
+		if _bordered:
+			for i in candidates.size():
+				if not _queue.has(i):
+					_queue.append(i)
+		var trace: Array = []
+		if TileCollapse._propagate(_index, candidates, assigned,
+				_out_w, _out_h, _cell, _deltas, _queue, false,
+				_unknown_free, _bordered, trace):
+			return true
+		if not trace.is_empty():
+			last_wipe = _describe_wipe(trace[0])
+		return false
 
 
 	@warning_ignore("integer_division")
@@ -549,6 +599,8 @@ class Session extends SynthesisSession:
 				if np.x >= 0 and np.x < _out_w and np.y >= 0 and np.y < _out_h:
 					continue
 				var off := Vector2i(delta.x * _cell.x, delta.y * _cell.y)
+				if not TileCollapse._has_outside_evidence(_index, off):
+					continue
 				var edge_keep: Dictionary = {}
 				for x: String in dom:
 					if _index.get_neighbors(x, off).has(ConstraintIndex.OUTSIDE):
@@ -578,11 +630,11 @@ class Session extends SynthesisSession:
 	@warning_ignore("integer_division")
 	func _describe_wipe(w: Dictionary) -> String:
 		var at: int = w["at"]
-		var from: int = w["from"]
 		var off: Vector2i = w["delta"]
 		if w.get("border", false):
 			return "slot (%d,%d) wiped by image-edge rule at offset (%d,%d): needs a border-observed tile, only %s qualify" % [
 					at % _out_w, at / _out_w, off.x, off.y, _short(w["domain"])]
+		var from: int = w["from"]
 		return "slot (%d,%d) wiped via offset (%d,%d) from (%d,%d): needs one of %s, slot only allows %s" % [
 				at % _out_w, at / _out_w, off.x, off.y,
 				from % _out_w, from / _out_w,

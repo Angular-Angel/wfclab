@@ -142,6 +142,26 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 					"positions": [pos, npos],
 				})
 
+			# Pair extraction uses canonical directions so every real pair is
+			# visited once. Border evidence is directional, though: inspecting
+			# only canonical directions would anchor the right/bottom edges but
+			# leave the matching left/top edges unconstrained. Record the
+			# inverse directions only for virtual-outside neighbors.
+			if edge_mode == EdgeEvidence.BORDER:
+				for offset: Vector2i in offsets:
+					var edge_offset := -offset
+					var edge_pos := pos + edge_offset
+					if grid.has(edge_pos):
+						continue
+					@warning_ignore("integer_division")
+					var edge_tc := Vector2i(
+							edge_pos.x / step.x, edge_pos.y / step.y)
+					var rect: Rect2i = grid_rect[img_id]
+					if rect.has_point(edge_tc):
+						continue   # interior gap: no outside evidence
+					_record_outside(aggregate, a_id, edge_offset,
+							img_id, pos, edge_pos)
+
 		report_progress.call(float(img_index + 1) / image_ids.size())
 
 	var list: Array = aggregate.values()

@@ -21,16 +21,30 @@ func _ready() -> void:
 	tabs.name = "MainTabs"
 	tabs.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(tabs)
-
+	
+	var images_page: Control = null
+	var parts_page: Control = null
 	for tab_name in TAB_NAMES:
 		var page: Control
 		match tab_name:
-			"Images": page = ImagesTab.new()
+			"Images":
+				page = ImagesTab.new()
+				images_page = page
 			"Decomposition": page = DecompositionTab.new()
-			"Parts": page = PartsTab.new()
+			"Parts":
+				page = PartsTab.new()
+				parts_page = page
 			_: page = _make_placeholder(tab_name)
 		page.name = tab_name
 		tabs.add_child(page)
+
+	# Occurrence jump: Parts tab -> switch to Images tab, show the site.
+	if images_page != null and parts_page != null:
+		parts_page.occurrence_selected.connect(
+			func(image_id: String, position: Vector2i, size: Vector2i) -> void:
+				tabs.current_tab = tabs.get_tab_idx_from_control(images_page)
+				images_page.show_occurrence(image_id, position, size)
+		)
 
 	tabs.current_tab = 0
 

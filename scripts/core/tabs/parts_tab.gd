@@ -5,12 +5,15 @@ class_name PartsTab extends Control
 const THUMB := Vector2(72.0, 72.0)
 const MAX_SHOWN := 500   # naive grid; revisit if real corpora need virtualization
 
+signal occurrence_selected(image_id: String, position: Vector2i, size: Vector2i)
+
 var _grid: GridContainer
 var _grid_status: Label
 var _preview: TextureRect
 var _info: Label
 var _occurrences: ItemList
 var _selected: Part = null
+var _occurrence_data: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -59,6 +62,7 @@ func _ready() -> void:
 	right.add_child(_mk_label("Occurrences"))
 	_occurrences = ItemList.new()
 	_occurrences.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_occurrences.item_selected.connect(_on_occurrence_selected)
 	right.add_child(_occurrences)
 
 	AppData.parts_changed.connect(_rebuild)
@@ -96,8 +100,8 @@ func _rebuild() -> void:
 		_add_part_button(parts[i])
 	if parts.size() > MAX_SHOWN:
 		_grid_status.text += "  — showing first %d" % MAX_SHOWN
-	_audit_parts()
-	_dump_near_duplicate_evidence()
+	#_audit_parts()
+	#_dump_near_duplicate_evidence()
 
 
 func _add_part_button(part: Part) -> void:
@@ -117,11 +121,19 @@ func _on_part_selected(part: Part) -> void:
 		part.id, part.size.x, part.size.y,
 		part.occurrence_count(), part.get_effective_weight()]
 
+	_occurrence_data = part.occurrences.duplicate()
 	_occurrences.clear()
 	for occ: Dictionary in part.occurrences:
 		var pos: Vector2i = occ["position"]
 		_occurrences.add_item("%s  (%d, %d)" % [
 			AppData.image_name(occ["image_id"]), pos.x, pos.y])
+
+
+func _on_occurrence_selected(index: int) -> void:
+	if index < 0 or index >= _occurrence_data.size() or _selected == null:
+		return
+	var occ: Dictionary = _occurrence_data[index]
+	occurrence_selected.emit(occ["image_id"], occ["position"], _selected.size)
 
 
 func _audit_parts() -> void:

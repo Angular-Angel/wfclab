@@ -5,7 +5,8 @@ extends Control
 
 var _file_dialog: FileDialog
 var _list: ItemList
-var _preview: TextureRect
+var _scroll: ScrollContainer
+var _preview: PreviewRect
 var _info: Label
 var _fit_check: CheckButton
 
@@ -52,11 +53,15 @@ func _ready() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right.add_child(scroll)
 
-	_preview = TextureRect.new()
+	_scroll = ScrollContainer.new()
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(_scroll)
+
+	_preview = PreviewRect.new()
 	_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_preview)
+	_scroll.add_child(_preview)
 	_apply_view_mode()
 
 	_file_dialog = FileDialog.new()
@@ -111,6 +116,7 @@ func _index_of_asset(asset: ImageAssetData) -> int:
 
 
 func _on_item_selected(index: int) -> void:
+	_preview.clear_highlight()
 	var asset: ImageAssetData = AppData.images[_list.get_item_metadata(index)]
 	_preview.texture = asset.texture
 	_apply_view_mode()
@@ -138,3 +144,29 @@ func _apply_filter_mode() -> void:
 		CanvasItem.TEXTURE_FILTER_NEAREST if upscaled
 		else CanvasItem.TEXTURE_FILTER_LINEAR
 	)
+
+	
+## Cross-tab API: show this image and flash-highlight a region of it,
+## in image pixel coordinates. Returns false if the image isn't loaded.
+func show_occurrence(image_id: String, position: Vector2i, region_size: Vector2i) -> bool:
+	var index := _index_of_id(image_id)
+	if index < 0:
+		return false
+	_list.select(index)
+	_on_item_selected(index)
+	_preview.flash_highlight(Rect2i(position, region_size))
+
+	# In 1:1 mode the image is bigger than the viewport; scroll the
+	# highlighted region roughly to center.
+	if not _fit_check.button_pressed:
+		var view := _scroll.size
+		_scroll.scroll_horizontal = maxi(0, int(position.x - view.x * 0.5))
+		_scroll.scroll_vertical = maxi(0, int(position.y - view.y * 0.5))
+	return true
+
+
+func _index_of_id(id: String) -> int:
+	for i in _list.item_count:
+		if _list.get_item_metadata(i) == id:
+			return i
+	return -1

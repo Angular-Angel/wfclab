@@ -1,0 +1,63 @@
+{
+	"alias_records": [],
+	"constraint_edits": {},
+	"images": [
+		{
+			"id": "img_9ec790ca1d",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest1.png"
+		},
+		{
+			"id": "img_8c6f6b5bb0",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest3b.png"
+		},
+		{
+			"id": "img_e08df595e5",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest4c2.png"
+		},
+		{
+			"id": "img_fcec308d5f",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest4c.png"
+		}
+	],
+	"part_edits": {},
+	"run": {
+		"constraint_jobs": [
+			{
+				"id": "adjacency",
+				"params": {
+					"custom_step": {
+						"__v2i": [
+							1,
+							6
+						]
+					},
+					"directional": true,
+					"neighborhood": 1,
+					"step_mode": 0
+				}
+			}
+		],
+		"image_ids": [
+			"img_fcec308d5f"
+		],
+		"params": {
+			"dedupe": true,
+			"dedupe_tolerance": 8,
+			"edge_handling": 0,
+			"stride": {
+				"__v2i": [
+					1,
+					1
+				]
+			},
+			"tile_size": {
+				"__v2i": [
+					2,
+					2
+				]
+			}
+		},
+		"technique_id": "grid_tiles"
+	},
+	"version": 1
+}

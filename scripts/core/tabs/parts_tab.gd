@@ -1,23 +1,38 @@
 class_name PartsTab extends Control
-## Browse the parts from the last decomposition run. Minimal phase-1 version:
-## thumbnail grid + inspector with occurrence list.
-
-const THUMB := Vector2(72.0, 72.0)
-const MAX_SHOWN := 500   # naive grid; revisit if real corpora need virtualization
+## Browse the parts from the last run; inspect, edit, compare, and merge them.
 
 signal occurrence_selected(image_id: String, position: Vector2i, size: Vector2i)
+
+const THUMB := Vector2(72.0, 72.0)
+const PREVIEW := Vector2(160.0, 160.0)
+const MAX_SHOWN := 500
 
 var _grid: GridContainer
 var _grid_status: Label
 var _preview: TextureRect
 var _info: Label
 var _occurrences: ItemList
+
+var _enabled_check: CheckButton
+var _override_check: CheckButton
+var _weight_spin: SpinBox
+var _pin_button: Button
+var _compare_box: VBoxContainer
+var _cmp_pinned: TextureRect
+var _cmp_selected: TextureRect
+var _cmp_diff: TextureRect
+var _cmp_label: Label
+var _merge_button: Button
+
 var _selected: Part = null
+var _pinned: Part = null
 var _occurrence_data: Array[Dictionary] = []
+var _diff_count := 0
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
 	var split := HSplitContainer.new()
 	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(split)
@@ -34,7 +49,7 @@ func _ready() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	left.add_child(scroll)
-	
+
 	_grid = GridContainer.new()
 	_grid.columns = 8
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -42,28 +57,84 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("v_separation", 4)
 	scroll.add_child(_grid)
 
-	# --- Right: inspector ---------------------------------------------------
+	# --- Right: inspector (scrollable) -------------------------------------
+	var right_scroll := ScrollContainer.new()
+	right_scroll.custom_minimum_size = Vector2(320.0, 0.0)
+	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	split.add_child(right_scroll)
+
 	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(280.0, 0.0)
-	split.add_child(right)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_scroll.add_child(right)
 
 	right.add_child(_mk_label("Selected Part"))
 	_preview = TextureRect.new()
-	_preview.custom_minimum_size = Vector2(256.0, 256.0)
+	_preview.custom_minimum_size = PREVIEW
 	_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	right.add_child(_preview)
 
 	_info = Label.new()
 	_info.text = "Nothing selected"
 	right.add_child(_info)
 
+	_enabled_check = CheckButton.new()
+	_enabled_check.text = "Enabled"
+	_enabled_check.toggled.connect(_on_enabled_toggled)
+	right.add_child(_enabled_check)
+
+	var weight_row := HBoxContainer.new()
+	right.add_child(weight_row)
+	_override_check = CheckButton.new()
+	_override_check.text = "Weight override"
+	_override_check.toggled.connect(_on_override_toggled)
+	weight_row.add_child(_override_check)
+	_weight_spin = SpinBox.new()
+	_weight_spin.min_value = 0.0
+	_weight_spin.max_value = 99999.0
+	_weight_spin.value_changed.connect(_on_weight_changed)
+	weight_row.add_child(_weight_spin)
+
+	_pin_button = Button.new()
+	_pin_button.text = "Pin for comparison"
+	_pin_button.pressed.connect(_on_pin_pressed)
+	right.add_child(_pin_button)
+
+	_compare_box = VBoxContainer.new()
+	right.add_child(_compare_box)
+	_compare_box.add_child(_mk_label("Comparison: pinned vs selected"))
+	var cmp_row := HBoxContainer.new()
+	_compare_box.add_child(cmp_row)
+	_cmp_pinned = _mk_cmp_preview()
+	_cmp_selected = _mk_cmp_preview()
+	_cmp_diff = _mk_cmp_preview()
+	cmp_row.add_child(_cmp_pinned)
+	cmp_row.add_child(_cmp_selected)
+	cmp_row.add_child(_cmp_diff)
+	_cmp_label = Label.new()
+	_compare_box.add_child(_cmp_label)
+	_merge_button = Button.new()
+	_merge_button.text = "Merge selected INTO pinned"
+	_merge_button.pressed.connect(_on_merge_pressed)
+	_compare_box.add_child(_merge_button)
+	_compare_box.visible = false
+
 	right.add_child(_mk_label("Occurrences"))
 	_occurrences = ItemList.new()
-	_occurrences.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_occurrences.custom_minimum_size = Vector2(0.0, 160.0)
 	_occurrences.item_selected.connect(_on_occurrence_selected)
 	right.add_child(_occurrences)
+
+	# Edits refresh is debounced: dragging a weight spin box fires many
+	# edits per second, and each would otherwise rebuild the whole grid.
+	var edits_timer := Timer.new()
+	edits_timer.one_shot = true
+	edits_timer.wait_time = 0.3
+	edits_timer.timeout.connect(_rebuild)
+	add_child(edits_timer)
+	AppData.edits_changed.connect(func() -> void: edits_timer.start())
 
 	AppData.parts_changed.connect(_rebuild)
 	_rebuild()
@@ -75,20 +146,38 @@ func _mk_label(text: String) -> Label:
 	return l
 
 
-func _rebuild() -> void:
-	_selected = null
-	for child in _grid.get_children():
-		child.queue_free()
-	_occurrences.clear()
-	_preview.texture = null
-	_info.text = "Nothing selected"
+func _mk_cmp_preview() -> TextureRect:
+	var t := TextureRect.new()
+	t.custom_minimum_size = PREVIEW
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	return t
 
-	var parts: Array[Part] = AppData.get_part_list()
+
+# --- Grid ----------------------------------------------------------------------
+
+func _rebuild() -> void:
+	# Preserve selection/pin across rebuilds (by id, since objects are
+	# re-materialized clones).
+	var selected_id := _selected.id if _selected != null else ""
+	var pinned_id := _pinned.id if _pinned != null else ""
+
+	for child in _grid.get_children():
+		child.free()
+	_occurrences.clear()
+	_occurrence_data = []
+
+	var parts := AppData.get_part_list()
 	if parts.is_empty():
+		_selected = null
+		_pinned = AppData.parts.get(pinned_id)
 		_grid_status.text = "No parts. Run a decomposition first."
+		_preview.texture = null
+		_info.text = "Nothing selected"
+		_update_pin_button()
+		_refresh_compare()
 		return
 
-	# Most-seen first — the interesting parts rise to the top.
 	parts.sort_custom(func(a: Part, b: Part) -> bool:
 		return a.occurrence_count() > b.occurrence_count())
 
@@ -100,8 +189,16 @@ func _rebuild() -> void:
 		_add_part_button(parts[i])
 	if parts.size() > MAX_SHOWN:
 		_grid_status.text += "  — showing first %d" % MAX_SHOWN
-	#_audit_parts()
-	#_dump_near_duplicate_evidence()
+
+	_pinned = AppData.parts.get(pinned_id) if pinned_id != "" else null
+	if selected_id != "" and AppData.parts.has(selected_id):
+		_show_part(AppData.parts[selected_id])
+	else:
+		_selected = null
+		_preview.texture = null
+		_info.text = "Nothing selected"
+	_update_pin_button()
+	_refresh_compare()
 
 
 func _add_part_button(part: Part) -> void:
@@ -109,17 +206,24 @@ func _add_part_button(part: Part) -> void:
 	button.custom_minimum_size = THUMB
 	button.icon = part.get_texture()
 	button.expand_icon = true
-	button.tooltip_text = "%s\n%d occurrence(s)" % [part.id, part.occurrence_count()]
-	button.pressed.connect(_on_part_selected.bind(part))
+	button.tooltip_text = "%s\n%d occurrence(s)%s" % [
+		part.id, part.occurrence_count(),
+		"" if part.enabled else "\n[disabled]"]
+	if not part.enabled:
+		button.modulate = Color(1.0, 1.0, 1.0, 0.35)
+	button.pressed.connect(_show_part.bind(part))
 	_grid.add_child(button)
 
 
-func _on_part_selected(part: Part) -> void:
+# --- Inspector -------------------------------------------------------------------
+
+func _show_part(part: Part) -> void:
 	_selected = part
 	_preview.texture = part.get_texture()
-	_info.text = "%s\n%d × %d\noccurrences: %d\nweight: %s" % [
-		part.id, part.size.x, part.size.y,
-		part.occurrence_count(), part.get_effective_weight()]
+	_info.text = _part_info_text(part)
+	_enabled_check.set_pressed_no_signal(part.enabled)
+	_override_check.set_pressed_no_signal(part.weight_override != null)
+	_weight_spin.set_value_no_signal(part.get_effective_weight())
 
 	_occurrence_data = part.occurrences.duplicate()
 	_occurrences.clear()
@@ -127,93 +231,97 @@ func _on_part_selected(part: Part) -> void:
 		var pos: Vector2i = occ["position"]
 		_occurrences.add_item("%s  (%d, %d)" % [
 			AppData.image_name(occ["image_id"]), pos.x, pos.y])
+	_refresh_compare()
 
+
+func _part_info_text(part: Part) -> String:
+	return "%s\n%d × %d  |  occurrences: %d  |  weight: %g%s" % [
+		part.id, part.size.x, part.size.y, part.occurrence_count(),
+		part.get_effective_weight(),
+		"" if part.enabled else "  [disabled]"]
+
+
+func _on_enabled_toggled(pressed: bool) -> void:
+	if _selected == null:
+		return
+	AppData.edit_part(_selected.id, "enabled", pressed)
+	_info.text = _part_info_text(_selected)
+
+
+func _on_override_toggled(pressed: bool) -> void:
+	if _selected == null:
+		return
+	AppData.edit_part(_selected.id, "weight_override",
+		_weight_spin.value if pressed else null)
+
+
+func _on_weight_changed(value: float) -> void:
+	if _selected == null or not _override_check.button_pressed:
+		return
+	AppData.edit_part(_selected.id, "weight_override", value)
+
+
+# --- Pin / compare / merge ---------------------------------------------------------
+
+func _on_pin_pressed() -> void:
+	if _selected == null:
+		return
+	if _pinned != null and _pinned.id == _selected.id:
+		_pinned = null
+	else:
+		_pinned = _selected
+	_update_pin_button()
+	_refresh_compare()
+
+
+func _update_pin_button() -> void:
+	_pin_button.text = "Unpin" if _pinned != null else "Pin for comparison"
+
+
+func _refresh_compare() -> void:
+	var active := _pinned != null and _selected != null and _pinned.id != _selected.id
+	_compare_box.visible = active
+	if not active:
+		return
+	_cmp_pinned.texture = _pinned.get_texture()
+	_cmp_selected.texture = _selected.get_texture()
+	if _pinned.size == _selected.size:
+		var diff := _make_diff_image(_pinned.pixel_data, _selected.pixel_data)
+		_cmp_diff.texture = ImageTexture.create_from_image(diff)
+		_cmp_label.text = "%d of %d pixels differ" % [
+			_diff_count, _pinned.size.x * _pinned.size.y]
+	else:
+		_cmp_diff.texture = null
+		_cmp_label.text = "Sizes differ — merge anyway?"
+
+
+func _make_diff_image(a: Image, b: Image) -> Image:
+	var img := Image.create_empty(a.get_width(), a.get_height(), false, Image.FORMAT_RGBA8)
+	_diff_count = 0
+	for y in a.get_height():
+		for x in a.get_width():
+			var ca := a.get_pixel(x, y)
+			var cb := b.get_pixel(x, y)
+			if ca == cb:
+				img.set_pixel(x, y, Color(ca.r, ca.g, ca.b, 0.30))
+			else:
+				img.set_pixel(x, y, Color(1.0, 0.25, 0.25))
+				_diff_count += 1
+	return img
+
+
+func _on_merge_pressed() -> void:
+	if _pinned == null or _selected == null or _pinned.id == _selected.id:
+		return
+	# parts_changed fires from the re-materialization; _rebuild restores the
+	# pin by id. The merged-away part's selection clears (it no longer exists).
+	AppData.merge_parts(_selected.id, _pinned.id)
+
+
+# --- Occurrences --------------------------------------------------------------------
 
 func _on_occurrence_selected(index: int) -> void:
 	if index < 0 or index >= _occurrence_data.size() or _selected == null:
 		return
 	var occ: Dictionary = _occurrence_data[index]
 	occurrence_selected.emit(occ["image_id"], occ["position"], _selected.size)
-
-
-func _audit_parts() -> void:
-	var parts: Array[Part] = AppData.get_part_list()
-	print("audit: %d parts" % parts.size())
-
-	# Would parts merge if alpha were ignored?
-	var by_rgb: Dictionary = {}
-	for p: Part in parts:
-		var copy := p.pixel_data.duplicate()
-		copy.convert(Image.FORMAT_RGB8)
-		var h := PixelHash.of(copy)
-		by_rgb[h] = by_rgb.get(h, 0) + 1
-	print("audit: ignoring alpha -> %d unique" % by_rgb.size())
-
-	# How many pairs are near-identical (any channel diff <= 2)?
-	var near := 0
-	for i in parts.size():
-		for j in range(i + 1, parts.size()):
-			var a: Image = parts[i].pixel_data
-			var b: Image = parts[j].pixel_data
-			if a.get_size() != b.get_size() or a.get_format() != b.get_format():
-				continue
-			if _max_diff(a, b) <= 2:
-				near += 1
-	print("audit: near-duplicate pairs: %d" % near)
-	
-func _dump_near_duplicate_evidence() -> void:
-	var parts: Array[Part] = AppData.get_part_list()
-
-	# --- Self-test 1: is the hasher deterministic and consistent? ----------
-	var any_part: Part = parts[0]
-	var h1 := PixelHash.of(any_part.pixel_data)
-	var h2 := PixelHash.of(any_part.pixel_data)
-	print("self-test: hash stable: ", h1 == h2,
-		"  matches stored: ", h1 == any_part.canonical_hash)
-
-	# --- Self-test 2: does a part equal the source region it came from? ----
-	var occ: Dictionary = any_part.occurrences[0]
-	var asset: ImageAssetData = AppData.images[occ["image_id"]]
-	var pos: Vector2i = occ["position"]
-	var re_extracted := asset.image.get_region(
-		Rect2i(pos, any_part.pixel_data.get_size()))
-	print("self-test: re-extraction identical: ",
-		PixelHash.of(re_extracted) == any_part.canonical_hash)
-
-	# --- Evidence dump: first near-duplicate pair ---------------------------
-	for i in parts.size():
-		for j in range(i + 1, parts.size()):
-			var a: Image = parts[i].pixel_data
-			var b: Image = parts[j].pixel_data
-			if a.get_size() != b.get_size() or a.get_format() != b.get_format():
-				continue
-			if _max_diff(a, b) > 2:
-				continue
-
-			print("--- pair: %s vs %s ---" % [parts[i].id, parts[j].id])
-			print("format: %d   size: %s" % [a.get_format(), a.get_size()])
-			print("occ a: %s" % str(parts[i].occurrences[0]["position"]))
-			print("occ b: %s" % str(parts[j].occurrences[0]["position"]))
-			var diffs := 0
-			for y in a.get_height():
-				for x in a.get_width():
-					var ca := a.get_pixel(x, y)
-					var cb := b.get_pixel(x, y)
-					if ca != cb:
-						diffs += 1
-						if diffs <= 8:   # cap the spam
-							print("  (%d,%d)  a=(%.3f,%.3f,%.3f,%.3f)  b=(%.3f,%.3f,%.3f,%.3f)"
-								% [x, y, ca.r, ca.g, ca.b, ca.a, cb.r, cb.g, cb.b, cb.a])
-			print("  total differing pixels: %d of %d" % [diffs, a.get_width() * a.get_height()])
-			return   # first pair only
-
-
-func _max_diff(a: Image, b: Image) -> int:
-	var pa := a.get_data()
-	var pb := b.get_data()
-	var worst := 0
-	for k in pa.size():
-		worst = maxi(worst, absi(pa[k] - pb[k]))
-		if worst > 2:
-			return worst   # early out
-	return worst

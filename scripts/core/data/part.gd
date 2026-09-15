@@ -41,3 +41,21 @@ func occurrence_count() -> int:
 
 func get_effective_weight() -> float:
 	return weight_override if weight_override != null else weight
+
+
+func clone() -> Part:
+	## Shallow clone: pixel_data is shared (images are read-only here),
+	## mutable state (occurrences) is duplicated.
+	var p := Part.new()
+	p.id = id
+	p.canonical_id = canonical_id
+	p.transform = transform
+	p.canonical_hash = canonical_hash
+	p.pixel_data = pixel_data
+	p.size = size
+	p.occurrences = occurrences.duplicate()
+	p.weight = weight
+	p.weight_override = weight_override
+	p.enabled = enabled
+	p.notes = notes
+	return p

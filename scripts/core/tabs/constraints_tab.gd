@@ -1,10 +1,9 @@
 class_name ConstraintsTab extends Control
-## Constraint matrix: parts x parts, cells colored by aggregate adjacency
-## weight. Click a cell to inspect the constraints and their evidence.
+## Constraint matrix with drill-down and editing.
 
 signal occurrence_selected(image_id: String, position: Vector2i, size: Vector2i)
 
-const MAX_MATRIX := 64          # naive grid; revisit when part counts demand it
+const MAX_MATRIX := 64
 const CELL := Vector2(18.0, 18.0)
 const HEADER := Vector2(24.0, 24.0)
 
@@ -16,11 +15,16 @@ var _preview_b: TextureRect
 var _constraint_list: ItemList
 var _evidence_list: ItemList
 
+var _c_enabled_check: CheckButton
+var _c_override_check: CheckButton
+var _c_weight_spin: SpinBox
+var _editing_constraint_id := ""
+
 var _matrix_parts: Array[Part] = []
-var _pair_map: Dictionary = {}              # "idA|idB" (sorted) -> {weight, constraints}
+var _pair_map: Dictionary = {}
 var _selected_pair: Array[Part] = []
 var _selected_constraints: Array[Constraint] = []
-var _style_cache: Dictionary = {}           # bucket int -> StyleBoxFlat
+var _style_cache: Dictionary = {}
 
 
 func _ready() -> void:
@@ -44,7 +48,6 @@ func _ready() -> void:
 	left.add_child(scroll)
 
 	_grid = GridContainer.new()
-	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid.add_theme_constant_override("h_separation", 1)
 	_grid.add_theme_constant_override("v_separation", 1)
 	scroll.add_child(_grid)
@@ -79,6 +82,32 @@ func _ready() -> void:
 	_evidence_list.item_selected.connect(_on_evidence_selected)
 	right.add_child(_evidence_list)
 
+	right.add_child(_mk_label("Edit Constraint"))
+	_c_enabled_check = CheckButton.new()
+	_c_enabled_check.text = "Enabled"
+	_c_enabled_check.toggled.connect(_on_c_enabled_toggled)
+	right.add_child(_c_enabled_check)
+	var weight_row := HBoxContainer.new()
+	right.add_child(weight_row)
+	_c_override_check = CheckButton.new()
+	_c_override_check.text = "Weight override"
+	_c_override_check.toggled.connect(_on_c_override_toggled)
+	weight_row.add_child(_c_override_check)
+	_c_weight_spin = SpinBox.new()
+	_c_weight_spin.min_value = 0.0
+	_c_weight_spin.max_value = 99999.0
+	_c_weight_spin.value_changed.connect(_on_c_weight_changed)
+	weight_row.add_child(_c_weight_spin)
+
+	# Debounced refresh for edits (dragging a spin box shouldn't rebuild
+	# the matrix 30 times a second).
+	var edits_timer := Timer.new()
+	edits_timer.one_shot = true
+	edits_timer.wait_time = 0.3
+	edits_timer.timeout.connect(_rebuild)
+	add_child(edits_timer)
+	AppData.edits_changed.connect(func() -> void: edits_timer.start())
+
 	AppData.parts_changed.connect(_rebuild)
 	AppData.constraints_changed.connect(_rebuild)
 	_rebuild()
@@ -103,14 +132,16 @@ func _rebuild() -> void:
 	_selected_constraints = []
 	_pair_map = {}
 	for child in _grid.get_children():
-		child.queue_free()
+		child.free()
 	_constraint_list.clear()
 	_evidence_list.clear()
 	_preview_a.texture = null
 	_preview_b.texture = null
 	_pair_info.text = "Click a matrix cell"
+	_editing_constraint_id = ""
+	_c_enabled_check.set_pressed_no_signal(false)
+	_c_override_check.set_pressed_no_signal(false)
 
-	# Pair aggregation across all constraint types (any offset).
 	for c: Constraint in AppData.get_constraint_list():
 		if not c.enabled or c.participants.size() != 2:
 			continue
@@ -127,7 +158,6 @@ func _rebuild() -> void:
 		_status.text = "No parts. Run a decomposition first."
 		return
 
-	# Same ordering as the Parts tab: most-seen first.
 	parts.sort_custom(func(a: Part, b: Part) -> bool:
 		return a.occurrence_count() > b.occurrence_count())
 
@@ -146,15 +176,12 @@ func _rebuild() -> void:
 	for entry: Dictionary in _pair_map.values():
 		max_weight = maxf(max_weight, entry["weight"])
 
-	# Header row: corner + part thumbnails.
 	_grid.columns = n + 1
 	var corner := Control.new()
 	corner.custom_minimum_size = HEADER
 	_grid.add_child(corner)
 	for i in n:
 		_grid.add_child(_mk_header_thumb(_matrix_parts[i]))
-
-	# Rows: header thumb + cells.
 	for i in n:
 		_grid.add_child(_mk_header_thumb(_matrix_parts[i]))
 		for j in n:
@@ -177,8 +204,7 @@ func _mk_cell(i: int, j: int, max_weight: float) -> Button:
 	var button := Button.new()
 	button.custom_minimum_size = CELL
 	button.focus_mode = Control.FOCUS_NONE
-
-	var entry: Dictionary = _pair_entry(a.id, b.id)
+	var entry := _pair_entry(a.id, b.id)
 	if entry.is_empty():
 		button.disabled = true
 	else:
@@ -237,7 +263,6 @@ func _on_cell_selected(i: int, j: int) -> void:
 			"%s  offset (%d, %d)  w=%d  n=%d" % [
 				String(c.type), offset.x, offset.y,
 				int(c.get_effective_weight()), c.evidence.size()])
-		_constraint_list.set_item_metadata(index, index)
 	if _constraint_list.item_count > 0:
 		_constraint_list.select(0)
 		_on_constraint_selected(0)
@@ -248,29 +273,50 @@ func _on_constraint_selected(index: int) -> void:
 	if index < 0 or index >= _selected_constraints.size():
 		return
 	var c: Constraint = _selected_constraints[index]
+	_editing_constraint_id = c.id
+	_c_enabled_check.set_pressed_no_signal(c.enabled)
+	_c_override_check.set_pressed_no_signal(c.weight_override != null)
+	_c_weight_spin.set_value_no_signal(c.get_effective_weight())
 	for e_index in c.evidence.size():
 		var ev: Dictionary = c.evidence[e_index]
 		var p0: Vector2i = ev["positions"][0]
 		var p1: Vector2i = ev["positions"][1]
 		_evidence_list.add_item("%s  (%d,%d)→(%d,%d)" % [
 			AppData.image_name(ev["image_id"]), p0.x, p0.y, p1.x, p1.y])
-		_evidence_list.set_item_metadata(e_index, e_index)
+
+
+func _on_c_enabled_toggled(pressed: bool) -> void:
+	if _editing_constraint_id.is_empty():
+		return
+	AppData.edit_constraint(_editing_constraint_id, "enabled", pressed)
+
+
+func _on_c_override_toggled(pressed: bool) -> void:
+	if _editing_constraint_id.is_empty():
+		return
+	AppData.edit_constraint(_editing_constraint_id, "weight_override",
+		_c_weight_spin.value if pressed else null)
+
+
+func _on_c_weight_changed(value: float) -> void:
+	if _editing_constraint_id.is_empty() or not _c_override_check.button_pressed:
+		return
+	AppData.edit_constraint(_editing_constraint_id, "weight_override", value)
 
 
 func _on_evidence_selected(index: int) -> void:
 	if index < 0 or _selected_constraints.is_empty() or _selected_pair.is_empty():
 		return
-	var c: Constraint = _selected_constraints[_constraint_list.get_selected_items()[0]] \
-		if _constraint_list.get_selected_items().size() > 0 else null
-	if c == null or index >= c.evidence.size():
+	var selected := _constraint_list.get_selected_items()
+	if selected.is_empty():
 		return
-
+	var c: Constraint = _selected_constraints[selected[0]]
+	if index >= c.evidence.size():
+		return
 	var ev: Dictionary = c.evidence[index]
 	var p0: Vector2i = ev["positions"][0]
 	var p1: Vector2i = ev["positions"][1]
 	var size: Vector2i = _selected_pair[0].size
-
-	# Highlight a rect covering both tiles of the pair.
 	var min_p := Vector2i(mini(p0.x, p1.x), mini(p0.y, p1.y))
 	var max_p := Vector2i(maxi(p0.x, p1.x), maxi(p0.y, p1.y))
 	occurrence_selected.emit(ev["image_id"], min_p, max_p + size - min_p)

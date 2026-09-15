@@ -4,6 +4,7 @@ class_name AdjacencyExtractor extends ConstraintTechnique
 ## stride == tile size; for overlapping grids use Custom Step = stride.
 
 enum StepMode { TILE_SIZE, CUSTOM }
+enum EdgeEvidence { IGNORE, WRAP, BORDER }
 
 
 func get_id() -> StringName:
@@ -32,6 +33,11 @@ func get_parameter_specs() -> Array[Dictionary]:
 			"key": "custom_step", "label": "Custom Step", "type": "vector2i",
 			"default": Vector2i(8, 8), "min": 1, "max": 64,
 		},
+		{
+			"key": "edge_evidence", "label": "Image Edge Evidence", "type": "enum",
+			"default": EdgeEvidence.IGNORE,
+			"options": ["Ignore", "Wrap (tiling)", "Border-anchored"],
+		},
 	]
 
 
@@ -50,14 +56,25 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 	else:
 		step = parts[0].size   # grid tiles are uniform; see class comment
 
-	# Position lookup: image_id -> {Vector2i -> part_id}
+	var edge_mode: int = params.get("edge_evidence", EdgeEvidence.IGNORE)
+
+	# Position lookup: image_id -> {Vector2i -> part_id}, plus each image's
+	# tile-grid extent (tile coordinates) for wrap/border decisions.
 	var by_image: Dictionary = {}
+	var grid_rect: Dictionary = {}   # img_id -> Rect2i in tile coords
 	for part: Part in parts:
 		for occ: Dictionary in part.occurrences:
 			var img_id: String = occ["image_id"]
 			if not by_image.has(img_id):
 				by_image[img_id] = {}
-			by_image[img_id][occ["position"]] = part.id
+			var pos: Vector2i = occ["position"]
+			by_image[img_id][pos] = part.id
+			@warning_ignore("integer_division")
+			var tc := Vector2i(pos.x / step.x, pos.y / step.y)
+			var r: Rect2i = grid_rect.get(img_id, Rect2i(tc, Vector2i.ONE))
+			var lo := r.position.min(tc)
+			var hi := (r.position + r.size - Vector2i.ONE).max(tc)
+			grid_rect[img_id] = Rect2i(lo, hi - lo + Vector2i.ONE)
 
 	# Positive-x offsets only: each adjacent pair is visited exactly once
 	# with a canonical direction, so no double counting.
@@ -90,7 +107,34 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 			for offset: Vector2i in offsets:
 				var npos := pos + offset
 				if not grid.has(npos):
-					continue
+					@warning_ignore("integer_division")
+					var ntc := Vector2i(npos.x / step.x, npos.y / step.y)
+					var rect: Rect2i = grid_rect[img_id]
+					match edge_mode:
+						EdgeEvidence.WRAP:
+							# Seam pair, unless the gap is an interior hole.
+							if rect.has_point(ntc):
+								continue
+							var wx := rect.position.x + posmod(
+									ntc.x - rect.position.x, rect.size.x)
+							var wy := rect.position.y + posmod(
+									ntc.y - rect.position.y, rect.size.y)
+							var wn := Vector2i(wx * step.x, wy * step.y)
+							if not grid.has(wn):
+								continue   # ragged grid; skip rather than guess
+							npos = wn
+						EdgeEvidence.BORDER:
+							# Real border only: the missing neighbor must be
+							# outside the tile rect, not an interior hole.
+							@warning_ignore("integer_division")
+							var ptc := Vector2i(pos.x / step.x, pos.y / step.y) \
+									+ Vector2i(signi(offset.x), signi(offset.y))
+							if rect.has_point(ptc):
+								continue
+							_record_outside(aggregate, a_id, offset, img_id, pos, npos)
+							continue
+						_:
+							continue
 				var b_id: String = grid[npos]
 				var c := _get_or_create(aggregate, directional, a_id, b_id, offset)
 				c.evidence.append({
@@ -120,14 +164,14 @@ func _get_or_create(aggregate: Dictionary, directional: bool,
 		if b_id < a_id:
 			first = b_id
 			second = a_id
-		key = "adj|%s|%s" % [first, second]
+		key = "adj|%s|%s|%d,%d" % [first, second, offset.x, offset.y]
 
 	if aggregate.has(key):
 		return aggregate[key]
 
 	var c := Constraint.new()
 	c.type = &"adjacency"
-	c.params = {"offset": offset}
+	c.params = {"offset": offset, "symmetric": not directional}
 	c.participants = [
 		{"part_id": first, "role": "a"},
 		{"part_id": second, "role": "b"},
@@ -137,3 +181,24 @@ func _get_or_create(aggregate: Dictionary, directional: bool,
 		first.substr(2, 6), second.substr(2, 6), offset.x, offset.y]
 	aggregate[key] = c
 	return c
+
+
+func _record_outside(aggregate: Dictionary, a_id: String, offset: Vector2i,
+		img_id: String, pos: Vector2i, npos: Vector2i) -> void:
+	## a_id was observed with nothing beyond it at offset: record the
+	## virtual outside tile as its neighbor in that direction.
+	var key := "out|%s|%d,%d" % [a_id, offset.x, offset.y]
+	var c: Constraint
+	if aggregate.has(key):
+		c = aggregate[key]
+	else:
+		c = Constraint.new()
+		c.type = &"adjacency"
+		c.params = {"offset": offset, "to_outside": true}
+		c.participants = [
+			{"part_id": a_id, "role": "a"},
+			{"part_id": ConstraintIndex.OUTSIDE, "role": "out"},
+		]
+		c.id = "c_%s_out_%d_%d" % [a_id.substr(2, 6), offset.x, offset.y]
+		aggregate[key] = c
+	c.evidence.append({"image_id": img_id, "positions": [pos, npos]})

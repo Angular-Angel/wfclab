@@ -120,7 +120,7 @@ static func _weighted_pick(options: Dictionary, index: ConstraintIndex,
 static func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
 		assigned: Array[String], out_w: int, out_h: int, step: Vector2i,
 		deltas: Array[Vector2i], queue: Array[int], single: bool,
-		unknown_free: bool) -> bool:
+		unknown_free: bool, bordered: bool, trace: Array = []) -> bool:
 	## AC-3 style: when a slot's domain changes, revise neighboring domains.
 	## The queue persists across calls; with single=true exactly one queue
 	## entry is processed per call. With unknown_free, an empty neighbor set
@@ -133,12 +133,29 @@ static func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
 		for delta: Vector2i in deltas:
 			var qx := sx + delta.x
 			var qy := sy + delta.y
+			var pixel_off := Vector2i(delta.x * step.x, delta.y * step.y)
 			if qx < 0 or qx >= out_w or qy < 0 or qy >= out_h:
+				if bordered:
+					# This direction faces the output edge: every candidate
+					# must be a tile observed touching a source border here.
+					var keep: Dictionary = {}
+					for x: String in candidates[s]:
+						if index.get_neighbors(x, pixel_off).has(
+								ConstraintIndex.OUTSIDE):
+							keep[x] = true
+					if keep.size() != candidates[s].size():
+						if keep.is_empty():
+							if trace != null:
+								trace.append({"at": s, "border": true,
+									"delta": pixel_off, "allowed": [],
+									"domain": candidates[s].keys()})
+							return false
+						candidates[s] = keep
+						queue.append(s)
 				continue
 			var q := qy * out_w + qx
 			if assigned[q] != "":
 				continue
-			var pixel_off := Vector2i(delta.x * step.x, delta.y * step.y)
 			var allowed: Dictionary = {}
 			var unconstrained := false
 			if candidates[s].size() == 1:
@@ -163,6 +180,13 @@ static func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
 					new_q[y] = true
 			if new_q.size() != candidates[q].size():
 				if new_q.is_empty():
+					if trace != null:
+						trace.append({
+							"at": q, "from": s,
+							"delta": Vector2i(delta.x * step.x, delta.y * step.y),
+							"allowed": allowed.keys(),
+							"domain": candidates[q].keys(),
+						})
 					return false   # contradiction -> restart
 				candidates[q] = new_q
 				queue.append(q)
@@ -215,6 +239,8 @@ class Session extends SynthesisSession:
 	var _collapsed := 0
 	var _active_ms := 0
 	var last_rejection := ""
+	var last_wipe := ""
+	var _bordered := false
 
 	func _init(index: ConstraintIndex, params: Dictionary,
 			rng: RandomNumberGenerator) -> void:
@@ -230,6 +256,7 @@ class Session extends SynthesisSession:
 			return
 		_cell = TileCollapse._derive_step(_index)
 		_deltas = TileCollapse._derive_deltas(_index, _cell)
+		_bordered = _index.has_outside()
 		if _deltas.is_empty():
 			push_warning("TileCollapse: no usable offsets; output is unconstrained.")
 		_reset_attempt()
@@ -249,6 +276,16 @@ class Session extends SynthesisSession:
 		_queue.clear()
 		last_slot = -1
 		_collapsed = 0
+		if _bordered:
+			for i in candidates.size():
+				_queue.append(i)
+			var trace: Array = []
+			if not TileCollapse._propagate(_index, candidates, assigned,
+					_out_w, _out_h, _cell, _deltas, _queue, false,
+					_unknown_free, _bordered, trace):
+				last_wipe = _describe_wipe(trace[0]) \
+						if not trace.is_empty() else "border setup"
+				phase = Phase.FAILED
 
 
 	func step() -> bool:
@@ -288,9 +325,12 @@ class Session extends SynthesisSession:
 			_queue.append(slot)
 			if micro:
 				return true   # leave the cascade pending so it can be watched
+		var trace: Array = []
 		if not TileCollapse._propagate(_index, candidates, assigned,
-				_out_w, _out_h, _cell, _deltas, _queue, micro, _unknown_free):
-			# Contradiction: restart from scratch (no backtracking yet).
+				_out_w, _out_h, _cell, _deltas, _queue, micro, _unknown_free, _bordered,
+				trace):
+			if not trace.is_empty():
+				last_wipe = _describe_wipe(trace[0])
 			attempt += 1
 			if attempt >= _max_attempts:
 				push_warning("TileCollapse: exhausted restarts.")
@@ -439,13 +479,18 @@ class Session extends SynthesisSession:
 			_collapsed += 1
 		last_slot = slot
 		_queue.append(slot)
+		
+		var trace: Array = []
 		if not TileCollapse._propagate(_index, candidates, assigned,
-				_out_w, _out_h, _cell, _deltas, _queue, false, _unknown_free):
+				_out_w, _out_h, _cell, _deltas, _queue, false, _unknown_free, _bordered, trace):
 			candidates = snap_c
 			assigned = snap_a
 			_queue = snap_q
 			_collapsed = snap_collapsed
-			last_rejection = "propagation contradiction (transitive)"
+			if not trace.is_empty():
+				last_wipe = _describe_wipe(trace[0])
+			last_rejection = ("propagation: %s" % _describe_wipe(trace[0])) \
+					if not trace.is_empty() else "propagation contradiction"
 			return false
 		last_rejection = ""
 		return true
@@ -498,6 +543,17 @@ class Session extends SynthesisSession:
 				dom = keep
 				if dom.is_empty():
 					return full
+		if _bordered:
+			for delta: Vector2i in _deltas:
+				var np := pos + delta
+				if np.x >= 0 and np.x < _out_w and np.y >= 0 and np.y < _out_h:
+					continue
+				var off := Vector2i(delta.x * _cell.x, delta.y * _cell.y)
+				var edge_keep: Dictionary = {}
+				for x: String in dom:
+					if _index.get_neighbors(x, off).has(ConstraintIndex.OUTSIDE):
+						edge_keep[x] = true
+				dom = edge_keep
 		return dom
 
 	@warning_ignore("integer_division")
@@ -517,3 +573,23 @@ class Session extends SynthesisSession:
 			if _index.get_neighbors(part_id, d * _cell).is_empty():
 				return "no observed neighbor at offset %s" % [d * _cell]
 		return ""
+
+
+	@warning_ignore("integer_division")
+	func _describe_wipe(w: Dictionary) -> String:
+		var at: int = w["at"]
+		var from: int = w["from"]
+		var off: Vector2i = w["delta"]
+		if w.get("border", false):
+			return "slot (%d,%d) wiped by image-edge rule at offset (%d,%d): needs a border-observed tile, only %s qualify" % [
+					at % _out_w, at / _out_w, off.x, off.y, _short(w["domain"])]
+		return "slot (%d,%d) wiped via offset (%d,%d) from (%d,%d): needs one of %s, slot only allows %s" % [
+				at % _out_w, at / _out_w, off.x, off.y,
+				from % _out_w, from / _out_w,
+				_short(w["allowed"]), _short(w["domain"])]
+
+	func _short(ids: Array) -> String:
+		var parts: Array[String] = []
+		for id: String in ids:
+			parts.append(id.substr(2, 4) + "…" + id.right(4))
+		return "[" + ", ".join(parts) + "]"

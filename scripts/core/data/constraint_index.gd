@@ -4,15 +4,21 @@ class_name ConstraintIndex extends RefCounted
 ## sees the same edited world. Built as an immutable snapshot: safe to read
 ## from a worker thread even if the UI keeps editing.
 
+const OUTSIDE := "~outside"   # virtual part: the region beyond a source border
+
 var _neighbors: Dictionary = {}   # part_id -> {"x,y" -> {part_id -> weight}}
 var _offsets: Dictionary = {}     # Vector2i -> true
 var _parts: Dictionary = {}       # part_id -> Part (enabled only)
 var _weights: Dictionary = {}     # part_id -> effective weight
 var tile_size := Vector2i(1, 1)
+var _has_outside := false
 
+func has_outside() -> bool:
+	return _has_outside
 
 static func build(parts: Array[Part], constraints: Array[Constraint]) -> ConstraintIndex:
 	var idx := ConstraintIndex.new()
+	
 	for p: Part in parts:
 		if not p.enabled:
 			continue
@@ -29,8 +35,18 @@ static func build(parts: Array[Part], constraints: Array[Constraint]) -> Constra
 			continue   # references a disabled part; can never be placed
 		var offset: Vector2i = c.params.get("offset", Vector2i())
 		var w: float = c.get_effective_weight()
-		idx._add(a, offset, b, w)   # given a at a slot, b allowed at +offset
-		idx._add(b, -offset, a, w)  # given b at a slot, a allowed at -offset
+		if a == OUTSIDE or b == OUTSIDE:
+			var real := b if a == OUTSIDE else a
+			if not idx._parts.has(real):
+				continue
+			idx._add(real, offset, OUTSIDE, w)
+			idx._has_outside = true
+			continue   # no reverse entry: OUTSIDE never occupies a slot
+		idx._add(a, offset, b, w)
+		idx._add(b, -offset, a, w)
+		if c.params.get("symmetric", false):
+			idx._add(b, offset, a, w)
+			idx._add(a, -offset, b, w)
 	return idx
 
 

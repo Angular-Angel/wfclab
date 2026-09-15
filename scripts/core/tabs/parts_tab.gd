@@ -29,6 +29,10 @@ var _pinned: Part = null
 var _occurrence_data: Array[Dictionary] = []
 var _diff_count := 0
 
+var _neighbors_box: VBoxContainer
+const MAX_NEIGHBOR_OFFSETS := 12
+const MAX_NEIGHBORS_PER_OFFSET := 24
+
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -120,6 +124,10 @@ func _ready() -> void:
 	_merge_button.pressed.connect(_on_merge_pressed)
 	_compare_box.add_child(_merge_button)
 	_compare_box.visible = false
+	
+	right.add_child(_mk_label("Neighbors"))
+	_neighbors_box = VBoxContainer.new()
+	right.add_child(_neighbors_box)
 
 	right.add_child(_mk_label("Occurrences"))
 	_occurrences = ItemList.new()
@@ -135,6 +143,7 @@ func _ready() -> void:
 	edits_timer.timeout.connect(_rebuild)
 	add_child(edits_timer)
 	AppData.edits_changed.connect(func() -> void: edits_timer.start())
+	AppData.constraints_changed.connect(func() -> void: edits_timer.start())
 
 	AppData.parts_changed.connect(_rebuild)
 	_rebuild()
@@ -176,6 +185,7 @@ func _rebuild() -> void:
 		_info.text = "Nothing selected"
 		_update_pin_button()
 		_refresh_compare()
+		_refresh_neighbors()
 		return
 
 	parts.sort_custom(func(a: Part, b: Part) -> bool:
@@ -199,6 +209,7 @@ func _rebuild() -> void:
 		_info.text = "Nothing selected"
 	_update_pin_button()
 	_refresh_compare()
+	_refresh_neighbors()
 
 
 func _add_part_button(part: Part) -> void:
@@ -232,6 +243,7 @@ func _show_part(part: Part) -> void:
 		_occurrences.add_item("%s  (%d, %d)" % [
 			AppData.image_name(occ["image_id"]), pos.x, pos.y])
 	_refresh_compare()
+	_refresh_neighbors()
 
 
 func _part_info_text(part: Part) -> String:
@@ -293,6 +305,72 @@ func _refresh_compare() -> void:
 	else:
 		_cmp_diff.texture = null
 		_cmp_label.text = "Sizes differ — merge anyway?"
+
+
+func _refresh_neighbors() -> void:
+	for child in _neighbors_box.get_children():
+		child.free()
+	if _selected == null or AppData.parts.is_empty():
+		return
+
+	var index := AppData.get_constraint_index()
+	var offsets := index.get_offsets()
+	if offsets.is_empty():
+		var none := Label.new()
+		none.text = "No constraints extracted."
+		_neighbors_box.add_child(none)
+		return
+
+	# Deterministic, readable ordering: near offsets first, row-major.
+	offsets.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		var da := a.x * a.x + a.y * a.y
+		var db := b.x * b.x + b.y * b.y
+		if da != db:
+			return da < db
+		if a.y != b.y:
+			return a.y < b.y
+		return a.x < b.x)
+
+	var shown_offsets := 0
+	for off: Vector2i in offsets:
+		if shown_offsets >= MAX_NEIGHBOR_OFFSETS:
+			break
+		var nb: Dictionary = index.get_neighbors(_selected.id, off)
+		if nb.is_empty():
+			continue
+		shown_offsets += 1
+
+		# Strongest neighbors first.
+		var ids: Array = nb.keys()
+		ids.sort_custom(func(a: String, b: String) -> bool:
+			return nb[a] > nb[b])
+
+		var header := Label.new()
+		header.text = "offset (%d, %d) — %d part(s)" % [off.x, off.y, ids.size()]
+		_neighbors_box.add_child(header)
+
+		var grid := GridContainer.new()
+		grid.columns = 8
+		grid.add_theme_constant_override("h_separation", 2)
+		grid.add_theme_constant_override("v_separation", 2)
+		_neighbors_box.add_child(grid)
+
+		for i in mini(ids.size(), MAX_NEIGHBORS_PER_OFFSET):
+			var part: Part = index.get_part(ids[i])
+			if part == null:
+				continue
+			var button := Button.new()
+			button.custom_minimum_size = Vector2(40.0, 40.0)
+			button.icon = part.get_texture()
+			button.expand_icon = true
+			button.tooltip_text = "%s\nweight: %s" % [part.id, nb[ids[i]]]
+			button.pressed.connect(_show_part.bind(part))
+			grid.add_child(button)
+
+		if ids.size() > MAX_NEIGHBORS_PER_OFFSET:
+			var more := Label.new()
+			more.text = "  … and %d more" % (ids.size() - MAX_NEIGHBORS_PER_OFFSET)
+			_neighbors_box.add_child(more)
 
 
 func _make_diff_image(a: Image, b: Image) -> Image:

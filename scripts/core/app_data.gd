@@ -22,6 +22,7 @@ var _index_valid := false
 
 # --- User edits (applied on top of every materialization) ---
 var part_edits: Dictionary = {}        # part_id -> {enabled, weight_override}
+var transform_edits: Dictionary = {}   # canonical_id -> {transform_key -> enabled}
 var constraint_edits: Dictionary = {}  # constraint_id -> {enabled, weight_override}
 var alias_records: Array = []          # [{from, into}] — part merge records
 
@@ -115,7 +116,7 @@ func set_parts(raw_parts: Array[Part], stats: Dictionary) -> void:
 
 func set_constraints(raw_constraints: Array[Constraint]) -> void:
 	_raw_constraints = raw_constraints
-	_materialize_constraints()
+	_regenerate_constraints()
 
 
 func get_part_list() -> Array[Part]:
@@ -124,13 +125,20 @@ func get_part_list() -> Array[Part]:
 	return list
 
 
+func get_canonical_part(id: String) -> Part:
+	for raw: Part in _raw_parts:
+		if raw.id == id:
+			return raw
+	return null
+
+
 func get_constraint_list() -> Array[Constraint]:
 	var list: Array[Constraint] = []
 	list.assign(constraints.values())
 	return list
 
 
-# --- Editing (lightweight: table + live object, no re-materialization) --------
+# --- Editing -------------------------------------------------------------------
 
 func edit_part(id: String, key: String, value: Variant) -> void:
 	if not part_edits.has(id):
@@ -139,6 +147,38 @@ func edit_part(id: String, key: String, value: Variant) -> void:
 	if parts.has(id):
 		_apply_edit_fields(parts[id], part_edits[id])
 	edits_changed.emit()
+
+
+func set_transform_enabled(canonical_id: String, transform_key: String,
+		enabled: bool) -> void:
+	if transform_key == "identity":
+		return
+	if not transform_edits.has(canonical_id):
+		transform_edits[canonical_id] = {}
+	transform_edits[canonical_id][transform_key] = enabled
+	_materialize_parts()
+	_regenerate_constraints()
+	edits_changed.emit()
+
+
+func is_transform_enabled(canonical_id: String, transform_key: String) -> bool:
+	if transform_key == "identity":
+		return true
+	if transform_edits.has(canonical_id) and transform_edits[canonical_id].has(transform_key):
+		return transform_edits[canonical_id][transform_key]
+	return _run_transform_enabled(transform_key)
+
+
+func _run_transform_enabled(transform_key: String) -> bool:
+	var params: Dictionary = last_run_config.get("params", {})
+	match transform_key:
+		"rot90": return params.get("rotation_90", false)
+		"rot180": return params.get("rotation_180", false) or \
+				(params.get("reflect_horizontal", false) and params.get("reflect_vertical", false))
+		"rot270": return params.get("rotation_270", false)
+		"flip_h": return params.get("reflect_horizontal", false)
+		"flip_v": return params.get("reflect_vertical", false)
+	return false
 
 
 func edit_constraint(id: String, key: String, value: Variant) -> void:
@@ -161,11 +201,12 @@ func merge_parts(from_id: String, into_id: String) -> void:
 
 func clear_all_edits() -> void:
 	part_edits.clear()
+	transform_edits.clear()
 	constraint_edits.clear()
 	alias_records.clear()
 	if not _raw_parts.is_empty() or not parts.is_empty():
 		_materialize_parts()
-		_materialize_constraints()
+		_regenerate_constraints()
 	edits_changed.emit()
 
 
@@ -174,9 +215,40 @@ func clear_all_edits() -> void:
 func _materialize_parts() -> void:
 	parts = {}
 	_alias_mapping = {}
+	# A hash-deduplicated part can receive several transform records from the
+	# same source. Its source samples count once regardless of symmetry.
+	var occurrence_sources: Dictionary = {} # materialized id -> canonical ids
 	for raw: Part in _raw_parts:
-		var p := raw.clone()
-		parts[p.id] = p
+		for transform_key: String in ["identity", "rot90", "rot180", "rot270", "flip_h", "flip_v"]:
+			if not is_transform_enabled(raw.id, transform_key):
+				continue
+			if (transform_key == "rot90" or transform_key == "rot270") \
+					and raw.size.x != raw.size.y:
+				continue
+			var image := raw.pixel_data if transform_key == "identity" \
+					else GridTiles.transform_image(raw.pixel_data, transform_key)
+			var hash := PixelHash.of(image, get_dedupe_tolerance())
+			var id := "p_" + hash.substr(0, 12)
+			var p: Part
+			if parts.has(id):
+				p = parts[id]
+			else:
+				p = Part.new()
+				p.id = id
+				p.canonical_id = raw.id
+				p.canonical_hash = hash
+				p.transform_key = transform_key
+				p.pixel_data = image
+				p.size = image.get_size()
+				parts[id] = p
+			p.transform_sources.append({
+				"canonical_id": raw.id, "transform_key": transform_key})
+			if not occurrence_sources.has(id):
+				occurrence_sources[id] = {}
+			if not occurrence_sources[id].has(raw.id):
+				p.occurrences.append_array(raw.occurrences.duplicate(true))
+				occurrence_sources[id][raw.id] = true
+			p.weight = p.occurrence_count()
 
 	# Apply merge records in chronological order (chains resolve naturally).
 	for rec: Dictionary in alias_records:
@@ -193,6 +265,32 @@ func _materialize_parts() -> void:
 
 	_apply_part_edits()
 	parts_changed.emit()
+
+
+func get_dedupe_tolerance() -> int:
+	var params: Dictionary = last_run_config.get("params", {})
+	return int(params.get("dedupe_tolerance", 0))
+
+
+func _regenerate_constraints() -> void:
+	# Constraint techniques consume the active, globally deduplicated variants.
+	# This is inexpensive compared with decomposition and keeps edits immediate.
+	if _raw_parts.is_empty() or last_run_config.is_empty():
+		_materialize_constraints()
+		return
+	var run_images: Array[ImageAssetData] = []
+	for image_id in last_run_config.get("image_ids", []):
+		if images.has(image_id):
+			run_images.append(images[image_id])
+	var regenerated: Array[Constraint] = []
+	for job: Dictionary in last_run_config.get("constraint_jobs", []):
+		var technique := TechniqueRegistry.get_constraint_technique(
+				StringName(String(job.get("id", ""))))
+		if technique != null:
+			regenerated.append_array(technique.extract(get_part_list(), run_images,
+					job.get("params", {}), func(_progress: float) -> void: pass))
+	_raw_constraints = regenerated
+	_materialize_constraints()
 
 
 func _materialize_constraints() -> void:
@@ -252,6 +350,7 @@ func save_project(path: String) -> bool:
 		"images": image_records,
 		"run": last_run_config,
 		"part_edits": part_edits,
+		"transform_edits": transform_edits,
 		"constraint_edits": constraint_edits,
 		"alias_records": alias_records,
 	}
@@ -289,6 +388,7 @@ func load_project(path: String) -> Dictionary:
 	_next_output_number = 1
 	last_run_config = data.get("run", {})
 	part_edits = data.get("part_edits", {})
+	transform_edits = data.get("transform_edits", {})
 	constraint_edits = data.get("constraint_edits", {})
 	alias_records = []
 	alias_records.assign(data.get("alias_records", []))

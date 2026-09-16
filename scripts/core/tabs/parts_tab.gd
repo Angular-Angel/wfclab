@@ -14,6 +14,9 @@ var _info: Label
 var _occurrences: ItemList
 
 var _enabled_check: CheckButton
+var _transforms_box: VBoxContainer
+var _transform_note: Label
+var _transform_checks: Dictionary = {}
 var _override_check: CheckButton
 var _weight_spin: SpinBox
 var _pin_button: Button
@@ -88,6 +91,19 @@ func _ready() -> void:
 	_enabled_check.text = "Enabled"
 	_enabled_check.toggled.connect(_on_enabled_toggled)
 	right.add_child(_enabled_check)
+
+	right.add_child(_mk_label("Transforms for source part"))
+	_transforms_box = VBoxContainer.new()
+	right.add_child(_transforms_box)
+	for transform_key: String in ["rot90", "rot180", "rot270", "flip_h", "flip_v"]:
+		var check := CheckButton.new()
+		check.text = _transform_label(transform_key)
+		check.toggled.connect(_on_transform_toggled.bind(transform_key))
+		_transforms_box.add_child(check)
+		_transform_checks[transform_key] = check
+	_transform_note = Label.new()
+	_transform_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_transforms_box.add_child(_transform_note)
 
 	var weight_row := HBoxContainer.new()
 	right.add_child(weight_row)
@@ -233,6 +249,7 @@ func _show_part(part: Part) -> void:
 	_preview.texture = part.get_texture()
 	_info.text = _part_info_text(part)
 	_enabled_check.set_pressed_no_signal(part.enabled)
+	_refresh_transform_controls(part)
 	_override_check.set_pressed_no_signal(part.weight_override != null)
 	_weight_spin.set_value_no_signal(part.get_effective_weight())
 
@@ -261,6 +278,38 @@ func _transform_label(key: String) -> String:
 		"flip_h": return "horizontal reflection"
 		"flip_v": return "vertical reflection"
 	return "rotation 0°"
+
+
+func _refresh_transform_controls(part: Part) -> void:
+	var canonical: Part = AppData.get_canonical_part(part.canonical_id)
+	if canonical == null:
+		for check: CheckButton in _transform_checks.values():
+			check.disabled = true
+		_transform_note.text = "Transform source is unavailable."
+		return
+	var notes: Array[String] = []
+	for transform_key: String in _transform_checks:
+		var check: CheckButton = _transform_checks[transform_key]
+		var unavailable := (transform_key == "rot90" or transform_key == "rot270") \
+				and canonical.size.x != canonical.size.y
+		check.set_pressed_no_signal(AppData.is_transform_enabled(canonical.id, transform_key))
+		# A transform with identical pixels may still produce distinct transformed
+		# constraint offsets, so it remains independently selectable.
+		check.disabled = unavailable
+		if unavailable:
+			notes.append("90° rotations require a square source part.")
+		elif PixelHash.of(GridTiles.transform_image(canonical.pixel_data, transform_key),
+				AppData.get_dedupe_tolerance()) == PixelHash.of(canonical.pixel_data,
+				AppData.get_dedupe_tolerance()):
+			notes.append("%s has identical pixels, but can add transformed constraint evidence." %
+				_transform_label(transform_key))
+	_transform_note.text = "\n".join(notes)
+
+
+func _on_transform_toggled(pressed: bool, transform_key: String) -> void:
+	if _selected == null:
+		return
+	AppData.set_transform_enabled(_selected.canonical_id, transform_key, pressed)
 
 
 func _on_enabled_toggled(pressed: bool) -> void:

@@ -52,19 +52,6 @@ func decompose(images: Array[ImageAssetData], params: Dictionary,
 	var edge_handling: int = params.get("edge_handling", EdgeHandling.DISCARD_PARTIAL)
 	var dedupe: bool = params.get("dedupe", true)
 	var tolerance: int = params.get("dedupe_tolerance", 0)
-	var transforms: Array[String] = []
-	if params.get("rotation_0", true): transforms.append("identity")
-	if params.get("rotation_90", false): transforms.append("rot90")
-	if params.get("rotation_180", false): transforms.append("rot180")
-	if params.get("rotation_270", false): transforms.append("rot270")
-	if params.get("reflect_horizontal", false): transforms.append("flip_h")
-	if params.get("reflect_vertical", false): transforms.append("flip_v")
-	# The two enabled reflection generators close under composition. Include the
-	# 180° member if it was not already requested as a rotation.
-	if params.get("reflect_horizontal", false) and params.get("reflect_vertical", false) \
-			and not transforms.has("rot180"):
-		transforms.append("rot180")
-
 	# Determinism: process images in stable id order regardless of load order.
 	var ordered := images.duplicate()
 	ordered.sort_custom(func(a: ImageAssetData, b: ImageAssetData) -> bool:
@@ -111,51 +98,12 @@ func decompose(images: Array[ImageAssetData], params: Dictionary,
 
 		report_progress.call(float(i + 1) / maxi(1, ordered.size()))
 
-	# Weight = occurrence count (the only derived value in phase 1). Source
-	# tiles are retained temporarily to generate the requested variants; only
-	# the selected transforms become output parts.
-	var source_parts: Array[Part] = []
+	# Keep canonical source parts. AppData materializes selected transform
+	# variants later so individual sources can opt in without re-extraction.
+	var parts: Array[Part] = []
 	for part: Part in parts_by_hash.values():
 		part.weight = part.occurrence_count()
-		source_parts.append(part)
-
-	# Each enabled symmetry becomes a separately editable part. Identical
-	# transforms collapse naturally by exact pixel hash.
-	var parts: Array[Part] = []
-	var variants_by_hash: Dictionary = {} # hash -> Part
-	for base: Part in source_parts:
-		for transform_key: String in transforms:
-			if (transform_key == "rot90" or transform_key == "rot270") \
-					and base.size.x != base.size.y:
-				push_warning("GridTiles: 90° rotations require square tiles; skipped.")
-				continue
-			var variant_image := base.pixel_data if transform_key == "identity" \
-					else _transform_image(base.pixel_data, transform_key)
-			var variant_hash := PixelHash.of(variant_image, tolerance)
-			if variants_by_hash.has(variant_hash):
-				var existing: Part = variants_by_hash[variant_hash]
-				existing.transform_sources.append({
-					"canonical_id": base.id, "transform_key": transform_key})
-				_append_canonical_occurrences(existing, base)
-				# Preserve every canonical source sample when two different source
-				# tiles yield the same transformed pixels. The helper filters and
-				# snapshots occurrences, so a self-symmetric tile cannot grow its
-				# own array while it is being iterated.
-				continue
-			var variant := base if transform_key == "identity" else Part.new()
-			if transform_key != "identity":
-				variant.pixel_data = variant_image
-				variant.size = variant_image.get_size()
-				variant.canonical_hash = variant_hash
-				variant.id = "p_" + variant_hash.substr(0, 12)
-				variant.canonical_id = base.id
-			variant.occurrences = base.occurrences.duplicate(true)
-			variant.weight = base.weight
-			variant.transform_key = transform_key
-			variant.transform_sources = [{
-				"canonical_id": base.id, "transform_key": transform_key}]
-			variants_by_hash[variant_hash] = variant
-			parts.append(variant)
+		parts.append(part)
 
 	return {
 		"parts": parts,
@@ -168,7 +116,7 @@ func decompose(images: Array[ImageAssetData], params: Dictionary,
 	}
 
 
-func _transform_image(source: Image, transform_key: String) -> Image:
+static func transform_image(source: Image, transform_key: String) -> Image:
 	var result := source.duplicate()
 	match transform_key:
 		# ClockDirection.CLOCKWISE is paired with the (x, y)->(-y, x) relation
@@ -179,14 +127,3 @@ func _transform_image(source: Image, transform_key: String) -> Image:
 		"flip_h": result.flip_x()
 		"flip_v": result.flip_y()
 	return result
-
-
-func _append_canonical_occurrences(target: Part, source: Part) -> void:
-	if target == source:
-		return
-	var source_occurrences := source.occurrences.duplicate(true)
-	for occ: Dictionary in source_occurrences:
-		if occ.get("canonical_id", source.id) != source.id:
-			continue
-		target.occurrences.append(occ)
-	target.weight = target.occurrence_count()

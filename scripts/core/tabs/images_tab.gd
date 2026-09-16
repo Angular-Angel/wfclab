@@ -9,6 +9,7 @@ var _scroll: ScrollContainer
 var _preview: PreviewRect
 var _info: Label
 var _fit_check: CheckButton
+var _discard_button: Button
 
 
 func _ready() -> void:
@@ -24,6 +25,11 @@ func _ready() -> void:
 	load_button.text = "Load Images..."
 	load_button.pressed.connect(_open_file_dialog)
 	left.add_child(load_button)
+	_discard_button = Button.new()
+	_discard_button.text = "Discard Selected Image"
+	_discard_button.disabled = true
+	_discard_button.pressed.connect(_discard_selected_image)
+	left.add_child(_discard_button)
 
 	_list = ItemList.new()
 	_list.custom_minimum_size = Vector2(240.0, 200.0)
@@ -106,6 +112,7 @@ func _rebuild_list() -> void:
 		var index := _list.add_icon_item(asset.thumb)
 		_list.set_item_text(index, asset.name)
 		_list.set_item_metadata(index, asset.id)
+	_discard_button.disabled = true
 
 
 func _index_of_asset(asset: ImageAssetData) -> int:
@@ -121,6 +128,16 @@ func _on_item_selected(index: int) -> void:
 	_preview.texture = asset.texture
 	_apply_view_mode()
 	_info.text = "%s  (%d × %d)" % [asset.name, asset.image.get_width(), asset.image.get_height()]
+	_discard_button.disabled = false
+
+
+func _discard_selected_image() -> void:
+	var selected := _list.get_selected_items()
+	if selected.is_empty():
+		return
+	AppData.remove_image(_list.get_item_metadata(selected[0]))
+	_preview.texture = null
+	_info.text = "No image selected"
 
 
 func _apply_view_mode() -> void:

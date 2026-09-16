@@ -20,14 +20,6 @@
 	"constraint_edits": {},
 	"images": [
 		{
-			"id": "img_9ec790ca1d",
-			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest1.png"
-		},
-		{
-			"id": "img_8c6f6b5bb0",
-			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest3b.png"
-		},
-		{
 			"id": "img_e08df595e5",
 			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/forest4c2.png"
 		},

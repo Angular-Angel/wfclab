@@ -1,5 +1,6 @@
 class_name ImageAssetData extends RefCounted
-## A loaded input image. The seed of the future ImageAsset resource.
+## A loaded input or generated output image. The seed of the future ImageAsset
+## resource.
 
 var id: String
 var path: String
@@ -14,9 +15,15 @@ static func load_from_path(path: String) -> ImageAssetData:
 	var image := Image.load_from_file(path)
 	if image == null or image.is_empty():
 		return null
+	return from_image(image, path.get_file(), path)
+
+
+static func from_image(image: Image, display_name: String, source_path := "") -> ImageAssetData:
+	if image == null or image.is_empty():
+		return null
 	var asset := ImageAssetData.new()
-	asset.path = path
-	asset.name = path.get_file()
+	asset.path = source_path
+	asset.name = display_name
 	asset.image = image
 	asset.hash = PixelHash.of(image)
 	asset.id = "img_" + asset.hash.substr(0, 10)

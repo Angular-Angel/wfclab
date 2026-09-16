@@ -3,17 +3,20 @@ extends Node
 ## parts/constraints (raw + user edits). Everyone else reads materialized.
 
 signal images_changed
+signal outputs_changed
 signal parts_changed
 signal constraints_changed
 signal edits_changed
 signal synthesis_changed
 
 var images: Dictionary = {}          # id -> ImageAssetData
+var outputs: Dictionary = {}         # id -> {asset, stats, meta}
 var parts: Dictionary = {}           # id -> Part (materialized)
 var constraints: Dictionary = {}     # id -> Constraint (materialized)
 var last_run_stats: Dictionary = {}
 var last_run_config: Dictionary = {}   # JSON-safe: what produced the raw data
 var last_synthesis: Dictionary = {}   # {image, stats, meta}
+var _next_output_number := 1
 var _index: ConstraintIndex = null
 var _index_valid := false
 
@@ -42,7 +45,15 @@ func get_constraint_index() -> ConstraintIndex:
 
 
 func set_synthesis(image: Image, stats: Dictionary, meta: Dictionary) -> void:
-	last_synthesis = {"image": image, "stats": stats, "meta": meta}
+	var output_number := _next_output_number
+	_next_output_number += 1
+	var asset := ImageAssetData.from_image(image, "Output %d" % output_number)
+	# Keep every successful synthesis, including repeated images from the same seed.
+	asset.id = "out_%d_%s" % [output_number, asset.hash.substr(0, 10)]
+	var output := {"asset": asset, "stats": stats.duplicate(true), "meta": meta.duplicate(true)}
+	outputs[asset.id] = output
+	last_synthesis = {"image": image, "stats": stats, "meta": meta, "output_id": asset.id}
+	outputs_changed.emit()
 	synthesis_changed.emit()
 
 # --- Images -----------------------------------------------------------------
@@ -63,6 +74,35 @@ func get_image_list() -> Array[ImageAssetData]:
 
 func image_name(id: String) -> String:
 	return images[id].name if images.has(id) else id
+
+
+func remove_image(id: String) -> bool:
+	if not images.erase(id):
+		return false
+	images_changed.emit()
+	return true
+
+
+# --- Generated outputs ---------------------------------------------------------
+
+func get_output_list() -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	list.assign(outputs.values())
+	return list
+
+
+func get_output(id: String) -> Dictionary:
+	return outputs.get(id, {})
+
+
+func remove_output(id: String) -> bool:
+	if not outputs.erase(id):
+		return false
+	if last_synthesis.get("output_id", "") == id:
+		last_synthesis = {}
+		synthesis_changed.emit()
+	outputs_changed.emit()
+	return true
 
 
 # --- Run ingestion (raw -> materialized) --------------------------------------
@@ -238,12 +278,15 @@ func load_project(path: String) -> Dictionary:
 
 	# Reset state.
 	images = {}
+	outputs = {}
 	parts = {}
 	constraints = {}
 	_raw_parts = []
 	_raw_constraints = []
 	_alias_mapping = {}
 	last_run_stats = {}
+	last_synthesis = {}
+	_next_output_number = 1
 	last_run_config = data.get("run", {})
 	part_edits = data.get("part_edits", {})
 	constraint_edits = data.get("constraint_edits", {})
@@ -258,6 +301,7 @@ func load_project(path: String) -> Dictionary:
 		images[asset.id] = asset
 
 	images_changed.emit()
+	outputs_changed.emit()
 	parts_changed.emit()
 	constraints_changed.emit()
 	return data

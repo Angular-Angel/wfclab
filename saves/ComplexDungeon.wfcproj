@@ -1,0 +1,99 @@
+{
+	"alias_records": [
+		{
+			"from": "p_fd9d9769f7ec",
+			"into": "p_8dd6bb7329a7"
+		}
+	],
+	"constraint_edits": {},
+	"images": [
+		{
+			"id": "img_47d36358ac",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Angular.png"
+		},
+		{
+			"id": "img_9f5b4f4f46",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Cave.png"
+		},
+		{
+			"id": "img_17741494f7",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Dungeon.png"
+		},
+		{
+			"id": "img_4010d4d4ab",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/extrapolate_1a.png"
+		},
+		{
+			"id": "img_201653cc87",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Forest.png"
+		},
+		{
+			"id": "img_5bc683380e",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Lake.png"
+		},
+		{
+			"id": "img_2b09d7876a",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Skew 1.png"
+		},
+		{
+			"id": "img_25bf83b275",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Skew 2.png"
+		}
+	],
+	"part_edits": {},
+	"run": {
+		"constraint_jobs": [
+			{
+				"id": "adjacency",
+				"params": {
+					"custom_step": {
+						"__v2i": [
+							1,
+							1
+						]
+					},
+					"directional": true,
+					"edge_evidence": 2,
+					"neighborhood": 0,
+					"step_mode": 1
+				}
+			}
+		],
+		"image_ids": [
+			"img_47d36358ac",
+			"img_9f5b4f4f46",
+			"img_17741494f7",
+			"img_4010d4d4ab",
+			"img_201653cc87",
+			"img_5bc683380e",
+			"img_2b09d7876a",
+			"img_25bf83b275"
+		],
+		"params": {
+			"dedupe": true,
+			"dedupe_tolerance": 12,
+			"edge_handling": 1,
+			"reflect_horizontal": true,
+			"reflect_vertical": true,
+			"rotation_0": true,
+			"rotation_180": true,
+			"rotation_270": true,
+			"rotation_90": true,
+			"stride": {
+				"__v2i": [
+					1,
+					1
+				]
+			},
+			"tile_size": {
+				"__v2i": [
+					2,
+					2
+				]
+			}
+		},
+		"technique_id": "grid_tiles"
+	},
+	"transform_edits": {},
+	"version": 1
+}

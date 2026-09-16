@@ -2,8 +2,8 @@ class_name TileCollapse extends Synthesizer
 ## Model-synthesis-style observe-and-propagate on a fixed grid of slots.
 ## Slots are laid out at the constraint grid step, so overlapping-window
 ## extractions (stride < tile size) produce an overlapping raster, and
-## tile-grid extractions produce a tiling. Restarts from scratch on
-## contradiction (no backtracking yet).
+## tile-grid extractions produce a tiling. A configurable recovery strategy
+## handles contradictions: stop, restart, or chronological backtracking.
 ##
 ## Batch synthesize() runs a Session to completion, so a given seed yields
 ## identical output whether run in batch or stepped interactively.
@@ -23,7 +23,9 @@ func get_parameter_specs() -> Array[Dictionary]:
 			"default": 24, "min": 1, "max": 256},
 		{"key": "output_height", "label": "Output Height", "type": "int",
 			"default": 16, "min": 1, "max": 256},
-		{"key": "max_restarts", "label": "Max Restarts", "type": "int",
+		{"key": "contradiction_strategy", "label": "Contradiction Strategy", "type": "enum",
+			"default": 1, "options": ["Stop immediately", "Restart", "Backtracking"]},
+		{"key": "max_recovery_attempts", "label": "Max Recovery Attempts", "type": "int",
 			"default": 30, "min": 0, "max": 1000},
 		{"key": "unknown_free", "label": "Unobserved = Free", "type": "bool",
 			"default": true},
@@ -240,14 +242,20 @@ class Session extends SynthesisSession:
 	var _out_h: int
 	var _cell: Vector2i
 	var _deltas: Array[Vector2i]
-	var _max_attempts: int
+	var _contradiction_strategy: int
+	var _max_recovery_attempts: int
 	var _unknown_free: bool
 
 	var candidates: Array[Dictionary] = []
 	var assigned: Array[String] = []
 	var _queue: Array[int] = []
+	var _decisions: Array[Dictionary] = []
+	var _pinned: Dictionary = {} # slot -> part id; persists across restarts
 	var last_slot := -1
-	var attempt := 0
+	var recovery_attempts := 0
+	var contradictions := 0
+	var restarts := 0
+	var backtracks := 0
 	var steps_taken := 0
 	var _collapsed := 0
 	var _active_ms := 0
@@ -261,7 +269,8 @@ class Session extends SynthesisSession:
 		_rng = rng
 		_out_w = maxi(1, params.get("output_width", 24))
 		_out_h = maxi(1, params.get("output_height", 16))
-		_max_attempts = maxi(0, params.get("max_restarts", 30)) + 1
+		_contradiction_strategy = clampi(params.get("contradiction_strategy", 1), 0, 2)
+		_max_recovery_attempts = maxi(0, params.get("max_recovery_attempts", 30))
 		_unknown_free = params.get("unknown_free", true)
 		if _index.get_part_ids().is_empty():
 			push_error("TileCollapse: no enabled parts.")
@@ -275,7 +284,7 @@ class Session extends SynthesisSession:
 		_reset_attempt()
 
 
-	func _reset_attempt() -> void:
+	func _reset_attempt() -> bool:
 		var template := {}
 		for id: String in _index.get_part_ids():
 			template[id] = true
@@ -287,11 +296,20 @@ class Session extends SynthesisSession:
 			candidates[i] = template.duplicate()
 			assigned[i] = ""
 		_queue.clear()
+		_decisions.clear()
 		last_slot = -1
 		_collapsed = 0
+		for slot: int in _pinned:
+			var part_id: String = _pinned[slot]
+			candidates[slot] = {part_id: true}
+			assigned[slot] = part_id
+			_collapsed += 1
+			_queue.append(slot)
 		if _bordered:
 			for i in candidates.size():
-				_queue.append(i)
+				if not _queue.has(i):
+					_queue.append(i)
+		if not _queue.is_empty():
 			var trace: Array = []
 			if not TileCollapse._propagate(_index, candidates, assigned,
 					_out_w, _out_h, _cell, _deltas, _queue, false,
@@ -299,6 +317,8 @@ class Session extends SynthesisSession:
 				last_wipe = _describe_wipe(trace[0]) \
 						if not trace.is_empty() else "border setup"
 				phase = Phase.FAILED
+				return false
+		return true
 
 
 	func step() -> bool:
@@ -329,8 +349,8 @@ class Session extends SynthesisSession:
 			if slot == -1:
 				phase = Phase.DONE
 				return false
-			var picked := TileCollapse._weighted_pick(
-					candidates[slot], _index, _rng)
+			var picked := TileCollapse._weighted_pick(candidates[slot], _index, _rng)
+			_decisions.append(_snapshot_decision(slot, picked))
 			candidates[slot] = {picked: true}
 			assigned[slot] = picked
 			last_slot = slot
@@ -344,13 +364,60 @@ class Session extends SynthesisSession:
 				trace):
 			if not trace.is_empty():
 				last_wipe = _describe_wipe(trace[0])
-			attempt += 1
-			if attempt >= _max_attempts:
-				push_warning("TileCollapse: exhausted restarts.")
-				phase = Phase.FAILED
+			_recover_from_contradiction()
+			if is_finished():
 				return false
-			_reset_attempt()
 		return true
+
+
+	func _snapshot_decision(slot: int, picked: String) -> Dictionary:
+		var snap_c: Array[Dictionary] = []
+		snap_c.assign(candidates.duplicate(true))
+		var snap_a: Array[String] = []
+		snap_a.assign(assigned.duplicate())
+		var snap_q: Array[int] = []
+		snap_q.assign(_queue.duplicate())
+		return {"slot": slot, "rejected": picked, "candidates": snap_c, "assigned": snap_a,
+			"queue": snap_q, "collapsed": _collapsed}
+
+
+	func _recover_from_contradiction() -> void:
+		contradictions += 1
+		if _contradiction_strategy == 0:
+			phase = Phase.FAILED
+			return
+		if recovery_attempts >= _max_recovery_attempts:
+			push_warning("TileCollapse: exhausted recovery attempts.")
+			phase = Phase.FAILED
+			return
+		recovery_attempts += 1
+		if _contradiction_strategy == 1:
+			restarts += 1
+			_reset_attempt()
+			return
+		_backtrack()
+
+
+	func _backtrack() -> void:
+		## Restore automatic decisions in reverse order. User pins are not on this
+		## stack, so recovery never silently removes an explicit user choice.
+		while not _decisions.is_empty():
+			var decision: Dictionary = _decisions.pop_back()
+			candidates = decision["candidates"]
+			assigned = decision["assigned"]
+			_queue = decision["queue"]
+			_collapsed = decision["collapsed"]
+			var slot: int = decision["slot"]
+			var rejected: String = decision["rejected"]
+			assigned[slot] = ""
+			candidates[slot].erase(rejected)
+			if candidates[slot].is_empty():
+				continue
+			_queue.append(slot)
+			backtracks += 1
+			return
+		last_wipe = "no automatic decision remains; pinned constraints are incompatible"
+		phase = Phase.FAILED
 
 
 	func get_result() -> Dictionary:
@@ -360,7 +427,10 @@ class Session extends SynthesisSession:
 			"image": TileCollapse._render(
 					_index, assigned, _out_w, _out_h, _cell),
 			"stats": {
-				"restarts": attempt,
+				"restarts": restarts,
+				"backtracks": backtracks,
+				"contradictions": contradictions,
+				"recovery_attempts": recovery_attempts,
 				"elapsed_ms": _active_ms,
 				"output_slots": Vector2i(_out_w, _out_h),
 				"step": _cell,
@@ -372,16 +442,24 @@ class Session extends SynthesisSession:
 	@warning_ignore("integer_division")
 	func get_status() -> String:
 		if phase == Phase.FAILED:
-			return "Failed: contradiction, restarts exhausted (%d)." % attempt
+			return "Failed: %s" % last_wipe
 		if phase == Phase.DONE:
-			return "Done: %d slots, %d restarts, %d steps." % [
-					_out_w * _out_h, attempt, steps_taken]
-		var base := "Attempt %d/%d — %d/%d collapsed" % [
-				attempt + 1, _max_attempts, _collapsed, _out_w * _out_h]
+			return "Done: %d slots, %d contradictions (%d restarts, %d backtracks), %d steps." % [
+					_out_w * _out_h, contradictions, restarts, backtracks, steps_taken]
+		var base := "%s — %d/%d collapsed" % [
+				_strategy_name(), _collapsed, _out_w * _out_h]
 		if last_slot == -1:
 			return base
 		return base + " — last: %s" % Vector2i(
 				last_slot % _out_w, last_slot / _out_w)
+
+
+	func _strategy_name() -> String:
+		match _contradiction_strategy:
+			0: return "Stop on contradiction"
+			1: return "Restart %d/%d" % [recovery_attempts, _max_recovery_attempts]
+			2: return "Backtrack %d/%d" % [recovery_attempts, _max_recovery_attempts]
+		return "Unknown recovery strategy"
 
 
 	func get_progress() -> float:
@@ -506,7 +584,21 @@ class Session extends SynthesisSession:
 					if not trace.is_empty() else "propagation contradiction"
 			return false
 		last_rejection = ""
-		return true
+		_pinned[slot] = part_id
+		# Existing automatic observations are not user intent and their old
+		# decision snapshots predate this pin. Rebuild only from hard pins so
+		# future backtracking remains sound.
+		if _reset_attempt():
+			return true
+		candidates = snap_c
+		assigned = snap_a
+		_queue = snap_q
+		_collapsed = snap_collapsed
+		_pinned.erase(slot)
+		if was_pinned:
+			_pinned[slot] = snap_a[slot]
+		phase = Phase.RUNNING
+		return false
 
 
 	func try_clear(slot: int) -> bool:
@@ -525,12 +617,18 @@ class Session extends SynthesisSession:
 		var snap_q: Array[int] = []
 		snap_q.assign(_queue.duplicate())
 		var snap_collapsed := _collapsed
-		assigned[slot] = ""
-		if not _rebuild_domains_from_assignments():
+		var snap_decisions: Array[Dictionary] = []
+		snap_decisions.assign(_decisions.duplicate(true))
+		var old_pin: Variant = _pinned.get(slot, null)
+		_pinned.erase(slot)
+		if not _reset_attempt():
 			candidates = snap_c
 			assigned = snap_a
 			_queue = snap_q
 			_collapsed = snap_collapsed
+			_decisions = snap_decisions
+			if old_pin != null:
+				_pinned[slot] = old_pin
 			return false
 		last_slot = slot
 		return true

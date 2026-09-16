@@ -187,8 +187,8 @@ func _ready() -> void:
 		+ "including all manual edits — disable a part or reweight a "
 		+ "constraint, re-synthesize, and see the difference.\n\n"
 		+ "Interactive mode steps the algorithm on the main thread: watch "
-		+ "observations collapse slots and propagation cascade outward; a "
-		+ "contradiction visibly wipes the board and restarts.\n\n"
+		+ "observations collapse slots and propagation cascade outward; choose "
+		+ "whether contradictions stop, restart, or backtrack.\n\n"
 		+ "While a run is active, click a slot (or arrow onto it and press "
 		+ "Enter) to see its candidate tiles and pin one; propagation ripples "
 		+ "from your edit. Edits that contradict neighbors are rejected.")

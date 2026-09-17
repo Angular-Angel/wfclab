@@ -1,0 +1,64 @@
+{
+	"alias_records": [],
+	"constraint_edits": {},
+	"images": [
+		{
+			"id": "img_f467066a7e",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/circuitboard2.png"
+		},
+		{
+			"id": "img_78af9cced6",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/circuitboard.png"
+		}
+	],
+	"part_edits": {},
+	"run": {
+		"constraint_jobs": [
+			{
+				"id": "adjacency",
+				"params": {
+					"custom_step": {
+						"__v2i": [
+							8,
+							8
+						]
+					},
+					"directional": true,
+					"edge_evidence": 0,
+					"neighborhood": 0,
+					"step_mode": 0
+				}
+			}
+		],
+		"image_ids": [
+			"img_f467066a7e",
+			"img_78af9cced6"
+		],
+		"params": {
+			"dedupe": true,
+			"dedupe_tolerance": 8,
+			"edge_handling": 1,
+			"reflect_horizontal": true,
+			"reflect_vertical": true,
+			"rotation_0": true,
+			"rotation_180": true,
+			"rotation_270": true,
+			"rotation_90": true,
+			"stride": {
+				"__v2i": [
+					7,
+					7
+				]
+			},
+			"tile_size": {
+				"__v2i": [
+					7,
+					7
+				]
+			}
+		},
+		"technique_id": "grid_tiles"
+	},
+	"transform_edits": {},
+	"version": 1
+}

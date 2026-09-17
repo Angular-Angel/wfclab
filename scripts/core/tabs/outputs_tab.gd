@@ -9,9 +9,11 @@ var _dims: Label
 var _meta_label: Label
 var _rerun_button: Button
 var _newseed_button: Button
+var _save_button: Button
 var _output_list: ItemList
 var _discard_button: Button
 var _active_output_id := ""
+var _save_png_dialog: FileDialog
 
 
 func _ready() -> void:
@@ -74,6 +76,19 @@ func _ready() -> void:
 	_newseed_button.pressed.connect(func() -> void: _resynthesize(true))
 	right.add_child(_newseed_button)
 
+	_save_button = Button.new()
+	_save_button.text = "Save as PNG..."
+	_save_button.disabled = true
+	_save_button.pressed.connect(_on_save_png_pressed)
+	right.add_child(_save_button)
+
+	_save_png_dialog = FileDialog.new()
+	_save_png_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	_save_png_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_save_png_dialog.filters = ["*.png ; PNG images"]
+	_save_png_dialog.file_selected.connect(_on_save_png)
+	add_child(_save_png_dialog)
+
 	AppData.synthesis_changed.connect(_update)
 	AppData.outputs_changed.connect(_rebuild_output_list)
 	_rebuild_output_list()
@@ -125,6 +140,7 @@ func _show_active_output() -> void:
 	_rerun_button.disabled = not has_result
 	_newseed_button.disabled = not has_result
 	_discard_button.disabled = not has_result
+	_save_button.disabled = not has_result
 	if not has_result:
 		_preview.texture = null
 		_dims.text = ""
@@ -208,3 +224,20 @@ func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
 		"params": params,
 		"seed": seed,
 	})
+
+
+func _on_save_png_pressed() -> void:
+	var asset: ImageAssetData = AppData.get_output(_active_output_id).get("asset")
+	if asset == null:
+		return
+	_save_png_dialog.current_file = "%s.png" % asset.name.to_lower().replace(" ", "_")
+	_save_png_dialog.popup_centered_ratio(0.7)
+
+
+func _on_save_png(path: String) -> void:
+	var asset: ImageAssetData = AppData.get_output(_active_output_id).get("asset")
+	if asset == null:
+		return
+	var err := asset.image.save_png(path)
+	if err != OK:
+		push_error("Failed to save PNG: %s (error %d)" % [path, err])

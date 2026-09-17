@@ -18,7 +18,7 @@ The Images tab is where you load and manage the source images that WFCLab will d
 
 ### Load Images...
 
-Opens a file dialog that accepts **PNG**, **JPEG**, **WebP**, and **BMP** image formats. You can select multiple files at once. Each loaded image becomes an `ImageAsset` with a unique ID, a source path, and a texture.
+Opens a file dialog that accepts **PNG**, **JPEG**, **WebP**, and **BMP** image formats. You can select multiple files at once.
 
 ### Discard Selected Image
 
@@ -50,29 +50,30 @@ A dropdown menu listing all available decomposition techniques registered in the
 
 ### Parameters
 
-A dynamically generated parameter section that changes based on the selected decomposition technique. Each technique declares its own parameter specifications (via `get_parameter_specs()`), and the UI builds appropriate widgets (spin boxes, check boxes, dropdowns, etc.) for each one. Currently, only the 'Grid Tiles' technique is implemented.
+A dynamically generated parameter section that changes based on the selected decomposition technique. Each technique declares its own parameter specifications (via `get_parameter_specs()`), and the UI builds appropriate widgets (spin boxes, check boxes, dropdowns, etc.) for each one.
 
+Currently, only the **Grid Tiles** technique is implemented.
 
 **Grid Tiles**:
 - **Tile size / Grid dimensions**: Controls the size of each extracted tile. Smaller tiles produce more granular decompositions but may lead to a larger number of unique parts.
-- **Stride**: How far apart the beginning of each tile are. If set to the same values as the tile size, then it will break the image up into evenly spaced tiles, if set to a smaller value, then tiles will partially overlap.
-- **Edge Handling**: How edge tiles are treated. *Discard Partial* – tiles that would extend beyond the image edge are skipped. *Clamp* – partial‑edge tiles are pulled inward so they stay within the image.
+- **Stride**: How far apart the beginning of each tile are. If set to the same values as the tile size, then it will break the image up into evenly spaced tiles; if set to a smaller value, then tiles will partially overlap.
+- **Edge Handling**: How edge tiles are treated. *Discard Partial* – tiles that would extend beyond the image edge are skipped. *Clamp* – partial-edge tiles are pulled inward so they stay within the image.
 - **Dedupe Identical Tiles**: When true, identical tiles (within tolerance) are merged into a single part with multiple occurrences, and all constraints will reference that part.
-- **Dedupe Tolerance**: Maximum per‑pixel difference allowed for two tiles to be considered identical. Only used when dedupe is true.
-- **Rotation & Reflection toggles**: Include rotated and reflected variations of the loaded tiles.
+- **Dedupe Tolerance**: Maximum per-pixel difference allowed for two tiles to be considered identical. Only used when dedupe is true.
+- **Rotation & Reflection toggles**: Include rotated and reflected variations of the loaded tiles, with a separate toggle for each individual rotation & reflection.
 
 ### Constraint Extraction
 
 This section lists all available constraint extraction techniques as check buttons. Each technique can be independently enabled or disabled, and each has its own expandable parameter section.
 
-Constraint extraction techniques analyze the decomposed tiles and learn which tiles may sit next to which other tiles in which directions. Currently, only the Adjacency technique is included:
+Constraint extraction techniques analyze the decomposed tiles and learn which tiles may sit next to which other tiles in which directions. Currently, only the **Adjacency** technique is included.
 
 **Adjacency**:
 - **Neighborhood**: N4 uses the four orthogonal neighbours (up, down, left, right). N8 adds the four diagonal neighbours.
 - **Directional**: When true, constraints are directional (A→B is distinct from B→A). When false, adjacency is treated as undirected.
-- **Grid Step**: Tile Size uses the tile size from the decomposition as the step between adjacent parts. Custom lets you specify a separate step via custom_step.
-- **Custom Step**: Only active when step_mode is Custom. The pixel offset between adjacent slots.
-- **Image Edge Evidence**: How to treat adjacency at image edges. Ignore – edges are not considered. Wrap (tiling) – edges wrap around (toroidal). Border‑anchored – edges are treated as fixed borders.
+- **Grid Step**: Tile Size uses the tile size from the decomposition as the step between adjacent parts. Custom lets you specify a separate step via `custom_step`.
+- **Custom Step**: Only active when `step_mode` is Custom. The pixel offset between adjacent slots.
+- **Image Edge Evidence**: How to treat adjacency at image edges. Ignore – edges are not considered. Wrap (tiling) – edges wrap around (toroidal). Border-anchored – edges are treated as fixed borders.
 
 ### Images (click to toggle inclusion)
 
@@ -104,7 +105,7 @@ A large preview (160×160 pixels) of the selected part, displayed with nearest-n
 
 #### Info
 
-Displays metadata about the part, including its ID, canonical ID (the ID of the canonical member of its transform family), hash, and canonical hash.
+Displays metadata about the part, including its ID, canonical ID, hash, and canonical hash.
 
 #### Enabled
 
@@ -150,7 +151,7 @@ The constraints view organizes rules by direction (north, south, east, west) and
 
 ![WFCLab synthesis in progress](https://gitlab.com/AngularAngel/wfclab/-/blob/main/images/screenshots/WFC6.png)
 
-The Synthesizers tab is where you configure and run a synthesizer over the current materialized state (the parts and constraints from the decomposition step), producing a layout that is consistent with the original example but not identical to it.
+The Synthesizers tab is where you configure and run a synthesizer over the current parts and constraints, producing a layout that is consistent with the original example but not identical to it.
 
 ### Synthesizer
 
@@ -161,7 +162,7 @@ A dropdown menu listing all available synthesizer techniques registered in the `
 A dynamically generated parameter section that changes based on the selected synthesizer technique. Each synthesizer declares its own parameter specifications. Common parameters may include:
 
 - **Output width / height**: The dimensions of the generated grid, in tiles.
-- **Contradiction Strategy**: What to do when no valid part can be placed in a slot. *Stop immediately* – abort the run. *Restart* – clear the grid and start over (up to max_recovery_attempts). *Backtracking* – undo recent assignments and try alternatives.
+- **Contradiction Strategy**: What to do when no valid part can be placed in a slot. *Stop immediately* – abort the run. *Restart* – clear the grid and start over (up to `max_recovery_attempts`). *Backtracking* – undo recent assignments and try alternatives.
 - **Max Recovery Attempts**: Maximum number of times the synthesizer may restart or backtrack before giving up. Only relevant for the Restart and Backtracking strategies.
 - **Unobserved = Free**: When true, slots that have not yet been observed are considered to have a full domain of possible parts (i.e., they are free). When false, unobserved slots are treated as unconstrained only if no constraint touches them.
 
@@ -246,7 +247,7 @@ Re-runs the synthesizer with a fresh random seed, producing a different but stil
 2. **Configure and run decomposition** in the **Decomposition** tab, choosing a decomposition technique and one or more constraint extraction techniques.
 3. **Inspect and edit parts** in the **Parts** tab: enable/disable tiles, adjust weights, pin and merge similar parts, and review neighbors and occurrences.
 4. **Review constraints** in the **Constraints** tab, adjusting adjacency rules as needed.
-5. **Configure and run synthesis** in the **Synthesizers** tab, choosing a synthesizer, setting a seed, and optionally using interactive mode.
+5. **Configure and run synthesis** in the **Synthesizers** tab, choosing a synthesizer (currently **TileCollapse**), setting a seed, and optionally using interactive mode.
 6. **Explore and manage outputs** in the **Outputs** tab, re-synthesizing with the same or a new seed.
 7. **Save your project** via **File → Save Project...** to preserve your parts, constraints, and edits for later sessions.
 

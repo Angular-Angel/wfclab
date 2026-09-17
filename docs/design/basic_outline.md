@@ -1,61 +1,114 @@
-WFC Lab — Design Document (rev 2)
+# WFC Lab — Design Document (rev 3)
 
-Project: Interactive decomposition framework for example-based procedural generation research
-Engine: Godot 4.x
-Status: Phase 1 — Analysis only (synthesis deferred)
-0. Revision Delta (rev 1 → rev 2)
+Project: Interactive decomposition framework for example-based procedural generation research  
+Engine: Godot 4.x  
+Status: **Mixed** — Phase 1 (analysis) is largely implemented; synthesis exists in code despite being deferred in rev 2; several rev 2 abstractions are not yet implemented.
 
-Symmetry handling is folded into the Part/Constraint model:
-rev 1 concept
-	
-rev 2 replacement
-SymmetryGroup resource	TRANSFORM_SET parameter type + transform annotation on parts
-PartVariant class	A Part is a variant: Part.transform + Part.canonical_id
-Orbits	Transform family: all parts sharing a canonical_id (emergent, queried like any filter)
-Constraint symmetry modes (EXPLICIT/IMPLIED)	One mechanism: constraints stored canonically; families derived on demand
-weight_mode (per-orbit / per-variant)	aggregate_by parameter of frequency weighting
-Symmetry editor UI panel	A parameter widget (checkbox grid over D4) in the auto-generated inspector
- 
- 
+> **Reading note:** This revision keeps the rev 2 content but annotates every section with its implementation status against the current codebase. Status tags:
+>
+> - **[IMPLEMENTED]** — present and matches the spec closely.
+> - **[DIFFERS]** — present but with different types, names, or signatures.
+> - **[PARTIAL]** — some of the spec exists; the rest does not.
+> - **[NOT IMPLEMENTED]** — described in the design, absent from the code.
+> - **[AHEAD]** — code has something the design deferred or excluded.
+> - **[UNVERIFIED]** — could not confirm against the code in the last review.
 
-Deleted from the codebase plan: symmetry_group.gd, part_variant.gd. Added: transform_family.gd (D4 math, canonicalization, closure validation).
-1. Goals & Non-Goals
+---
 
-(Unchanged from rev 1.)
+## 0. Revision Delta
 
-     Load images; decompose into Parts and Constraints via pluggable, parameterized techniques.
-     Browse and live-edit every derived quantity.
-     Data model ready for a future synthesis consumer.
-     Adding a technique = implementing one interface + declaring parameters.
+### 0.1 rev 1 → rev 2 (unchanged from rev 2 doc)
 
-Non-goals: synthesis, 3D input, learned/interpolating decomposition.
-2. Core Data Model
+Symmetry handling folded into the Part/Constraint model:
+
+| rev 1 concept | rev 2 replacement |
+|---|---|
+| SymmetryGroup resource | TRANSFORM_SET parameter type + transform annotation on parts |
+| PartVariant class | A Part is a variant: `Part.transform` + `Part.canonical_id` |
+| Orbits | Transform family: parts sharing a `canonical_id` (emergent, queried) |
+| Constraint symmetry modes (EXPLICIT/IMPLIED) | One mechanism: constraints stored canonically; families derived on demand |
+| weight_mode (per-orbit / per-variant) | `aggregate_by` parameter of frequency weighting |
+| Symmetry editor UI panel | A parameter widget (checkbox grid over D4) in the auto-generated inspector |
+
+Deleted from the codebase plan: `symmetry_group.gd`, `part_variant.gd`.  
+Added: `transform_family.gd` (D4 math, canonicalization, closure validation).
+
+### 0.2 rev 2 → rev 3 (new)
+
+This revision reconciles the design with the current implementation. Key changes:
+
+- **Synthesis is no longer deferred.** A `TileCollapse` synthesis technique exists in code. This revision moves synthesis from “non-goal / future” to “partially present,” and reclassifies the non-goal list accordingly.
+- **`PipelineRun` is not the state container in code.** State is held by `AppData`, using dictionaries for parts and constraints. This revision notes this and leaves the `PipelineRun` abstraction as a target.
+- **`ParameterSpec` is not a class in code.** Parameter specs are plain `Dictionary` objects returned by `get_parameter_specs()`. No `live_recompute` or `tooltip` support exists yet.
+- **`TRANSFORM_SET` is not implemented.** `GridTiles` exposes individual boolean parameters per D4 element instead of a single subgroup picker. No materialized view / `ViewFilter` exists.
+- **Transform representation differs.** The code uses string keys (e.g. `"rot90"`) plus a `transform_sources` array, not `Transform2D` fields.
+- **No `transform_family.gd`.** Transform handling is embedded in `Part` and `AdjacencyExtractor`.
+- **Technique interfaces differ.** Code uses `ImageAssetData` and `Dictionary` where the design uses `ImageAsset` and `ParameterSet`.
+- **Project layout differs.** Source lives under `scripts/core/...`, not `res://core/...`.
+- **Type list typo fixed.** rev 2’s “Types: INT, INT,**” was truncated; the intended list is restored below as a placeholder pending the original enumeration.
+
+---
+
+## 1. Goals & Non-Goals
+
+**[PARTIAL]**
+
+### Goals
+
+- Load images; decompose into Parts and Constraints via pluggable, parameterized techniques. **[IMPLEMENTED]**
+- Browse and live-edit every derived quantity. **[PARTIAL]** — editing layer exists in part; full live-edit surface not confirmed.
+- Data model ready for a future synthesis consumer. **[AHEAD]** — synthesis consumer already exists (`TileCollapse`).
+- Adding a technique = implementing one interface + declaring parameters. **[DIFFERS]** — interface exists but with different signatures; parameters are dictionaries, not `ParameterSpec` objects.
+
+### Non-Goals (rev 2)
+
+- Synthesis — **[AHEAD]**: code includes `TileCollapse`.
+- 3D input — **[UNVERIFIED]**
+- Learned / interpolating decomposition — **[UNVERIFIED]**
+
+---
+
+## 2. Core Data Model
+
+**[PARTIAL]** — the shapes below are the design target. See per-section tags for what the code actually does.
 
 All Resources; cross-references by stable string ID; every derived value has an optional user override.
-2.1 Project
 
- 
+### 2.1 Project
+
+**[DIFFERS]** — no `Project` resource; state is held by `AppData`.
+
+```
 Project
 ├── image_assets: Dictionary[String, ImageAsset]
 ├── pipeline_runs: Dictionary[String, PipelineRun]
 └── settings
- 
- 
-2.2 ImageAsset
+```
 
- 
+### 2.2 ImageAsset
+
+**[UNVERIFIED]** — the code uses `ImageAssetData` in technique signatures. Whether a distinct `ImageAsset` resource exists, and whether it matches this shape, was not confirmed.
+
+```
 ImageAsset
 ├── id, name, source_path
 ├── image: Image, texture: ImageTexture
 ├── regions_of_interest: Array[Region]
 └── tags: Array[String]
- 
- 
-2.3 Part
+```
 
-There is only one kind of part. A part is pixel data at a specific orientation, linked to its family:
+### 2.3 Part
 
- 
+**[DIFFERS]** — the code has a `Part` class (`scripts/core/data/part.gd`) but it does **not** match this shape:
+
+- No `mask` field.
+- Occurrences stored directly in an `occurrences` array, without the `discovered_by` wrapper.
+- Transform represented as a `transform_key` string (e.g. `"rot90"`) plus a `transform_sources` array, not a `Transform2D`.
+- Uses separate `enabled` and `notes` variables instead of a `user_flags` dictionary.
+
+Design target:
+
+```
 Part
 ├── id: String
 ├── canonical_id: String              # points to the family's canonical part (may be self)
@@ -68,25 +121,31 @@ Part
 ├── weight: float                     # derived, editable
 ├── weight_override: Variant          # NIL = use derived
 └── user_flags: { enabled: bool, pinned: bool, notes: String }
+```
 
- 
+```
 Occurrence
 ├── image_id: String
 ├── position: Vector2i
 └── transform: Transform2D            # orientation at which it was observed (identity = canonical)
- 
- 
+```
 
-Canonicalization (deterministic, important): when two parts are pixel-equal up to a D4 transform, they join one family. The canonical member is chosen as the orientation with the lexicographically minimal hash of the eight orientations — not "whichever was found first." This makes canonical_id stable across images, runs, and corpus order, which is what makes user edits, blocklists, and alias records re-attachable after recompute.
+**Canonicalization** (deterministic, load-bearing): when two parts are pixel-equal up to a D4 transform, they join one family. The canonical member is the orientation with the lexicographically minimal hash of the eight orientations — not “whichever was found first.” This makes `canonical_id` stable across images, runs, and corpus order. **[UNVERIFIED / likely NOT IMPLEMENTED as specified]**
 
-Transform family (the old "orbit"): { p ∈ parts : p.canonical_id == X }. It is a query, not a structure. The parts grid, constraint matrix, and inspector all group by it when asked. A family may contain any subset of D4 depending on the allowed-transform filter — including a single member.
+**Transform family** (the old “orbit”): `{ p ∈ parts : p.canonical_id == X }`. A query, not a structure. **[NOT IMPLEMENTED as a distinct query layer]**
 
-Weight note: because the family is a query, "per-family vs per-part weighting" needs no separate mode flag on the model — it's purely how frequency weighting aggregates (§5.3).
-2.4 Constraint
+**Weight note:** per-family vs per-part weighting is a matter of how frequency weighting aggregates (§5.3), not a model flag.
 
-Participants reference parts directly; each part already encodes its own orientation, so no transform bookkeeping lives on the constraint:
+### 2.4 Constraint
 
- 
+**[DIFFERS]** — the code has a `Constraint` class (`scripts/core/data/constraint.gd`) but:
+
+- No `arity` field.
+- Uses a direct `enabled: bool` variable instead of `user_flags`.
+
+Design target:
+
+```
 Constraint
 ├── id: String
 ├── type: String                      # "adjacency", "overlap", "cooccurrence", ...
@@ -98,133 +157,183 @@ Constraint
 ├── evidence: Array[{ image_id: String, positions: Array[Vector2i] }]
 ├── origin: enum { EXTRACTED, AUTHORED, EDITED }
 └── user_flags: { enabled, notes }
- 
- 
+```
 
-Symmetry of constraints — one mechanism, no modes. A constraint stores one concrete configuration of oriented parts. Applying a global transform g to a constraint maps each participant to the part with the same canonical_id and transform = t ∘ g, and transforms params (an offset of (3,0) becomes (0,3) under rot90). The constraint's family is its orbit under this action, computed on demand. Consumers (UI now, synthesis later) read "the constraint set under allowed transforms" and get the family members that survive the filter. Nothing is stored twice; nothing has an EXPLICIT/IMPLIED switch.
+**Symmetry of constraints — one mechanism, no modes.** A constraint stores one concrete configuration of oriented parts. Applying a global transform `g` maps each participant to the part with the same `canonical_id` and `transform = t ∘ g`, and transforms params. The constraint’s family is its orbit under this action, computed on demand. **[NOT IMPLEMENTED]**
 
-Note this also cleans up an old subtlety: rev 1's participant_level (variant-level vs orbit-collapsed) is now just "which parts exist after the filter" plus a display grouping — not a constraint-extraction mode.
-2.5 PipelineRun
+### 2.5 PipelineRun
 
- 
+**[NOT IMPLEMENTED]** — no `PipelineRun` class exists. State is managed by `AppData` (`scripts/core/app_data.gd`), using dictionaries for parts and constraints.
+
+Design target:
+
+```
 PipelineRun
 ├── id, name
 ├── image_ids: Array[String]
 ├── technique_id: String
 ├── parameter_set: ParameterSet       # includes the allowed-transform set
 ├── constraint_techniques: Array[ConstraintTechniqueConfig]
-├── parts: Dictionary[String, Part]       # canonical extraction result
-├── constraints: Dictionary[String, Constraint]   # stored canonically
-├── materialized_view: ViewFilter          # see §4
+├── parts: Dictionary[String, Part]              # canonical extraction result
+├── constraints: Dictionary[String, Constraint]  # stored canonically
+├── materialized_view: ViewFilter                # see §4
 └── status: { state, progress, errors, timing }
- 
- 
-3. Parameter System
+```
 
-(Unchanged mechanism; the transform set is now just one more parameter.)
+---
 
- 
+## 3. Parameter System
+
+**[DIFFERS]** — no `ParameterSpec` class exists. Specs are plain `Dictionary` objects returned by `get_parameter_specs()` (see `grid_tiles.gd`, `adjacency.gd`). `live_recompute` and `tooltip` are not supported.
+
+Design target:
+
+```
 ParameterSpec { key, label, type, default, range/options, live_recompute, tooltip }
- 
+```
 
-Types: INT, INT,**
-4. Transform Set Parameter & The Materialized View
+Types: `INT`, `INT`**, … *(the rev 2 list was truncated; restore the full enumeration from the original draft before merging.)**
 
-The single most important simplification, worth its own section.
+---
 
-     Decomposition techniques always compute in canonical frame: extract, canonicalize each result, dedupe by canonical_hash, record occurrences with their observed transform. The allowed-transform parameter is not consulted during extraction.
-     The TRANSFORM_SET parameter (a D4 subgroup picker, rendered as the 3×3 toggle grid) defines a ViewFilter: which family members are materialized as active parts, and (by the group action of §2.4) which constraint family members are materialized as active constraints.
-     Applying/changing the filter is a cheap post-pass — no image re-scan, no re-segmentation. It behaves exactly like any other IMMEDIATE parameter, which is why it no longer deserves to be a subsystem.
+## 4. Transform Set Parameter & The Materialized View
 
- 
+**[NOT IMPLEMENTED]**
+
+- `TRANSFORM_SET` is not implemented. `GridTiles` exposes individual boolean parameters (`rotation_0`, `rotation_90`, `reflect_horizontal`, etc.) instead of a single D4 subgroup picker.
+- No `ViewFilter`, no materialized view, no closure validation.
+
+Design target (unchanged):
+
+1. Decomposition techniques compute in **canonical frame**: extract, canonicalize, dedupe by `canonical_hash`, record occurrences with observed transform. The allowed-transform parameter is **not** consulted during extraction.
+2. `TRANSFORM_SET` (a D4 subgroup picker, 3×3 toggle grid) defines a `ViewFilter`: which family members are materialized as active parts, and (by the group action of §2.4) which constraint family members are materialized as active constraints.
+3. Applying/changing the filter is a cheap post-pass — no image re-scan, no re-segmentation.
+
+```
 Images ─▶ Decomposition (canonical, ignore transform filter)
-                │
-                ▼
-          Parts (all families, canonical members only)
-                │
-                ▼
-          Constraint extraction (canonical frame)
-                │
-                ▼
-          Materialize view (apply transform filter)
-                │
-                ▼
-          Active parts + active constraints ─▶ UI / future synthesis
- 
- 
+              │
+              ▼
+        Parts (all families, canonical members only)
+              │
+              ▼
+        Constraint extraction (canonical frame)
+              │
+              ▼
+        Materialize view (apply transform filter)
+              │
+              ▼
+        Active parts + active constraints ─▶ UI / synthesis
+```
 
-Closure requirement: the allowed-transform set must be a group (closed under composition) or family materialization behaves pathologically (a constraint's family member exists only if all its participants' transformed parts were materialized — with a non-closed set you get partial constraints). Two options, pick one: (a) the picker only exposes the 10 subgroups of D4; (b) allow arbitrary sets and auto-expand to closure with a warning. Recommend (a) — the 10 subgroups cover every practical case and the picker becomes a simple dropdown with visual previews.
+**Closure requirement:** the allowed-transform set must be a group. Two options: (a) expose only the 10 subgroups of D4; (b) allow arbitrary sets and auto-expand to closure with a warning. Recommend (a).
 
-Weight filter interaction: aggregate_by: CANONICAL | PART in frequency weighting (§5.3) answers the old per-orbit/per-variant question: CANONICAL gives every family member the family's aggregate weight; PART weights each member by its own occurrence count.
-5. Decomposition Techniques
+**Weight filter interaction:** `aggregate_by: CANONICAL | PART`.
 
-Same interface and same technique list as rev 1 — none of them change, because they now simply never think about symmetry (they extract, canonicalize, and emit):
-gdscript
- 
-  
- 
- 
+---
+
+## 5. Decomposition Techniques
+
+**[DIFFERS / PARTIAL]**
+
+Current interface in code:
+
+```gdscript
+class_name DecompositionTechnique extends RefCounted
+func get_id() -> StringName
+func get_display_name() -> String
+func get_parameter_specs() -> Array        # plain Dictionaries, not ParameterSpec
+func decompose(images: Array[ImageAssetData], params: Dictionary) -> Dictionary
+```
+
+Design target (rev 2):
+
+```gdscript
 class_name DecompositionTechnique extends RefCounted
 func get_id() -> StringName
 func get_display_name() -> String
 func get_parameter_specs() -> Array[ParameterSpec]
 func decompose(images: Array[ImageAsset], params: ParameterSet,
                report_progress: Callable) -> DecompositionResult
- 
- 
+```
 
-Techniques: Grid Tiles (tile size, offset mode, stride, edge handling, dedupe, dedupe tolerance), Overlapping Windows (window size, stride, dedupe, dedupe tolerance, alpha handling), Segmentation (quantization colors/method, merge tolerance, min region area, boundary handling, snap-to-grid, output form), Quadtree (max depth, error metric, split threshold, min size, merge), Sprite/Rect Detection (background color/tolerance, gaps, size bounds). Perceptual hashing (exact/aHash/dHash/pHash) remains a shared utility used by dedupe_tolerance.
+Technique status:
 
-Reserved: hierarchical decomposition (a run consuming another run's parts), learned dedupe, and manual decomposition (user-drawn regions — designed as a zero-parameter technique).
+| Technique | Status |
+|---|---|
+| Grid Tiles | **[IMPLEMENTED]** — but exposes per-axis booleans, not `TRANSFORM_SET` |
+| Overlapping Windows | **[UNVERIFIED / likely NOT IMPLEMENTED]** |
+| Segmentation | **[UNVERIFIED / likely NOT IMPLEMENTED]** |
+| Quadtree | **[UNVERIFIED / likely NOT IMPLEMENTED]** |
+| Sprite / Rect Detection | **[UNVERIFIED / likely NOT IMPLEMENTED]** |
+| Perceptual hashing utility | **[UNVERIFIED]** |
 
-Delta from rev 1: the symmetry-related note in each technique's semantics is deleted; canonicalization happens in the shared pipeline stage, not per technique.
-6. Constraint Extraction Techniques
+**Reserved (unchanged):** hierarchical decomposition, learned dedupe, manual decomposition.
 
-Runs after decomposition over the emitted occurrences, in canonical frame:
-gdscript
- 
-  
- 
- 
+---
+
+## 6. Constraint Extraction Techniques
+
+**[DIFFERS / PARTIAL]**
+
+Current interface in code:
+
+```gdscript
+class_name ConstraintTechnique extends RefCounted
+func extract(parts: Array[Part], images: Array[ImageAssetData],
+             params: Dictionary) -> Array[Constraint]     # no PipelineRun
+```
+
+Design target (rev 2):
+
+```gdscript
 class_name ConstraintTechnique extends RefCounted
 func extract(run: PipelineRun, parts: Dictionary,
              report_progress: Callable) -> Array[Constraint]
- 
- 
+```
 
-     Adjacency — neighborhood (N4/N8/custom), directional, custom offsets. (rev 1's participant_level and symmetry_action parameters are deleted — both are now consequences of the view filter.)
-     Overlap Compatibility — window size, exact/tolerance matching.
-     Frequency Weighting — weight_source (occurrence count / image presence), normalization, and aggregate_by: CANONICAL | PART (absorbs rev 1's weight_mode).
-     Co-occurrence (n-ary, reserved) — windowed n-ary constraints; model already supports arbitrary arity.
+Technique status:
 
-7. UI Design
+| Technique | Status |
+|---|---|
+| Adjacency | **[IMPLEMENTED]** — parameters differ from rev 2 (participant_level/symmetry_action consequences not present) |
+| Overlap Compatibility | **[UNVERIFIED / likely NOT IMPLEMENTED]** |
+| Frequency Weighting (`aggregate_by`) | **[UNVERIFIED / likely NOT IMPLEMENTED]** |
+| Co-occurrence (n-ary, reserved) | **[NOT IMPLEMENTED]** |
 
-Same four-region layout (image browser / main canvas / inspector, with bottom tabs: parts grid, constraint matrix, run history, console). Changes from rev 1:
+---
 
-     Symmetry editor is gone as a panel. The D4 subgroup picker is a TRANSFORM_SET widget inside the auto-generated parameter inspector, with a live preview strip showing a sample part under each allowed transform. Toggling it updates the materialized view immediately (cheap post-pass).
-     Part view's orbit strip → family strip: thumbnails of all family members (canonical marked). Since family members are ordinary parts, this view is just the parts grid filtered by canonical_id — one widget, two uses.
-     Constraint matrix: grouping dropdown gains "canonical (family-collapsed) / expanded (per part)" — again just a grouping over the same data, no special mode.
-     Graph view: parts as nodes, constraints as edges; families can be drawn as grouped containers.
-     Everything remains editable through the command system; provenance (EXTRACTED/AUTHORED/EDITED) shown throughout.
+## 7. UI Design
 
-(Image mode overlays, occurrence highlighting, ROI editor, evidence navigation, run history and diffing: unchanged from rev 1.)
-8. Cross-Cutting Systems
+**[PARTIAL / NOT IMPLEMENTED for symmetry-specific items]**
 
-     Command system: unchanged — every mutation is an undoable Command; slider drags merge; undoing a parameter change re-triggers the (now simpler) recompute.
-     Dirty propagation — simplified. Rev 1 had a special symmetry-change path; now there are exactly two:
+- Symmetry editor panel: **gone as a panel** in the design; **not replaced** in code by a `TRANSFORM_SET` widget. Individual booleans appear in the auto-generated inspector.
+- Family strip: **[NOT IMPLEMENTED]**
+- Constraint matrix grouping dropdown: **[NOT IMPLEMENTED as specified]**
+- Graph view: **[UNVERIFIED]**
+- Command system / provenance: **[UNVERIFIED]**
 
- 
-image / technique-parameter change ─▶ re-decompose (canonical) ─▶ re-extract constraints ─▶ re-materialize
-transform-filter / view change ─────▶ re-materialize only
- 
- 
+Unchanged from rev 1: image mode overlays, occurrence highlighting, ROI editor, evidence navigation, run history and diffing.
 
-     Persistence: unchanged — JSON project (references, parameters, user edits, aliases, blocklists, authored constraints), binary parts cache keyed by image hash + parameter digest excluding the transform filter (it doesn't affect extraction), autosave.
-     Threading: unchanged — WorkerThreadPool, atomic snapshots, call_deferred publication.
+---
 
-9. Project Structure
- 
- 
+## 8. Cross-Cutting Systems
+
+**[PARTIAL / DIFFERS]**
+
+- Command system: **[UNVERIFIED]**
+- Dirty propagation: rev 1’s symmetry-change path is gone in the design; in code, changing tile-size parameters re-runs decomposition, and there is **no** transform-filter / re-materialize path because `TRANSFORM_SET` is not implemented.
+- Persistence: JSON project + binary parts cache — **[UNVERIFIED]**, but the `.wfcproj` extension **is** used in `main.gd` FileDialog filters.
+- Threading: `WorkerThreadPool`, atomic snapshots, `call_deferred` publication — **[UNVERIFIED]**
+
+---
+
+## 9. Project Structure
+
+**[DIFFERS]**
+
+Design target:
+
+```
 res://
 ├── main.tscn
 ├── core/
@@ -232,36 +341,57 @@ res://
 │   ├── params/      parameter_spec.gd, parameter_set.gd
 │   ├── commands/    command.gd, command_stack.gd
 │   ├── pipeline/    scheduler.gd, persistence.gd
-│   │                 (scheduler now owns: decompose → extract → materialize)
 │   └── util/
-│       ├── hashing.gd          # exact + perceptual
-│       └── transform_family.gd # D4 math, canonicalization, family queries,
-│                                # constraint group action, closure validation
+│       ├── hashing.gd
+│       └── transform_family.gd
 ├── techniques/
 │   ├── decomposition/   (base + grid_tiles, overlapping_windows, segmentation,
 │   │                     quadtree, sprite_rects — all symmetry-blind)
 │   └── constraints/     (base + adjacency, overlap_compat, frequency_weighting)
-└── ui/                  (browser, canvas views, parts grid, matrix, history,
-                          inspector + auto-widgets including TRANSFORM_SET picker,
-                          console)
- 
- 
+└── ui/
+```
 
-Deleted vs rev 1: symmetry_group.gd, part_variant.gd. Everything symmetry-related now lives in transform_family.gd (pure functions) and the scheduler's materialize step.
-10. Implementation Phases
+Actual layout observed in code:
 
-     M1 — Skeleton: data model (with transform/canonical_id from day one — retrofitting this is painful), parameter system, persistence, window shell, image import. Exit: load 3 images, save/reopen.
-     M2 — First end-to-end: grid tiles + adjacency, canonicalization + dedupe, parts grid, image overlay, inspector, scheduler including materialize step and TRANSFORM_SET picker (this is now cheap enough to land in M2, where rev 1 deferred symmetry to M4). Exit: change tile size → parts/constraints update; toggle the transform set → family membership updates without re-scan.
-     M3 — Editing layer: commands, overrides, enable/disable, blocklist, matrix view, evidence navigation.
-     M4 — Technique breadth: remaining techniques, perceptual dedupe, remaining constraint techniques, family strip/graph view.
-     M5 — Polish: run diffing, ROI editor, caching, timing console.
+```
+res://
+└── scripts/
+    └── core/
+        ├── data/         part.gd, constraint.gd, app_data.gd
+        ├── techniques/   decomposition_technique.gd, constraint_technique.gd,
+        │                 grid_tiles.gd, adjacency.gd, tile_collapse.gd
+        └── ...
+```
 
-Future — Synthesis module: consumes the materialized view of a run (active parts + active constraints, in whatever grouping the sampler wants). Canonical storage means a synthesis algorithm that exploits symmetry (store one constraint, propagate orbits) and one that doesn't (enumerate) both read the same artifact.
-11. Risks & Open Questions
+Deleted vs rev 1: `symmetry_group.gd`, `part_variant.gd`.  
+Added (design): `transform_family.gd` — **[NOT IMPLEMENTED]**.
 
-     Canonical-hash determinism is now load-bearing (edit re-attachment, cache keys, cross-image dedupe). Mitigation: define the canonical form by minimal hash over the full D8 orbit unconditionally — even when the allowed set is smaller — so it never depends on filter state. Test this explicitly.
-     Partial families from tolerance-dedupe: with perceptual dedupe, "equal up to transform" becomes fuzzy; two orientations might dedupe to different families. Mitigation: dedupe first, canonicalize after, and accept that near-duplicate families can coexist (visible and mergeable by hand — the alias system already covers this).
-     Group-action on constraint params: each constraint type must declare how params transform (offsets rotate; some params are invariant). This is a small per-type function, but forgetting it silently corrupts materialized constraints. Mitigation: Constraint type registry requires a transform_params(g) implementation to register.
-     Non-rectangular masks under rotation: pixel data rotates fine; masks are bitmaps and rotate fine; but snap-to-grid parts from segmentation (§5) may not tile exactly after transform. Mitigation: document that transformed members of masked families may carry a slightly different effective footprint; surface the footprint in the family strip UI.
-     Open (unchanged): authored-constraint scope (run vs project); still leaning project-level with a UI filter.
-     Open (new): should the materialized view itself be a saved, named artifact (multiple views over one extraction — e.g., "D4 view" and "identity view" of the same corpus)? The architecture makes this nearly free; decide when run-diff UI lands.
+---
+
+## 10. Implementation Phases
+
+**[REVISED]**
+
+| Phase | Design target | Actual status |
+|---|---|---|
+| M1 — Skeleton | data model with transform/canonical_id from day one; parameter system; persistence; window shell; image import | **[PARTIAL]** — data model exists but simpler; no `canonical_id`/`transform: Transform2D` as specified |
+| M2 — First end-to-end | grid tiles + adjacency, canonicalization + dedupe, parts grid, image overlay, inspector, scheduler with materialize step, `TRANSFORM_SET` picker | **[PARTIAL]** — grid tiles + adjacency + parts grid + inspector exist; canonicalization + materialize + picker do not |
+| M3 — Editing layer | commands, overrides, enable/disable, blocklist, matrix view, evidence navigation | **[UNVERIFIED]** |
+| M4 — Technique breadth | remaining techniques, perceptual dedupe, remaining constraint techniques, family strip/graph view | **[NOT IMPLEMENTED]** |
+| M5 — Polish | run diffing, ROI editor, caching, timing console | **[UNVERIFIED]** |
+| Future — Synthesis module | consumes materialized view | **[AHEAD]** — `TileCollapse` already exists |
+
+---
+
+## 11. Risks & Open Questions
+
+Unchanged from rev 2, with one addition:
+
+- **Doc-vs-code drift is now the top risk.** The design describes abstractions (`PipelineRun`, `ParameterSpec`, `transform_family.gd`, materialized view) that the code does not yet have. Mitigation: keep this annotated revision as the single source of truth, and update status tags every time a milestone lands.
+- Canonical-hash determinism is load-bearing. **[UNVERIFIED in code]**
+- Partial families from tolerance-dedupe. **[UNVERIFIED]**
+- Group-action on constraint params. **[NOT IMPLEMENTED]**
+- Non-rectangular masks under rotation. **[NOT IMPLEMENTED]**
+- Open (unchanged): authored-constraint scope (run vs project).
+- Open (new in rev 2): should the materialized view be a saved, named artifact?
+- Open (new in rev 3): should synthesis be promoted from “future” to an explicit phase, given `TileCollapse` already exists? Or should `TileCollapse` be considered a prototype and frozen until M3/M4 land?

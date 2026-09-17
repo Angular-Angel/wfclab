@@ -1,7 +1,4 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: 2026 Gregory Sartucci
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
 # run_tests.sh — headless test runner for Inheritors of Elyrion
 #
 # Prerequisites:

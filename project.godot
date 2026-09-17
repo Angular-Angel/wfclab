@@ -25,6 +25,10 @@ TechniqueRegistry="*uid://cuubma4fnea1b"
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

@@ -1,10 +1,11 @@
 # WFCLab
 
-WFCLab is a Godot 4 desktop application for exploring example-based procedural generation with wave-function-collapse-inspired techniques. It includes sample images, tile decomposition, adjacency constraints, and tile-collapse synthesis tools at current, with plans to add more options in the future.
-
 ![WFCLab synthesis output](https://gitlab.com/AngularAngel/wfclab/-/blob/main/images/screenshots/WFC1.png)
 
-A full walkthrough of the workflow — from input example through decomposition, constraints, and synthesis — is available in [docs/instructions.md](docs/instructions.md).
+WFCLab is a Godot 4 desktop application for exploring example-based procedural generation with Wave Function Collapse inspired techniques. It includes sample images, tile decomposition, adjacency constraints, and tile-collapse synthesis tools at current, with plans to add more options in the future.
+
+**Project page:** <https://angularangel.neocities.org/wfc-lab>
+**Usage guide:** [instructions.md](instructions.md)
 
 ## Requirements
 

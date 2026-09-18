@@ -13,6 +13,23 @@ var _weights: Dictionary = {}     # part_id -> effective weight
 var tile_size := Vector2i(1, 1)
 var _has_outside := false
 
+
+# --- integer-id layer -------------------------------------------------------
+var part_ids: Array[String] = []          # int -> id, in _parts.keys() order
+var _int_of: Dictionary = {}              # id -> int
+var part_weights := PackedFloat64Array()  # effective weight per int
+var nwords := 0                           # 64-bit words per domain mask
+
+# --- per-delta tables (filled by prepare()) ---------------------------------
+var delta_list: Array[Vector2i] = []      # slot-unit deltas, _derive_deltas order
+var delta_pixel: Array[Vector2i] = []     # delta * step
+var delta_has_outside: Array[bool] = []   # replaces _has_outside_evidence()
+var nb_mask: Array = []                   # [part_int][delta_int] -> PackedInt64Array
+var nb_empty: Array = []                  # [part_int][delta_int] -> bool
+var border_ok: Array = []                 # [part_int][delta_int] -> bool (has OUTSIDE)
+var _pixel_to_di: Dictionary = {}         # Vector2i -> delta index
+
+
 func has_outside() -> bool:
 	return _has_outside
 
@@ -48,6 +65,50 @@ static func build(parts: Array[Part], constraints: Array[Constraint]) -> Constra
 			idx._add(b, offset, a, w)
 			idx._add(a, -offset, b, w)
 	return idx
+
+
+func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
+	if part_ids.is_empty():
+		for id: String in _parts.keys():          # order = old dict order
+			_int_of[id] = part_ids.size()
+			part_ids.append(id)
+			part_weights.append(_weights.get(id, 0.0))
+		nwords = (part_ids.size() + 63) >> 6
+	delta_list = deltas.duplicate()
+	delta_pixel.clear()
+	_pixel_to_di.clear()
+	for d: Vector2i in deltas:
+		_pixel_to_di[d] = delta_pixel.size()
+		delta_pixel.append(Vector2i(d.x * step.x, d.y * step.y))
+	var np := part_ids.size()
+	nb_mask.clear(); nb_empty.clear(); border_ok.clear()
+	delta_has_outside.clear()
+	delta_has_outside.resize(delta_list.size())
+	delta_has_outside.fill(false)
+	for pi in np:
+		var by_offset: Dictionary = _neighbors.get(part_ids[pi], {})
+		var mrow: Array = []; var erow: Array = []; var brow: Array = []
+		mrow.resize(delta_list.size()); erow.resize(delta_list.size())
+		brow.resize(delta_list.size())
+		for di in delta_list.size():
+			var off: Vector2i = delta_pixel[di]
+			var nb: Dictionary = by_offset.get("%d,%d" % [off.x, off.y], {})
+			var m := PackedInt64Array(); m.resize(nwords)
+			var has_out := false
+			var dict_empty := nb.is_empty()
+			for nid: String in nb.keys():
+				if nid == OUTSIDE:
+					has_out = true
+					continue
+				if not _int_of.has(nid):
+					continue
+				m[_int_of[nid] >> 6] |= 1 << (_int_of[nid] & 63)
+			mrow[di] = m
+			erow[di] = dict_empty      # was: all_zero
+			brow[di] = has_out
+			if has_out:
+				delta_has_outside[di] = true
+		nb_mask.append(mrow); nb_empty.append(erow); border_ok.append(brow)
 
 
 func _add(a: String, offset: Vector2i, b: String, w: float) -> void:
@@ -86,3 +147,12 @@ func get_part(part_id: String) -> Part:
 
 func get_weight(part_id: String) -> float:
 	return _weights.get(part_id, 0.0)
+
+
+func int_of(part_id: String) -> int:
+	return _int_of.get(part_id, -1)
+
+
+func mask_neighbors(pi: int, pixel_off: Vector2i) -> PackedInt64Array:
+	var di: int = _pixel_to_di.get(pixel_off, -1)
+	return PackedInt64Array() if di == -1 else nb_mask[pi][di]

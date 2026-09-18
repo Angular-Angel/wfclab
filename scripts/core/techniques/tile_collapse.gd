@@ -87,129 +87,6 @@ static func _derive_deltas(index: ConstraintIndex, step: Vector2i) -> Array[Vect
 	return deltas
 
 
-static func _pick_slot(candidates: Array[Dictionary],
-		assigned: Array[String]) -> int:
-	## Most-constrained-first (the cheap stand-in for WFC's entropy rule).
-	var best := -1
-	var best_size := 1 << 30
-	for i in candidates.size():
-		if assigned[i] != "":
-			continue
-		var size: int = candidates[i].size()
-		if size < best_size:
-			best_size = size
-			best = i
-	return best
-
-
-static func _weighted_pick(options: Dictionary, index: ConstraintIndex,
-		rng: RandomNumberGenerator) -> String:
-	var total := 0.0
-	for id: String in options:
-		total += index.get_weight(id)
-	var keys: Array = options.keys()
-	if total <= 0.0 or keys.is_empty():
-		return keys[rng.randi_range(0, keys.size() - 1)] if not keys.is_empty() else ""
-	var r := rng.randf() * total
-	for id: String in options:
-		r -= index.get_weight(id)
-		if r <= 0.0:
-			return id
-	return keys[keys.size() - 1]
-
-
-@warning_ignore("integer_division")
-static func _propagate(index: ConstraintIndex, candidates: Array[Dictionary],
-		assigned: Array[String], out_w: int, out_h: int, step: Vector2i,
-		deltas: Array[Vector2i], queue: Array[int], single: bool,
-		unknown_free: bool, bordered: bool, trace: Array = []) -> bool:
-	## AC-3 style: when a slot's domain changes, revise neighboring domains.
-	## The queue persists across calls; with single=true exactly one queue
-	## entry is processed per call. With unknown_free, an empty neighbor set
-	## means "never observed" (this pipeline has no negative evidence), so
-	## the edge is left unconstrained instead of wiping the domain.
-	while not queue.is_empty():
-		var s: int = queue.pop_front()
-		var sx := s % out_w
-		var sy := s / out_w
-		for delta: Vector2i in deltas:
-			var qx := sx + delta.x
-			var qy := sy + delta.y
-			var pixel_off := Vector2i(delta.x * step.x, delta.y * step.y)
-			if qx < 0 or qx >= out_w or qy < 0 or qy >= out_h:
-				# The constraint extractor may only have evidence for selected
-				# directions (for example its canonical +X/+Y scan). Do not
-				# turn a missing directional observation into an impossible edge.
-				# N8 evidence is directional: a diagonal slot relation must be
-				# supported by the exact diagonal outside relation, even where
-				# only one coordinate crosses the output boundary.
-				if bordered and _has_outside_evidence(index, pixel_off):
-					# This direction faces the output edge: every candidate
-					# must be a tile observed touching a source border here.
-					var keep: Dictionary = {}
-					for x: String in candidates[s]:
-						if index.get_neighbors(x, pixel_off).has(
-								ConstraintIndex.OUTSIDE):
-							keep[x] = true
-					if keep.size() != candidates[s].size():
-						if keep.is_empty():
-							if trace != null:
-								trace.append({"at": s, "border": true,
-									"delta": pixel_off, "allowed": [],
-									"domain": candidates[s].keys()})
-							return false
-						candidates[s] = keep
-						queue.append(s)
-				continue
-			var q := qy * out_w + qx
-			if assigned[q] != "":
-				continue
-			var allowed: Dictionary = {}
-			var unconstrained := false
-			if candidates[s].size() == 1:
-				allowed = index.get_neighbors(
-						candidates[s].keys()[0], pixel_off)
-				unconstrained = unknown_free and allowed.is_empty()
-			else:
-				for x: String in candidates[s]:
-					var nb: Dictionary = index.get_neighbors(x, pixel_off)
-					if nb.is_empty():
-						if unknown_free:
-							unconstrained = true
-							break   # this value supports anything
-						continue
-					for y: String in nb:
-						allowed[y] = true
-			if unconstrained:
-				continue
-			var new_q: Dictionary = {}
-			for y: String in candidates[q]:
-				if allowed.has(y):
-					new_q[y] = true
-			if new_q.size() != candidates[q].size():
-				if new_q.is_empty():
-					if trace != null:
-						trace.append({
-							"at": q, "from": s,
-							"delta": Vector2i(delta.x * step.x, delta.y * step.y),
-							"allowed": allowed.keys(),
-							"domain": candidates[q].keys(),
-						})
-					return false   # contradiction -> restart
-				candidates[q] = new_q
-				queue.append(q)
-		if single:
-			return true
-	return true
-
-
-static func _has_outside_evidence(index: ConstraintIndex, offset: Vector2i) -> bool:
-	for id: String in index.get_part_ids():
-		if index.get_neighbors(id, offset).has(ConstraintIndex.OUTSIDE):
-			return true
-	return false
-
-
 @warning_ignore("integer_division")
 static func _render(index: ConstraintIndex, assigned: Array[String],
 		out_w: int, out_h: int, step: Vector2i) -> Image:
@@ -231,6 +108,87 @@ static func _render(index: ConstraintIndex, assigned: Array[String],
 	return img
 
 
+static func _ctz(low: int) -> int:
+	## low must be an isolated bit (v & -v). Scans positions, so it is
+	## correct for the sign bit too.
+	for b in 64:
+		if (low >> b) & 1 == 1:
+			return b
+	return 64
+
+static func mask_full(nwords: int, nparts: int) -> PackedInt64Array:
+	var m := PackedInt64Array(); m.resize(nwords)
+	for w in nwords:
+		var bits := 0
+		for b in 64:
+			if (w << 6) + b < nparts:
+				bits |= 1 << b
+		m[w] = bits
+	return m
+
+static func mask_empty(nwords: int) -> PackedInt64Array:
+	var m := PackedInt64Array(); m.resize(nwords)
+	return m
+
+static func mask_is_empty(m: PackedInt64Array) -> bool:
+	for w in m.size():
+		if m[w] != 0:
+			return false
+	return true
+
+static func mask_count(m: PackedInt64Array) -> int:
+	var n := 0
+	for w in m.size():
+		var v := m[w]
+		while v != 0:
+			v &= v - 1
+			n += 1
+	return n
+
+static func mask_has(m: PackedInt64Array, i: int) -> bool:
+	return (m[i >> 6] >> (i & 63)) & 1 == 1
+
+static func mask_set(m: PackedInt64Array, i: int) -> void:
+	m[i >> 6] |= 1 << (i & 63)
+
+static func mask_clear(m: PackedInt64Array, i: int) -> void:
+	m[i >> 6] &= ~(1 << (i & 63))
+
+static func mask_only(m: PackedInt64Array, i: int) -> void:
+	for w in m.size():
+		m[w] = 0
+	m[i >> 6] = 1 << (i & 63)
+
+static func mask_first(m: PackedInt64Array) -> int:
+	for w in m.size():
+		var v := m[w]
+		if v != 0:
+			return (w << 6) + _ctz(v & -v)
+	return -1
+
+static func _kth_set_bit(m: PackedInt64Array, k: int) -> int:
+	var seen := 0
+	for w in m.size():
+		var v := m[w]
+		while v != 0:
+			var low := v & -v
+			if seen == k:
+				return (w << 6) + _ctz(low)
+			seen += 1
+			v ^= low
+	return -1
+
+static func mask_iter(m: PackedInt64Array) -> Array[int]:
+	var out: Array[int] = []
+	for w in m.size():
+		var v := m[w]
+		while v != 0:
+			var low := v & -v
+			out.append((w << 6) + _ctz(low))
+			v ^= low
+	return out
+
+
 class Session extends SynthesisSession:
 	## One resumable TileCollapse run. Batch synthesize() drives this class,
 	## so RNG consumption (one _weighted_pick per observation) is identical
@@ -246,9 +204,19 @@ class Session extends SynthesisSession:
 	var _max_recovery_attempts: int
 	var _unknown_free: bool
 
-	var candidates: Array[Dictionary] = []
-	var assigned: Array[String] = []
+	var dom: Array[PackedInt64Array] = []
+	var _size: PackedInt32Array = PackedInt32Array()   # cached mask_count per slot
+	var _buckets: Array = []                   # [size] -> {slot: true}; bucket 0 = assigned
+	var _min_bucket := 1
 	var _queue: Array[int] = []
+	var _queue_head := 0
+	var _in_queue: PackedByteArray = PackedByteArray()
+	var _trail: Array = []                     # {slot: int, removed: PackedInt64Array}
+	var _trail_marks: Array[int] = []          # (kept for pins/parity; decisions live in _decisions)
+	var nparts := 0
+	var nwords := 0
+
+	var assigned: Array[String] = []
 	var _decisions: Array[Dictionary] = []
 	var _pinned: Dictionary = {} # slot -> part id; persists across restarts
 	var last_slot := -1
@@ -278,6 +246,9 @@ class Session extends SynthesisSession:
 			return
 		_cell = TileCollapse._derive_step(_index)
 		_deltas = TileCollapse._derive_deltas(_index, _cell)
+		_index.prepare(_deltas, _cell)          # NEW
+		nparts = _index.part_ids.size()          # NEW
+		nwords = _index.nwords                   # NEW
 		_bordered = _index.has_outside()
 		if _deltas.is_empty():
 			push_warning("TileCollapse: no usable offsets; output is unconstrained.")
@@ -285,39 +256,45 @@ class Session extends SynthesisSession:
 
 
 	func _reset_attempt() -> bool:
-		var template := {}
-		for id: String in _index.get_part_ids():
-			template[id] = true
-		candidates.clear()
-		assigned.clear()
-		candidates.resize(_out_w * _out_h)
+		nparts = _index.part_ids.size()
+		nwords = _index.nwords
+		var full := TileCollapse.mask_full(nwords, nparts)
+		dom.clear(); assigned.clear()
+		dom.resize(_out_w * _out_h)
 		assigned.resize(_out_w * _out_h)
-		for i in candidates.size():
-			candidates[i] = template.duplicate()
-			assigned[i] = ""
-		_queue.clear()
+		_size.resize(_out_w * _out_h)
+		_size.fill(0)              # REQUIRED — stale sizes corrupt bucket bookkeeping
+		_in_queue.resize(_out_w * _out_h)
+		_in_queue.fill(0)          # defensive — don't rely on resize zeroing
+		_in_queue.clear(); _in_queue.resize(_out_w * _out_h)
+		_buckets.clear()
+		for i in nparts + 1:
+			_buckets.append({})
+		_min_bucket = 1
+		_queue_clear_all()
 		_decisions.clear()
+		_trail.clear(); _trail_marks.clear()
 		last_slot = -1
 		_collapsed = 0
-		for slot: int in _pinned:
-			var part_id: String = _pinned[slot]
-			candidates[slot] = {part_id: true}
-			assigned[slot] = part_id
+		for slot in _pinned:
+			var pid: String = _pinned[slot]
+			var m := TileCollapse.mask_empty(nwords)
+			TileCollapse.mask_set(m, _index.int_of(pid))
+			assigned[slot] = pid
 			_collapsed += 1
-			_queue.append(slot)
-		if _bordered:
-			for i in candidates.size():
-				if not _queue.has(i):
-					_queue.append(i)
-		if not _queue.is_empty():
-			var trace: Array = []
-			if not TileCollapse._propagate(_index, candidates, assigned,
-					_out_w, _out_h, _cell, _deltas, _queue, false,
-					_unknown_free, _bordered, trace):
-				last_wipe = _describe_wipe(trace[0]) \
-						if not trace.is_empty() else "border setup"
-				phase = Phase.FAILED
-				return false
+			_set_dom(slot, m)               # bucket 0 (assigned)
+			_queue_append(slot)
+		for i in dom.size():
+			if assigned[i] != "":
+				continue
+			_set_dom(i, full.duplicate())
+			if _bordered:
+				_queue_append(i)
+		var trace: Array = []
+		if not _propagate(trace):
+			last_wipe = _describe_wipe(trace[0]) if not trace.is_empty() else "border setup"
+			phase = Phase.FAILED
+			return false
 		return true
 
 
@@ -344,42 +321,44 @@ class Session extends SynthesisSession:
 
 
 	func _advance_inner(micro: bool) -> bool:
-		if _queue.is_empty():
-			var slot := TileCollapse._pick_slot(candidates, assigned)
+		if _queue_empty():
+			var slot := _pick_slot()
 			if slot == -1:
 				phase = Phase.DONE
 				return false
-			var picked := TileCollapse._weighted_pick(candidates[slot], _index, _rng)
-			_decisions.append(_snapshot_decision(slot, picked))
-			candidates[slot] = {picked: true}
+			var picked := _weighted_pick(dom[slot])
+			var pi := _index.int_of(picked)
+			var removed := dom[slot].duplicate()
+			TileCollapse.mask_clear(removed, pi)
+			_decisions.append(_snapshot_decision(slot, picked))  # reads _trail.size() BEFORE the collapse entry
+			_trail.append({"slot": slot, "removed": removed})
+			var m := dom[slot]
+			TileCollapse.mask_only(m, pi)
+			_set_dom(slot, m)
 			assigned[slot] = picked
 			last_slot = slot
 			_collapsed += 1
-			_queue.append(slot)
+			_queue_append(slot)
 			if micro:
-				return true   # leave the cascade pending so it can be watched
+				return true
 		var trace: Array = []
-		if not TileCollapse._propagate(_index, candidates, assigned,
-				_out_w, _out_h, _cell, _deltas, _queue, micro, _unknown_free, _bordered,
-				trace):
+		if not _propagate(trace, micro):
 			if not trace.is_empty():
 				last_wipe = _describe_wipe(trace[0])
 			_recover_from_contradiction()
 			if is_finished():
 				return false
+			return true
 		return true
 
 
 	func _snapshot_decision(slot: int, picked: String) -> Dictionary:
-		var snap_c: Array[Dictionary] = []
-		snap_c.assign(candidates.duplicate(true))
-		var snap_a: Array[String] = []
-		snap_a.assign(assigned.duplicate())
-		var snap_q: Array[int] = []
-		snap_q.assign(_queue.duplicate())
-		return {"slot": slot, "rejected": picked, "candidates": snap_c, "assigned": snap_a,
-			"queue": snap_q, "collapsed": _collapsed}
-
+		return {
+			"slot": slot,
+			"rejected": picked,
+			"trail_len": _trail.size(),      # everything above this is undone on backtrack
+			"collapsed": _collapsed,         # pre-decision counter
+		}
 
 	func _recover_from_contradiction() -> void:
 		contradictions += 1
@@ -399,25 +378,34 @@ class Session extends SynthesisSession:
 
 
 	func _backtrack() -> void:
-		## Restore automatic decisions in reverse order. User pins are not on this
-		## stack, so recovery never silently removes an explicit user choice.
 		while not _decisions.is_empty():
-			var decision: Dictionary = _decisions.pop_back()
-			candidates = decision["candidates"]
-			assigned = decision["assigned"]
-			_queue = decision["queue"]
-			_collapsed = decision["collapsed"]
-			var slot: int = decision["slot"]
-			var rejected: String = decision["rejected"]
+			var d: Dictionary = _decisions.pop_back()
+			_undo_to(int(d["trail_len"]))    # includes the collapse entry
+			var slot: int = d["slot"]
 			assigned[slot] = ""
-			candidates[slot].erase(rejected)
-			if candidates[slot].is_empty():
+			var m := dom[slot]               # now the restored pre-decision domain
+			TileCollapse.mask_clear(m, _index.int_of(d["rejected"]))
+			_set_dom(slot, m)
+			_collapsed = int(d["collapsed"])
+			_queue_clear_all()               # drop stale entries from the failed cascade
+			if TileCollapse.mask_is_empty(dom[slot]):
 				continue
-			_queue.append(slot)
+			_queue_append(slot)
 			backtracks += 1
 			return
 		last_wipe = "no automatic decision remains; pinned constraints are incompatible"
 		phase = Phase.FAILED
+
+
+	func _undo_to(mark: int) -> void:
+		while _trail.size() > mark:
+			var e: Dictionary = _trail.pop_back()
+			var slot: int = e["slot"]
+			var rem: PackedInt64Array = e["removed"]
+			var m := dom[slot]
+			for w in nwords:
+				m[w] = m[w] | rem[w]
+			_set_dom(slot, m)                    # COW write-back + buckets
 
 
 	func get_result() -> Dictionary:
@@ -476,12 +464,12 @@ class Session extends SynthesisSession:
 		## cool = many. Dims are output_slots, not pixels.
 		var img := Image.create_empty(
 				_out_w, _out_h, false, Image.FORMAT_RGBA8)
-		for i in candidates.size():
+		for i in dom.size():
 			var col: Color
 			if assigned[i] != "":
 				col = Color(0.95, 0.95, 0.95)
 			else:
-				var t := clampf(candidates[i].size() / 8.0, 0.0, 1.0)
+				var t := clampf(_size[i] / 8.0, 0.0, 1.0)
 				col = Color(1.0, 0.3, 0.2).lerp(Color(0.15, 0.25, 0.7), t)
 			img.set_pixel(i % _out_w, i / _out_w, col)
 		return img    # --- Manual editing & inspection -----------------------------------------
@@ -528,105 +516,242 @@ class Session extends SynthesisSession:
 		return Rect2i(Vector2i(
 				(slot % _out_w) * _cell.x,
 				(slot / _out_w) * _cell.y), _index.tile_size)
+	
+	
+	@warning_ignore("integer_division")
+	func _propagate(trace: Array, single: bool = false) -> bool:
+		while not _queue_empty():
+			var s := _queue_pop()
+			var sx := s % _out_w
+			var sy := s / _out_w
+			for di in _index.delta_list.size():
+				var delta: Vector2i = _index.delta_list[di]
+				var qx := sx + delta.x
+				var qy := sy + delta.y
+				if qx < 0 or qx >= _out_w or qy < 0 or qy >= _out_h:
+					if _bordered and _index.delta_has_outside[di]:
+						if not _apply_border(s, di, trace):
+							return false
+					continue
+				var q := qy * _out_w + qx
+				if assigned[q] != "":
+					continue
+				if not _revise(s, q, di, trace):
+					return false
+			if single:
+				return true
+		return true
+	
+	
+	func _revise(s: int, q: int, di: int, trace: Array) -> bool:
+		var sdom := dom[s]                       # read-only; no write-back needed
+		var allowed := PackedInt64Array()
+		allowed.resize(nwords)
+		var unconstrained := false
+		if _size[s] == 1:
+			# singleton fast path — mirrors old candidates[s].size() == 1 branch
+			var pi := TileCollapse.mask_first(sdom)
+			var nb: PackedInt64Array = _index.nb_mask[pi][di]
+			for w in nwords:
+				allowed[w] = nb[w]
+			if _index.nb_empty[pi][di]:
+				unconstrained = _unknown_free
+		else:
+			for w in nwords:
+				var v: int = sdom[w]
+				if v == 0:
+					continue
+				while v != 0:
+					var low := v & -v
+					v ^= low
+					var pi := (w << 6) + TileCollapse._ctz(low)
+					if _index.nb_empty[pi][di]:
+						if _unknown_free:
+							unconstrained = true
+							break               # this value supports anything
+						continue                # contributes nothing (old behavior)
+					var nb: PackedInt64Array = _index.nb_mask[pi][di]
+					for k in nwords:
+						allowed[k] = allowed[k] | nb[k]
+				if unconstrained:
+					break
+		if unconstrained:
+			return true
+		# intersect q with allowed, recording exactly which bits died
+		var qdom := dom[q]
+		var removed := PackedInt64Array()
+		removed.resize(nwords)
+		var changed := false
+		for w in nwords:
+			var old_w: int = qdom[w]
+			var new_w: int = old_w & allowed[w]
+			if new_w != old_w:
+				changed = true
+				qdom[w] = new_w
+				removed[w] = old_w & ~new_w
+		if not changed:
+			return true
+		if TileCollapse.mask_is_empty(qdom):
+			_record_wipe(q, s, di, allowed, trace)
+			return false
+		_set_dom(q, qdom)                       # COW write-back + buckets
+		_trail.append({"slot": q, "removed": removed})
+		_queue_append(q)
+		return true
+
+
+	func _apply_border(s: int, di: int, trace: Array) -> bool:
+		var pre := dom[s].duplicate()        # pre-wipe, for reporting
+		var sdom := dom[s]
+		var removed := PackedInt64Array()
+		removed.resize(nwords)
+		var changed := false
+		for w in nwords:
+			var v: int = sdom[w]
+			if v == 0:
+				continue
+			var keep := v
+			var m := v
+			while m != 0:
+				var low := m & -m
+				m ^= low
+				var pi := (w << 6) + TileCollapse._ctz(low)
+				if not _index.border_ok[pi][di]:
+					keep &= ~low
+			if keep != v:
+				changed = true
+				sdom[w] = keep
+				removed[w] = v & ~keep
+		if not changed:
+			return true
+		if TileCollapse.mask_is_empty(sdom):
+			trace.append({
+				"at": s, "border": true,
+				"delta": _index.delta_pixel[di],
+				"allowed": [],
+				"domain": _ids_of(pre),
+			})
+			return false
+		_set_dom(s, sdom)                       # COW write-back + buckets
+		_trail.append({"slot": s, "removed": removed})
+		_queue_append(s)
+		return true
 
 
 	func get_slot_domain(slot: int) -> Dictionary:
-		if is_finished() or slot < 0 or slot >= candidates.size():
+		if is_finished() or slot < 0 or slot >= dom.size():
 			return {}
 		if assigned[slot] == "":
-			return candidates[slot].duplicate()
-		var dom := _domain_excluding_self(slot)
-		dom[assigned[slot]] = true
-		return dom
+			var out := {}
+			for pi in TileCollapse.mask_iter(dom[slot]):
+				out[_index.part_ids[pi]] = true
+			return out
+		var d := _domain_excluding_self(slot)
+		d[assigned[slot]] = true
+		return d
 
 
 	func try_assign(slot: int, part_id: String) -> bool:
-		## Pin part_id at slot and propagate. Fully reverts on contradiction,
-		## so a rejected edit leaves every domain exactly as it was.
-		if is_finished() or slot < 0 or slot >= candidates.size():
-			last_rejection = describe_pin(slot, part_id)
-			return false
-		if _index.get_part(part_id) == null:
-			last_rejection = describe_pin(slot, part_id)
-			return false
-		if assigned[slot] == part_id:
-			last_rejection = ""
-			return true
 		if not get_slot_domain(slot).has(part_id):
 			last_rejection = describe_pin(slot, part_id)
-			return false   # conflicts with pinned/singleton neighbors
-		var snap_c: Array[Dictionary] = []
-		snap_c.assign(candidates.duplicate(true))
-		var snap_a: Array[String] = []
-		snap_a.assign(assigned.duplicate())
-		var snap_q: Array[int] = []
-		snap_q.assign(_queue.duplicate())
-		var snap_collapsed := _collapsed
+			return false
+		var trail_mark := _trail.size()
+		var q_mark := _queue_mark()
+		var old_collapsed := _collapsed
+		var old_assigned: String = assigned[slot]
+		var was_pinned := old_assigned != ""
 
-		var was_pinned := assigned[slot] != ""
-		candidates[slot] = {part_id: true}
+		var removed := dom[slot].duplicate()
+		TileCollapse.mask_clear(removed, _index.int_of(part_id))
+		_trail.append({"slot": slot, "removed": removed})
+
+		var m := dom[slot]
+		TileCollapse.mask_only(m, _index.int_of(part_id))
+		_set_dom(slot, m)
 		assigned[slot] = part_id
 		if not was_pinned:
 			_collapsed += 1
 		last_slot = slot
-		_queue.append(slot)
-		
+		_queue_append(slot)
+
 		var trace: Array = []
-		if not TileCollapse._propagate(_index, candidates, assigned,
-				_out_w, _out_h, _cell, _deltas, _queue, false, _unknown_free, _bordered, trace):
-			candidates = snap_c
-			assigned = snap_a
-			_queue = snap_q
-			_collapsed = snap_collapsed
+		if not _propagate(trace):
+			assigned[slot] = old_assigned      # BEFORE undo — buckets depend on it
+			_undo_to(trail_mark)               # undoes pin AND propagation
+			_queue_restore(q_mark)
+			_collapsed = old_collapsed
 			if not trace.is_empty():
 				last_wipe = _describe_wipe(trace[0])
-			last_rejection = ("propagation: %s" % _describe_wipe(trace[0])) \
-					if not trace.is_empty() else "propagation contradiction"
+			last_rejection = ("propagation: %s" % last_wipe) \
+				if not trace.is_empty() else "propagation contradiction"
 			return false
-		last_rejection = ""
+
 		_pinned[slot] = part_id
-		# Existing automatic observations are not user intent and their old
-		# decision snapshots predate this pin. Rebuild only from hard pins so
-		# future backtracking remains sound.
-		if _reset_attempt():
-			return true
-		candidates = snap_c
-		assigned = snap_a
-		_queue = snap_q
-		_collapsed = snap_collapsed
-		_pinned.erase(slot)
-		if was_pinned:
-			_pinned[slot] = snap_a[slot]
-		phase = Phase.RUNNING
-		return false
+		_trail_marks.clear()
+		_trail.clear()
+		_decisions.clear()
+		last_rejection = ""
+		return true
+
+
+	func _snapshot_state() -> Dictionary:
+		return {
+			"dom": dom.duplicate(),
+			"size": _size.duplicate(),
+			"assigned": assigned.duplicate(),
+			"queue": _queue.duplicate(),
+			"head": _queue_head,
+			"in_queue": _in_queue.duplicate(),
+			"collapsed": _collapsed,
+			"decisions": _decisions.duplicate(),
+			"trail": _trail.duplicate(),
+			"trail_marks": _trail_marks.duplicate(),
+			"min_bucket": _min_bucket,
+		}
+
+
+	func _restore_state(s: Dictionary) -> void:
+		dom = s["dom"]
+		_size = s["size"]
+		assigned = s["assigned"]
+		_queue = s["queue"]
+		_queue_head = int(s["head"])
+		_in_queue = s["in_queue"]
+		_collapsed = int(s["collapsed"])
+		_decisions = s["decisions"]
+		_trail = s["trail"]
+		_trail_marks = s["trail_marks"]
+		_min_bucket = int(s["min_bucket"])
+		_refresh_buckets()
+
+
+	func _refresh_buckets() -> void:
+		## Rebuild buckets wholesale from assigned + _size.
+		_buckets.clear()
+		for i in nparts + 1:
+			_buckets.append({})
+		_min_bucket = 1
+		for i in dom.size():
+			var b := 0 if assigned[i] != "" else _size[i]
+			if b > 0:
+				_buckets[b][i] = true
+				if b < _min_bucket:
+					_min_bucket = b
 
 
 	func try_clear(slot: int) -> bool:
-		## Unpin a slot and rebuild domains from the remaining observations.
-		## Propagation only removes candidates, so simply clearing the slot
-		## would leave stale pruning behind and make a visually blank board
-		## reject tiles that are actually valid.
-		if is_finished() or slot < 0 or slot >= candidates.size():
+		## Unpin a slot and rebuild from the remaining pins. Full rebuild is
+		## required because unpinning must EXPAND domains, which propagation
+		## alone cannot do.
+		if is_finished() or slot < 0 or slot >= dom.size():
 			return false
 		if assigned[slot] == "":
 			return false
-		var snap_c: Array[Dictionary] = []
-		snap_c.assign(candidates.duplicate(true))
-		var snap_a: Array[String] = []
-		snap_a.assign(assigned.duplicate())
-		var snap_q: Array[int] = []
-		snap_q.assign(_queue.duplicate())
-		var snap_collapsed := _collapsed
-		var snap_decisions: Array[Dictionary] = []
-		snap_decisions.assign(_decisions.duplicate(true))
+		var snap := _snapshot_state()
 		var old_pin: Variant = _pinned.get(slot, null)
 		_pinned.erase(slot)
 		if not _reset_attempt():
-			candidates = snap_c
-			assigned = snap_a
-			_queue = snap_q
-			_collapsed = snap_collapsed
-			_decisions = snap_decisions
+			_restore_state(snap)
 			if old_pin != null:
 				_pinned[slot] = old_pin
 			return false
@@ -635,30 +760,81 @@ class Session extends SynthesisSession:
 
 
 	func _rebuild_domains_from_assignments() -> bool:
-		## Recreate the monotonic AC-3 state so removals can expand domains.
-		var template := {}
-		for id: String in _index.get_part_ids():
-			template[id] = true
-		for i in candidates.size():
-			candidates[i] = {assigned[i]: true} if assigned[i] != "" else template.duplicate()
-		_queue.clear()
+		## Recreate the monotonic AC-3 state from current assignments so
+		## removals can expand domains. Clears decisions/trail: nothing
+		## above a rebuild is undoable.
+		var full := TileCollapse.mask_full(nwords, nparts)
+		_buckets.clear()
+		for i in nparts + 1:
+			_buckets.append({})
+		_min_bucket = 1
+		_queue_clear_all()
+		_decisions.clear()
+		_trail.clear()
+		_trail_marks.clear()
+		dom.clear()
+		dom.resize(_out_w * _out_h)
+		_size.resize(_out_w * _out_h)
+		_size.fill(0)                        # see bug B3 — required
 		_collapsed = 0
-		for i in assigned.size():
+		for i in dom.size():
+			var m: PackedInt64Array
 			if assigned[i] != "":
+				m = TileCollapse.mask_empty(nwords)
+				TileCollapse.mask_set(m, _index.int_of(assigned[i]))
 				_collapsed += 1
-				_queue.append(i)
-		if _bordered:
-			for i in candidates.size():
-				if not _queue.has(i):
-					_queue.append(i)
+				_queue_append(i)
+			else:
+				m = full.duplicate()
+				if _bordered:
+					_queue_append(i)
+			_set_dom(i, m)
 		var trace: Array = []
-		if TileCollapse._propagate(_index, candidates, assigned,
-				_out_w, _out_h, _cell, _deltas, _queue, false,
-				_unknown_free, _bordered, trace):
-			return true
-		if not trace.is_empty():
-			last_wipe = _describe_wipe(trace[0])
-		return false
+		if not _propagate(trace):
+			if not trace.is_empty():
+				last_wipe = _describe_wipe(trace[0])
+			return false
+		return true
+	
+	
+	func _weighted_pick(m: PackedInt64Array) -> String:
+		var total := 0.0
+		for w in nwords:
+			var v: int = m[w]
+			while v != 0:
+				var low := v & -v
+				v ^= low
+				total += _index.part_weights[(w << 6) + TileCollapse._ctz(low)]
+		if total <= 0.0:
+			var k := _rng.randi_range(0, TileCollapse.mask_count(m) - 1)
+			return _index.part_ids[TileCollapse._kth_set_bit(m, k)]
+		var r := _rng.randf() * total
+		for w in nwords:
+			var v: int = m[w]
+			while v != 0:
+				var low := v & -v
+				v ^= low
+				var pi := (w << 6) + TileCollapse._ctz(low)
+				r -= _index.part_weights[pi]
+				if r <= 0.0:
+					return _index.part_ids[pi]
+		return _index.part_ids[TileCollapse._kth_set_bit(m, TileCollapse.mask_count(m) - 1)]
+	
+	
+	func _pick_slot() -> int:
+		while _min_bucket < _buckets.size():
+			var b: Dictionary = _buckets[_min_bucket]
+			var best := -1
+			for slot: int in b.keys():
+				if assigned[slot] != "":
+					b.erase(slot)        # stale entry from the collapse path
+					continue
+				if best == -1 or slot < best:
+					best = slot          # lowest index wins ties (legacy MRV order)
+			if best != -1:
+				return best
+			_min_bucket += 1
+		return -1
 
 
 	@warning_ignore("integer_division")
@@ -667,12 +843,14 @@ class Session extends SynthesisSession:
 		## of slot, ignoring slot's own pin. Falls back to the full set when
 		## the neighborhood is over-constrained (rare path inconsistency).
 		var full := {}
-		for id: String in _index.get_part_ids():
-			full[id] = true
+		for pi in nparts:
+			full[_index.part_ids[pi]] = true
 		var pos := Vector2i(slot % _out_w, slot / _out_w)
-		var dom := full.duplicate()
-		for delta: Vector2i in _deltas:
-			for d: Vector2i in [delta, -delta]:
+		var out := full.duplicate()
+		for di in _index.delta_list.size():
+			var pix: Vector2i = _index.delta_pixel[di]
+			for sgn in [1, -1]:
+				var d: Vector2i = _index.delta_list[di] * sgn
 				var npos := pos + d
 				if npos.x < 0 or npos.x >= _out_w or npos.y < 0 or npos.y >= _out_h:
 					continue
@@ -682,37 +860,40 @@ class Session extends SynthesisSession:
 				var value := ""
 				if assigned[q] != "":
 					value = assigned[q]
-				elif candidates[q].size() == 1:
-					value = candidates[q].keys()[0]
+				elif _size[q] == 1:
+					value = _index.part_ids[TileCollapse.mask_first(dom[q])]
 				if value == "":
 					continue   # multi-candidate neighbor: no hard constraint
-				var nb := _index.get_neighbors(value, -d)
+				var nb: PackedInt64Array = _index.mask_neighbors(
+						_index.int_of(value), pix * -sgn)
 				var keep := {}
-				for x: String in dom:
-					if nb.has(x):
-						keep[x] = true
-				dom = keep
-				if dom.is_empty():
+				for pi in TileCollapse.mask_iter(nb):
+					var pid: String = _index.part_ids[pi]
+					if out.has(pid):
+						keep[pid] = true
+				out = keep
+				if out.is_empty():
 					return full
 		if _bordered:
-			for delta: Vector2i in _deltas:
+			for di in _index.delta_list.size():
+				var delta: Vector2i = _index.delta_list[di]
 				var np := pos + delta
 				if np.x >= 0 and np.x < _out_w and np.y >= 0 and np.y < _out_h:
 					continue
-				var off := Vector2i(delta.x * _cell.x, delta.y * _cell.y)
-				if not TileCollapse._has_outside_evidence(_index, off):
+				if not _index.delta_has_outside[di]:
 					continue
-				var edge_keep: Dictionary = {}
-				for x: String in dom:
-					if _index.get_neighbors(x, off).has(ConstraintIndex.OUTSIDE):
-						edge_keep[x] = true
-				dom = edge_keep
-		return dom
-
+				var edge_keep := {}
+				for pid: String in out.keys():
+					if _index.border_ok[_index.int_of(pid)][di]:
+						edge_keep[pid] = true
+				out = edge_keep
+		return out
+	
+	
 	@warning_ignore("integer_division")
 	func describe_pin(slot: int, part_id: String) -> String:
 		## "" if the immediate neighborhood permits the pin; else why not.
-		if slot < 0 or slot >= candidates.size():
+		if slot < 0 or slot >= dom.size():
 			return "slot out of range"
 		if assigned[slot] == part_id:
 			return ""
@@ -723,7 +904,7 @@ class Session extends SynthesisSession:
 			var n := pos + d
 			if n.x < 0 or n.x >= _out_w or n.y < 0 or n.y >= _out_h:
 				continue
-			if _index.get_neighbors(part_id, d * _cell).is_empty():
+			if TileCollapse.mask_is_empty(_index.mask_neighbors(_index.int_of(part_id), d * _cell)):
 				return "no observed neighbor at offset %s" % [d * _cell]
 		return ""
 
@@ -740,9 +921,84 @@ class Session extends SynthesisSession:
 				at % _out_w, at / _out_w, off.x, off.y,
 				from % _out_w, from / _out_w,
 				_short(w["allowed"]), _short(w["domain"])]
+	
+	
+	func _ids_of(m: PackedInt64Array, cap := 12) -> Array:
+		var out: Array = []
+		var total := TileCollapse.mask_count(m)
+		for pi in TileCollapse.mask_iter(m):
+			if out.size() >= cap:
+				out.append("…+%d more" % (total - cap))
+				break
+			out.append(_index.part_ids[pi])
+		return out
+
+
+	func _record_wipe(q: int, s: int, di: int, allowed: PackedInt64Array, trace: Array) -> void:
+		trace.append({
+			"at": q, "from": s,
+			"delta": _index.delta_pixel[di],
+			"allowed": _ids_of(allowed),
+			"domain": _ids_of(dom[q]),
+		})
+	
 
 	func _short(ids: Array) -> String:
 		var parts: Array[String] = []
 		for id: String in ids:
 			parts.append(id.substr(2, 4) + "…" + id.right(4))
 		return "[" + ", ".join(parts) + "]"
+	
+	
+	func _queue_append(s: int) -> void:
+		if _in_queue[s] == 1:
+			return
+		_in_queue[s] = 1
+		_queue.append(s)
+
+
+	func _queue_pop() -> int:
+		var s: int = _queue[_queue_head]
+		_queue[_queue_head] = 0
+		_queue_head += 1
+		_in_queue[s] = 0
+		return s
+
+
+	func _queue_empty() -> bool:
+		return _queue_head >= _queue.size()
+
+
+	func _queue_clear_all() -> void:
+		_queue.clear()
+		_queue_head = 0
+		_in_queue.fill(0)
+
+
+	func _queue_mark() -> Dictionary:
+		return {"size": _queue.size(), "head": _queue_head}
+
+
+	func _queue_restore(mk: Dictionary) -> void:
+		for i in range(_queue_head, _queue.size()):
+			_in_queue[_queue[i]] = 0
+		_queue.resize(int(mk["size"]))
+		_queue_head = int(mk["head"])
+		for i in range(_queue_head, _queue.size()):
+			_in_queue[_queue[i]] = 1
+	
+	
+	func _set_dom(slot: int, m: PackedInt64Array) -> void:
+		var old_size := _size[slot]
+		var new_size := TileCollapse.mask_count(m)
+		dom[slot] = m                       # COW write-back — required
+		_size[slot] = new_size
+		var old_bucket := 0 if assigned[slot] != "" else old_size
+		var new_bucket := 0 if assigned[slot] != "" else new_size
+		if old_bucket != new_bucket:
+			if old_bucket > 0 and old_bucket < _buckets.size():
+				_buckets[old_bucket].erase(slot)
+			if new_bucket > 0:
+				_buckets[new_bucket][slot] = true
+				if new_bucket < _min_bucket:
+					_min_bucket = new_bucket

@@ -1,0 +1,68 @@
+{
+	"alias_records": [],
+	"constraint_edits": {},
+	"images": [
+		{
+			"id": "img_5545227544",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Lake.png"
+		}
+	],
+	"part_edits": {},
+	"run": {
+		"auto_constraints": false,
+		"constraint_jobs": [
+			{
+				"id": "adjacency",
+				"params": {
+					"custom_step": {
+						"__v2i": [
+							8,
+							8
+						]
+					},
+					"directional": true,
+					"edge_evidence": 1,
+					"neighborhood": 0,
+					"step_mode": 0
+				}
+			},
+			{
+				"id": "pixel_overlap",
+				"params": {
+					"overlap_layers": 1,
+					"tolerance": 8
+				}
+			}
+		],
+		"constraints_ran": true,
+		"image_ids": [
+			"img_5545227544"
+		],
+		"params": {
+			"dedupe": true,
+			"dedupe_tolerance": 8,
+			"edge_handling": 1,
+			"reflect_horizontal": true,
+			"reflect_vertical": true,
+			"rotation_0": true,
+			"rotation_180": true,
+			"rotation_270": true,
+			"rotation_90": true,
+			"stride": {
+				"__v2i": [
+					4,
+					4
+				]
+			},
+			"tile_size": {
+				"__v2i": [
+					4,
+					4
+				]
+			}
+		},
+		"technique_id": "grid_tiles"
+	},
+	"transform_edits": {},
+	"version": 1
+}

@@ -9,6 +9,7 @@ var _synthesizers: Dictionary = {}   # StringName -> Synthesizer
 func _ready() -> void:
 	register_decomposition(GridTiles.new())
 	register_constraint(AdjacencyExtractor.new())
+	register_constraint(PixelOverlap.new())
 	register_synthesizer(TileCollapse.new())
 
 

@@ -3,13 +3,25 @@
 	"constraint_edits": {},
 	"images": [
 		{
-			"id": "img_5545227544",
+			"id": "img_17741494f7",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Dungeon.png"
+		},
+		{
+			"id": "img_4010d4d4ab",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/extrapolate_1a.png"
+		},
+		{
+			"id": "img_efdfc4eac6",
 			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Lake.png"
+		},
+		{
+			"id": "img_eb28ee7492",
+			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Angular.png"
 		}
 	],
 	"part_edits": {},
 	"run": {
-		"auto_constraints": false,
+		"auto_constraints": true,
 		"constraint_jobs": [
 			{
 				"id": "adjacency",
@@ -36,7 +48,10 @@
 		],
 		"constraints_ran": true,
 		"image_ids": [
-			"img_5545227544"
+			"img_17741494f7",
+			"img_4010d4d4ab",
+			"img_efdfc4eac6",
+			"img_eb28ee7492"
 		],
 		"params": {
 			"dedupe": true,

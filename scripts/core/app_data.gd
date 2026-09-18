@@ -275,8 +275,9 @@ func get_dedupe_tolerance() -> int:
 func _regenerate_constraints() -> void:
 	# Constraint techniques consume the active, globally deduplicated variants.
 	# This is inexpensive compared with decomposition and keeps edits immediate.
-	if _raw_parts.is_empty() or last_run_config.is_empty():
-		_materialize_constraints()
+	if _raw_parts.is_empty() or last_run_config.is_empty() \
+			or not last_run_config.get("constraints_ran", true):
+		_materialize_constraints()   # re-apply edits to existing raw constraints
 		return
 	var run_images: Array[ImageAssetData] = []
 	for image_id in last_run_config.get("image_ids", []):

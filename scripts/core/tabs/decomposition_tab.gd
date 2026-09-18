@@ -14,10 +14,15 @@ var _edits_label: Label
 var _param_values: Dictionary = {}
 var _current_technique: DecompositionTechnique
 
+var _auto_constraints: CheckButton
+var _find_button: Button
+
+var _ct_status: Label
 var _ct_enabled: Dictionary = {}   # id -> bool
 var _ct_values: Dictionary = {}    # id -> params Dictionary
 var _ct_checks: Dictionary = {}    # id -> CheckButton
 var _ct_boxes: Dictionary = {}     # id -> VBoxContainer (param widgets)
+
 
 
 func _ready() -> void:
@@ -51,23 +56,12 @@ func _ready() -> void:
 	_params_box = VBoxContainer.new()
 	left.add_child(_params_box)
 
-	left.add_child(_mk_label("Constraint Extraction"))
-	_ct_section = VBoxContainer.new()
-	left.add_child(_ct_section)
-	for ct: ConstraintTechnique in TechniqueRegistry.get_constraint_techniques():
-		var check := CheckButton.new()
-		check.text = ct.get_display_name()
-		check.button_pressed = true
-		check.toggled.connect(_on_ct_toggled.bind(ct.get_id()))
-		_ct_section.add_child(check)
-		var box := VBoxContainer.new()
-		box.add_theme_constant_override("margin_left", 16)
-		_ct_section.add_child(box)
-		_ct_checks[ct.get_id()] = check
-		_ct_boxes[ct.get_id()] = box
-		_ct_enabled[ct.get_id()] = true
-		_ct_values[ct.get_id()] = {}
-		ParamBuilder.build(ct.get_parameter_specs(), _ct_values[ct.get_id()], box)
+	_auto_constraints = CheckButton.new()
+	_auto_constraints.text = "Immediately find constraints"
+	_auto_constraints.button_pressed = true
+	_auto_constraints.tooltip_text = ("When enabled, running a decomposition also "
+		+ "executes the constraint techniques against the fresh parts.")
+	left.add_child(_auto_constraints)
 
 	left.add_child(_mk_label("Images (click to toggle inclusion)"))
 	_image_list = ItemList.new()
@@ -91,6 +85,46 @@ func _ready() -> void:
 	left.add_child(_edits_label)
 	AppData.edits_changed.connect(_update_edits_label)
 	_update_edits_label()
+
+	var middle_scroll := ScrollContainer.new()
+	middle_scroll.custom_minimum_size = Vector2(320.0, 0.0)
+	middle_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	middle_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	middle_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	split.add_child(middle_scroll)
+
+	var middle := VBoxContainer.new()
+	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	middle_scroll.add_child(middle)
+
+	middle.add_child(_mk_label("Constraint Extraction"))
+	_ct_section = VBoxContainer.new()
+	middle.add_child(_ct_section)
+	for ct: ConstraintTechnique in TechniqueRegistry.get_constraint_techniques():
+		var check := CheckButton.new()
+		check.text = ct.get_display_name()
+		check.button_pressed = true
+		check.toggled.connect(_on_ct_toggled.bind(ct.get_id()))
+		_ct_section.add_child(check)
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("margin_left", 16)
+		_ct_section.add_child(box)
+		_ct_checks[ct.get_id()] = check
+		_ct_boxes[ct.get_id()] = box
+		_ct_enabled[ct.get_id()] = true
+		_ct_values[ct.get_id()] = {}
+		ParamBuilder.build(ct.get_parameter_specs(), _ct_values[ct.get_id()], box)
+
+	_find_button = Button.new()
+	_find_button.text = "Find Constraints"
+	_find_button.disabled = true
+	_find_button.pressed.connect(_on_find_constraints_pressed)
+	middle.add_child(_find_button)
+	_ct_status = Label.new()
+	_ct_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	middle.add_child(_ct_status)
+	AppData.parts_changed.connect(_update_find_button)
+	_update_find_button()
 
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -176,6 +210,8 @@ func apply_config(config: Dictionary) -> void:
 			_image_list.select(i)
 		else:
 			_image_list.deselect(i)
+			
+	_auto_constraints.set_pressed_no_signal(config.get("auto_constraints", true))
 
 
 func run_config(config: Dictionary) -> void:
@@ -186,18 +222,13 @@ func run_config(config: Dictionary) -> void:
 func _on_run_pressed() -> void:
 	if _current_technique == null:
 		return
-	var jobs: Array = []
-	for ct: ConstraintTechnique in TechniqueRegistry.get_constraint_techniques():
-		if _ct_enabled.get(ct.get_id(), false):
-			jobs.append({
-				"id": String(ct.get_id()),
-				"params": (_ct_values[ct.get_id()] as Dictionary).duplicate(true),
-			})
 	var config := {
 		"technique_id": String(_current_technique.get_id()),
 		"params": _param_values.duplicate(true),
 		"image_ids": _selected_image_ids(),
-		"constraint_jobs": jobs,
+		"constraint_jobs": _collect_constraint_jobs(),
+		"constraints_ran": _auto_constraints.button_pressed,
+		"auto_constraints": _auto_constraints.button_pressed,
 	}
 	_run_with(config)
 
@@ -235,14 +266,29 @@ func _run_with(config: Dictionary) -> void:
 	WorkerThreadPool.add_task(func() -> void:
 		var no_progress := func(_fraction: float) -> void: pass
 		var result: Dictionary = technique.decompose(run_images, params, no_progress)
-		var raw_parts: Array[Part] = result["parts"]
 		var all_constraints: Array[Constraint] = []
-		for job: Dictionary in ct_jobs:
-			var cs: Array[Constraint] = (job["technique"] as ConstraintTechnique).extract(
-				raw_parts, run_images, job["params"], no_progress)
-			all_constraints.append_array(cs)
+		if config.get("constraints_ran", true):
+			for job: Dictionary in ct_jobs:
+				var cs: Array[Constraint] = (job["technique"] as ConstraintTechnique).extract(
+					result["parts"], run_images, job["params"], no_progress)
+				all_constraints.append_array(cs)
 		_publish_result.call_deferred(result, all_constraints, snapshot)
 	)
+
+
+func _collect_constraint_jobs() -> Array:
+	var jobs: Array = []
+	for ct: ConstraintTechnique in TechniqueRegistry.get_constraint_techniques():
+		if _ct_enabled.get(ct.get_id(), false):
+			jobs.append({
+				"id": String(ct.get_id()),
+				"params": (_ct_values[ct.get_id()] as Dictionary).duplicate(true),
+			})
+	return jobs
+
+
+func _update_find_button() -> void:
+	_find_button.disabled = AppData.get_part_list().is_empty()
 
 
 func _publish_result(result: Dictionary, all_constraints: Array[Constraint],
@@ -254,11 +300,70 @@ func _publish_result(result: Dictionary, all_constraints: Array[Constraint],
 	var stats: Dictionary = result["stats"]
 	AppData.last_run_config = config
 	AppData.set_parts(result["parts"], stats)
-	AppData.set_constraints(all_constraints)
+	if not all_constraints.is_empty():
+		AppData.set_constraints(all_constraints)
 	_status.text = "Done: %d tiles → %d parts, %d constraints (%d ms)" % [
 		stats["total_tiles"], stats["part_count"],
 		all_constraints.size(), stats["elapsed_ms"]]
 
+	var tabs := get_parent() as TabContainer
+	if tabs != null:
+		var target
+		
+		if not all_constraints.is_empty():
+			target = tabs.get_node_or_null("Constraints")
+		else:
+			target = tabs.get_node_or_null("Parts")
+
+		if target != null:
+			tabs.current_tab = tabs.get_tab_idx_from_control(target)
+
+
+func _on_find_constraints_pressed() -> void:
+	var parts := AppData.get_part_list()
+	if parts.is_empty():
+		return
+	var jobs := _collect_constraint_jobs()
+	var corpus_ids: Array = AppData.last_run_config.get("image_ids", [])
+	var run_images: Array[ImageAssetData] = []
+	for id in corpus_ids:
+		if AppData.images.has(id):
+			run_images.append(AppData.images[id])
+	if run_images.is_empty():
+		run_images = AppData.get_image_list()
+	if run_images.is_empty():
+		_ct_status.text = "No images available."
+		return
+	var resolved: Array = []
+	for job: Dictionary in jobs:
+		var t := TechniqueRegistry.get_constraint_technique(StringName(String(job["id"])))
+		if t != null:
+			resolved.append({"technique": t,
+				"params": (job["params"] as Dictionary).duplicate(true)})
+	if resolved.is_empty():
+		_ct_status.text = "No constraint techniques enabled."
+		return
+	# Keep the stored config in sync so edit-triggered regeneration and
+	# project save/load reflect exactly what this button is about to do.
+	if not AppData.last_run_config.is_empty():
+		AppData.last_run_config["constraint_jobs"] = jobs
+		AppData.last_run_config["constraints_ran"] = true
+	_find_button.disabled = true
+	_ct_status.text = "Extracting..."
+	WorkerThreadPool.add_task(func() -> void:
+		var no_progress := func(_fraction: float) -> void: pass
+		var all_constraints: Array[Constraint] = []
+		for job in resolved:
+			all_constraints.append_array((job["technique"] as ConstraintTechnique).extract(
+				parts, run_images, job["params"], no_progress))
+		_publish_constraints.call_deferred(all_constraints)
+	)
+
+
+func _publish_constraints(all_constraints: Array[Constraint]) -> void:
+	_update_find_button()
+	AppData.set_constraints(all_constraints)
+	_ct_status.text = "Found %d constraints." % all_constraints.size()
 	var tabs := get_parent() as TabContainer
 	if tabs != null:
 		var target := tabs.get_node_or_null("Constraints")

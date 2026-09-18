@@ -2,6 +2,13 @@ class_name PixelOverlap extends ConstraintTechnique
 ## Overlap compatibility: parts may sit adjacent when their facing pixel
 ## strips match within tolerance. Comparative only — no occurrence data —
 ## so pairs never seen together in the sources may still be declared legal.
+##
+## Relaxations (both default 0 = strict):
+##   allowed_omissions — pass when at most this many pixels of the facing
+##     strip have no satisfying counterpart.
+##   flex — a pixel may be satisfied by a counterpart displaced up to this
+##     many pixels along the seam (above/below for horizontal adjacency),
+##     same depth index, within tolerance.
 
 func get_id() -> StringName:
     return &"pixel_overlap"
@@ -15,6 +22,10 @@ func get_parameter_specs() -> Array[Dictionary]:
             "default": 2, "min": 1, "max": 64},
         {"key": "tolerance", "label": "Tolerance", "type": "int",
             "default": 0, "min": 0, "max": 256},
+        {"key": "allowed_omissions", "label": "Allowed Omissions",
+            "type": "int", "default": 0, "min": 0, "max": 256},
+        {"key": "flex", "label": "Flex", "type": "int",
+            "default": 0, "min": 0, "max": 64},
     ]
 
 func extract(parts: Array[Part], images: Array[ImageAssetData],
@@ -24,17 +35,17 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
         return result
     var depth := maxi(1, int(params.get("overlap_layers", 2)))
     var tolerance := maxi(0, int(params.get("tolerance", 0)))
+    var omissions := maxi(0, int(params.get("allowed_omissions", 0)))
+    var flex := maxi(0, int(params.get("flex", 0)))
 
     var ordered: Array[Part] = []
     ordered.assign(parts)
     ordered.sort_custom(func(a: Part, b: Part) -> bool: return a.id < b.id)
 
-    # Normalize once: RGBA8 bytes, strips per side. Duplicate before convert:
-    # pixel_data is shared with previews/materialization.
-    var right: Dictionary = {}
-    var left: Dictionary = {}
-    var bottom: Dictionary = {}
-    var top: Dictionary = {}
+    # Strips indexed FROM THE SEAM: u = 0 touches the neighbor, u = depth-1
+    # is deepest. v runs along the seam. Pixel (u, v) = bytes at
+    # (v * depth + u) * 4. Both sides of a pair therefore align seam-to-seam.
+    var strips: Dictionary = {}   # part_id -> {side: PackedByteArray}
     for p: Part in ordered:
         if p.size.x < depth or p.size.y < depth:
             continue
@@ -42,25 +53,36 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
         if img.is_compressed():
             img.decompress()
         img.convert(Image.FORMAT_RGBA8)
-        right[p.id] = _strip(img, depth, p.size.x - depth, 0, depth, p.size.y)
-        left[p.id] = _strip(img, depth, 0, 0, depth, p.size.y)
-        bottom[p.id] = _strip(img, depth, 0, p.size.y - depth, p.size.x, depth)
-        top[p.id] = _strip(img, depth, 0, 0, p.size.x, depth)
+        strips[p.id] = {
+            "right": _strip(img, depth, Vector2i(p.size.x - 1, 0),
+                Vector2i(0, 1), Vector2i(-1, 0), p.size.y),
+            "left": _strip(img, depth, Vector2i(0, 0),
+                Vector2i(0, 1), Vector2i(1, 0), p.size.y),
+            "bottom": _strip(img, depth, Vector2i(0, p.size.y - 1),
+                Vector2i(1, 0), Vector2i(0, -1), p.size.x),
+            "top": _strip(img, depth, Vector2i(0, 0),
+                Vector2i(1, 0), Vector2i(0, 1), p.size.x),
+        }
 
     var aggregate: Dictionary = {}
     var n := ordered.size()
     for i in n:
         var a := ordered[i]
-        if not right.has(a.id):
+        var sa: Dictionary = strips.get(a.id, {})
+        if sa.is_empty():
             continue
         for j in n:
             var b := ordered[j]
-            if a.size != b.size or not right.has(b.id):
-                continue   # mixed-size tiles unsupported (uniform-grid assumption)
-            # strip_a(facing) vs strip_b(front): byte-wise, early exit.
-            if _match(right[a.id], left[b.id], tolerance):
+            if a.size != b.size:
+                continue   # uniform-grid assumption
+            var sb: Dictionary = strips.get(b.id, {})
+            if sb.is_empty():
+                continue
+            if _match(sa["right"], sb["left"], depth, a.size.y,
+                    tolerance, flex, omissions):
                 _record(aggregate, a, b, Vector2i(a.size.x, 0))
-            if _match(bottom[a.id], top[b.id], tolerance):
+            if _match(sa["bottom"], sb["top"], depth, a.size.x,
+                    tolerance, flex, omissions):
                 _record(aggregate, a, b, Vector2i(0, a.size.y))
         if i % 16 == 15:
             report_progress.call(float(i + 1) / n)
@@ -70,32 +92,58 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
     result.assign(list)
     return result
 
-func _strip(img: Image, depth: int, x0: int, y0: int, w: int, h: int) -> PackedByteArray:
+func _strip(img: Image, depth: int, start: Vector2i, along: Vector2i,
+        inward: Vector2i, span: int) -> PackedByteArray:
+    ## Copies depth × span pixels from `start` (a point on the seam),
+    ## stepping `along` across the seam and `inward` away from it.
+    ## Outer loop = v (along the seam), inner = u (seam inward).
+    var w := img.get_width()
     var bytes := img.get_data()
     var out := PackedByteArray()
-    out.resize(depth * 4 * ((w if y0 == 0 and h == img.get_height() else depth) * 0 + _strip_len(w, h, depth)))
-    # (simpler: build directly in the comparison below — see note)
+    out.resize(depth * span * 4)
     var k := 0
-    for y in range(y0, y0 + h):
-        for x in range(x0, x0 + w):
-            var o := (y * img.get_width() + x) * 4
-            out[k] = bytes[o]; out[k + 1] = bytes[o + 1]
-            out[k + 2] = bytes[o + 2]; out[k + 3] = bytes[o + 3]
+    for s in span:
+        var base := start + along * s
+        for u in depth:
+            var p := base + inward * u
+            var o := (p.y * w + p.x) * 4
+            out[k] = bytes[o]
+            out[k + 1] = bytes[o + 1]
+            out[k + 2] = bytes[o + 2]
+            out[k + 3] = bytes[o + 3]
             k += 4
     return out
 
-func _strip_len(w: int, h: int, depth: int) -> int:
-    return w * h   # caller passes strip dims; len = w*h pixels * 4 bytes
-
-func _match(a: PackedByteArray, b: PackedByteArray, tolerance: int) -> bool:
-    if a.size() != b.size():
-        return false
-    if tolerance == 0:
-        return a == b   # PackedByteArray supports direct equality
-    for i in a.size():
-        if absi(int(a[i]) - int(b[i])) > tolerance:
-            return false
+func _match(sa: PackedByteArray, sb: PackedByteArray, depth: int, span: int,
+        tolerance: int, flex: int, omissions: int) -> bool:
+    ## True when at most `omissions` pixels of `sa` lack a satisfying
+    ## counterpart in `sb` (same u, within ±flex along the seam, in tolerance).
+    if tolerance == 0 and flex == 0 and omissions == 0:
+        return sa == sb   # rigid exact: whole-array equality, hard fast path
+    var failures := 0
+    for v in span:
+        for u in depth:
+            if _satisfied(sa, sb, u, v, depth, span, tolerance, flex):
+                continue
+            failures += 1
+            if failures > omissions:
+                return false
     return true
+
+func _satisfied(sa: PackedByteArray, sb: PackedByteArray, u: int, v: int,
+        depth: int, span: int, tolerance: int, flex: int) -> bool:
+    var ao := (v * depth + u) * 4
+    for dv in range(-flex, flex + 1):
+        var vv := v + dv
+        if vv < 0 or vv >= span:
+            continue
+        var bo := (vv * depth + u) * 4
+        if absi(sa[ao] - sb[bo]) <= tolerance \
+                and absi(sa[ao + 1] - sb[bo + 1]) <= tolerance \
+                and absi(sa[ao + 2] - sb[bo + 2]) <= tolerance \
+                and absi(sa[ao + 3] - sb[bo + 3]) <= tolerance:
+            return true
+    return false
 
 func _record(aggregate: Dictionary, a: Part, b: Part, offset: Vector2i) -> void:
     var key := "ov|%s>%s|%d,%d" % [a.id, b.id, offset.x, offset.y]

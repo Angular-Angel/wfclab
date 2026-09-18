@@ -279,10 +279,21 @@ func _on_constraint_selected(index: int) -> void:
 	_c_weight_spin.set_value_no_signal(c.get_effective_weight())
 	for e_index in c.evidence.size():
 		var ev: Dictionary = c.evidence[e_index]
-		var p0: Vector2i = ev["positions"][0]
-		var p1: Vector2i = ev["positions"][1]
-		_evidence_list.add_item("%s  (%d,%d)→(%d,%d)" % [
-			AppData.image_name(ev["image_id"]), p0.x, p0.y, p1.x, p1.y])
+		_evidence_list.add_item(_evidence_text(ev))
+		if (ev.get("positions", []) as Array).size() < 2:
+			_evidence_list.set_item_disabled(_evidence_list.item_count - 1, true)
+
+
+func _evidence_text(ev: Dictionary) -> String:
+	var positions: Array = ev.get("positions", [])
+	if positions.size() < 2:
+		## Non-spatial evidence (e.g. pixel-overlap compatibility facts):
+		## no source occurrence exists to display or navigate to.
+		return "%s  (compatibility — no source occurrence)" % AppData.image_name(ev.get("image_id", "?"))
+	var p0: Vector2i = positions[0]
+	var p1: Vector2i = positions[1]
+	return "%s  (%d,%d)→(%d,%d)" % [
+		AppData.image_name(ev["image_id"]), p0.x, p0.y, p1.x, p1.y]
 
 
 func _on_c_enabled_toggled(pressed: bool) -> void:
@@ -314,8 +325,11 @@ func _on_evidence_selected(index: int) -> void:
 	if index >= c.evidence.size():
 		return
 	var ev: Dictionary = c.evidence[index]
-	var p0: Vector2i = ev["positions"][0]
-	var p1: Vector2i = ev["positions"][1]
+	var positions: Array = ev.get("positions", [])
+	if positions.size() < 2:
+		return   # synthetic row; nothing to navigate to
+	var p0: Vector2i = positions[0]
+	var p1: Vector2i = positions[1]
 	var size: Vector2i = _selected_pair[0].size
 	var min_p := Vector2i(mini(p0.x, p1.x), mini(p0.y, p1.y))
 	var max_p := Vector2i(maxi(p0.x, p1.x), maxi(p0.y, p1.y))

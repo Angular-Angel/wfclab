@@ -381,7 +381,8 @@ func _build_rule_editor() -> VBoxContainer:
 	row_d.add_child(_mk_label("Exclusion radius"))
 	_re_distance = SpinBox.new()
 	_re_distance.min_value = 1
-	_re_distance.max_value = 32
+	_re_distance.max_value = 12
+	_re_distance.tooltip_text = "Cost of exclusion grows with radius squared. Keep <= ~8 on large maps."
 	_re_distance.value = 3
 	_re_distance.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row_d.add_child(_re_distance)

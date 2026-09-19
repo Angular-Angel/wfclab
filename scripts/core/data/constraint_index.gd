@@ -39,6 +39,10 @@ var nb_mask: Array = []                   # [part_int][delta_int] -> PackedInt64
 var nb_empty: Array = []                  # [part_int][delta_int] -> bool (no evidence)
 var border_ok: Array = []                 # [part_int][delta_int] -> bool (has OUTSIDE)
 var _pixel_to_di: Dictionary = {}         # Vector2i -> delta index
+var evidence_delta_count := 0             # pure rule deltas live at di >= this
+var rule_src: Array = []                  # [di] -> union src-tag mask (rule deltas only; null for evidence)
+var rule_src_not: Array = []              # [di] -> complement of rule_src; the solver's skip test
+var _prepared_key := ""
 
 
 func has_outside() -> bool:
@@ -87,6 +91,14 @@ static func build(parts: Array[Part], constraints: Array[Constraint],
 ## deltas may exceed the passed deltas — TileCollapse consumes
 ## _index.delta_list, so exclusions propagate without solver changes.
 func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
+	# Sessions re-call prepare() with identical inputs (Restart, recovery
+	# attempts); skip the full rebuild in that case. Authored content cannot
+	# change under us: edits rebuild the whole index object.
+	var key := "%d|%d|%d" % [deltas.hash(), step.x, step.y]
+	if key == _prepared_key:
+		return
+	_prepared_key = key
+
 	if part_ids.is_empty():
 		_assign_ints()
 	_compile_tags()
@@ -124,7 +136,11 @@ func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
 			if has_out:
 				delta_has_outside[di] = true
 		nb_mask.append(mrow); nb_empty.append(erow); border_ok.append(brow)
+	evidence_delta_count = delta_list.size()
+	evidence_delta_count = delta_list.size()
+	rule_src.resize(evidence_delta_count)   # evidence slots stay null
 	_compile_rules(step)
+	_build_rule_skip_tables()
 
 
 func _assign_ints() -> void:
@@ -172,6 +188,21 @@ func _compile_rules(step: Vector2i) -> void:
 			_:
 				push_warning("ConstraintIndex: unknown rule type '%s' skipped."
 						% String(rule.get("type", "")))
+
+
+## A rule arc from slot s can prune only if EVERY candidate in dom[s]
+## sources some rule at that delta. dom[s] & rule_src_not[di] != 0 proves
+## otherwise in O(nwords) — usually one word — replacing a full revise.
+func _build_rule_skip_tables() -> void:
+	rule_src_not.clear()
+	rule_src_not.resize(delta_list.size())
+	for di in range(evidence_delta_count, delta_list.size()):
+		var src: PackedInt64Array = rule_src[di]
+		var inv := PackedInt64Array()
+		inv.resize(nwords)
+		for w in nwords:
+			inv[w] = ~src[w]
+		rule_src_not[di] = inv
 
 
 ## "No part of tag_a within distance (slot units) of a part of tag_b."
@@ -229,9 +260,12 @@ func _append_delta(o: Vector2i, pix: Vector2i) -> int:
 	delta_has_outside.append(false)
 	var full := TileCollapse.mask_full(nwords, part_ids.size())
 	for pi in part_ids.size():
-		nb_mask[pi].append(full.duplicate())
+		nb_mask[pi].append(full)   # COW-shared; exclusion writes copy lazily
 		nb_empty[pi].append(false)
 		border_ok[pi].append(false)
+	var zero := PackedInt64Array()
+	zero.resize(nwords)
+	rule_src.append(zero)
 	return di
 
 
@@ -254,6 +288,11 @@ func _exclude_at(di: int, src_tag: String, dst_tag: String) -> void:
 				m[k] = m[k] & ~dst[k]
 			nb_mask[pi][di] = m         # COW write-back — required
 			nb_empty[pi][di] = false
+			if di >= evidence_delta_count:
+				var u: PackedInt64Array = rule_src[di]
+				for j in src.size():
+					u[j] = u[j] | src[j]
+				rule_src[di] = u                # COW write-back — required
 
 
 # --- evidence query layer (unchanged) -------------------------------------------

@@ -19,7 +19,7 @@
 			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/Angular.png"
 		},
 		{
-			"id": "img_b38fc21106",
+			"id": "img_523a4b74db",
 			"path": "/home/Angle/Documents/Programming/GodotEngine/Projects/4.0/WFCLab/images/samples/DungeonShrooms.png"
 		}
 	],
@@ -52,14 +52,14 @@
 				"params": {
 					"custom_step": {
 						"__v2i": [
-							8,
-							8
+							2,
+							2
 						]
 					},
 					"directional": true,
-					"edge_evidence": 1,
+					"edge_evidence": 0,
 					"neighborhood": 0,
-					"step_mode": 0
+					"step_mode": 1
 				}
 			},
 			{
@@ -78,7 +78,7 @@
 			"img_4010d4d4ab",
 			"img_efdfc4eac6",
 			"img_eb28ee7492",
-			"img_b38fc21106"
+			"img_523a4b74db"
 		],
 		"params": {
 			"dedupe": true,
@@ -92,8 +92,8 @@
 			"rotation_90": true,
 			"stride": {
 				"__v2i": [
-					4,
-					4
+					2,
+					2
 				]
 			},
 			"tile_size": {
@@ -109,17 +109,98 @@
 		"p_001e034f0458": [
 			"Open"
 		],
+		"p_0031d7660b08": [
+			"Shrooms",
+			"Open"
+		],
+		"p_006d0e7b34dc": [
+			"Water",
+			"Shrooms"
+		],
+		"p_007af6cbe934": [
+			"Open"
+		],
+		"p_0081bf907dc7": [
+			"Shrooms",
+			"Open"
+		],
+		"p_0094404d87e8": [
+			"Water"
+		],
+		"p_0097c0d0e509": [
+			"Water",
+			"Shrooms"
+		],
+		"p_00da55824a64": [
+			"Shrooms"
+		],
+		"p_010789dfbb7a": [
+			"Shrooms"
+		],
+		"p_011f6a06dd1d": [
+			"Open"
+		],
+		"p_0125dfc89eb6": [
+			"Shrooms",
+			"Open"
+		],
+		"p_013be66a8bc0": [
+			"Open"
+		],
+		"p_014f81452cea": [
+			"Water",
+			"Shrooms"
+		],
 		"p_01759537426f": [
 			"Open"
 		],
 		"p_017fdb05db3d": [
 			"Water"
 		],
+		"p_019ef3702ba8": [
+			"Open"
+		],
+		"p_01ca41ef0277": [
+			"Water"
+		],
+		"p_01e163d04b30": [
+			"Shrooms",
+			"Open"
+		],
 		"p_01ea91d56f53": [
+			"Open"
+		],
+		"p_01f7b53e469c": [
+			"Shrooms"
+		],
+		"p_0215c4aea6e8": [
+			"Water",
+			"Open"
+		],
+		"p_021a7a5108de": [
+			"Shrooms"
+		],
+		"p_0226fce309c5": [
+			"Water",
+			"Shrooms"
+		],
+		"p_025c08926f6c": [
+			"Shrooms",
+			"Open"
+		],
+		"p_027116a9cfdc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_0291aa4238aa": [
 			"Open"
 		],
 		"p_02a49e50d7da": [
 			"Water"
+		],
+		"p_02bdf5745572": [
+			"Shrooms",
+			"Open"
 		],
 		"p_030aa4f0ec2e": [
 			"Open"
@@ -138,29 +219,138 @@
 		"p_0341fb60767a": [
 			"Open"
 		],
+		"p_036f252c6456": [
+			"Water",
+			"Shrooms"
+		],
+		"p_03912c81a4b5": [
+			"Water",
+			"Shrooms"
+		],
 		"p_03b3f08f7654": [
+			"Open"
+		],
+		"p_03d0253f1aea": [
+			"Water",
+			"Open"
+		],
+		"p_03d4d53d9e0c": [
 			"Open"
 		],
 		"p_03fc729c9fac": [
 			"Open"
 		],
+		"p_03fe875753df": [
+			"Water",
+			"Shrooms"
+		],
+		"p_0402cde14da5": [
+			"Water",
+			"Shrooms"
+		],
 		"p_042b92e60f06": [
 			"Open"
 		],
+		"p_045f7989b9a9": [
+			"Open"
+		],
+		"p_0462a5627f15": [
+			"Shrooms"
+		],
+		"p_046be03ed2bb": [
+			"Shrooms"
+		],
 		"p_04870af77889": [
+			"Shrooms"
+		],
+		"p_0493897874c5": [
+			"Open"
+		],
+		"p_04d2d2a11dd9": [
 			"Shrooms"
 		],
 		"p_053a573f5120": [
 			"Open"
 		],
+		"p_0546e2b4145e": [
+			"Water",
+			"Shrooms"
+		],
+		"p_0579c35a732e": [
+			"Shrooms"
+		],
 		"p_05b88c46573a": [
+			"Open"
+		],
+		"p_05c5ed66a009": [
+			"Shrooms",
 			"Open"
 		],
 		"p_05d06f0e0a6d": [
 			"Open"
 		],
+		"p_05d14fa90c6f": [
+			"Water"
+		],
+		"p_05ec1f8c87d5": [
+			"Shrooms"
+		],
+		"p_0600ff0e23b7": [
+			"Shrooms"
+		],
 		"p_0609df241872": [
 			"Water"
+		],
+		"p_060e5dff154d": [
+			"Shrooms"
+		],
+		"p_0623837440fc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_06407f09fd3b": [
+			"Water",
+			"Shrooms"
+		],
+		"p_065d38d598e8": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_06824c42ce5c": [
+			"Shrooms"
+		],
+		"p_06b94fb6fdd3": [
+			"Shrooms"
+		],
+		"p_06e169b3ea21": [
+			"Open"
+		],
+		"p_06f801c82243": [
+			"Shrooms",
+			"Open"
+		],
+		"p_07015669b1c2": [
+			"Shrooms"
+		],
+		"p_072b8e2b2767": [
+			"Shrooms",
+			"Open"
+		],
+		"p_072bacea0dba": [
+			"Water",
+			"Open"
+		],
+		"p_075eb8a87cd1": [
+			"Shrooms"
+		],
+		"p_07b99343b1a0": [
+			"Water",
+			"Open"
+		],
+		"p_07ba4344531e": [
+			"Water",
+			"Open"
 		],
 		"p_07e7d4dfbf1c": [
 			"Water",
@@ -169,14 +359,57 @@
 		"p_07ee762c025c": [
 			"Shrooms"
 		],
+		"p_0818989d159d": [
+			"Open"
+		],
+		"p_081c522704cc": [
+			"Shrooms"
+		],
+		"p_0826a6a7ef2a": [
+			"Open"
+		],
+		"p_0827c894bf5d": [
+			"Shrooms",
+			"Open"
+		],
+		"p_086245efa9d0": [
+			"Shrooms",
+			"Open"
+		],
 		"p_088a28e4886b": [
 			"Open"
+		],
+		"p_08cf76cea40b": [
+			"Shrooms"
+		],
+		"p_08e05e4caded": [
+			"Shrooms",
+			"Open"
+		],
+		"p_08ee063e0af6": [
+			"Water",
+			"Open"
+		],
+		"p_0932b9a4bb31": [
+			"Shrooms"
 		],
 		"p_0955fb81eca3": [
 			"Water",
 			"Shrooms"
 		],
+		"p_096ee752fee3": [
+			"Shrooms"
+		],
+		"p_09a1604f9830": [
+			"Shrooms"
+		],
+		"p_09b0f9608a6a": [
+			"Open"
+		],
 		"p_09e2d25ccdda": [
+			"Shrooms"
+		],
+		"p_0a030652af30": [
 			"Shrooms"
 		],
 		"p_0a1a5ea5e7d5": [
@@ -186,14 +419,56 @@
 		"p_0a4042ad75b5": [
 			"Open"
 		],
+		"p_0a42f1466e87": [
+			"Open"
+		],
+		"p_0a6aa5dfb3e5": [
+			"Water",
+			"Shrooms"
+		],
 		"p_0a81d70c7136": [
 			"Open"
 		],
 		"p_0a82635f84c7": [
 			"Open"
 		],
+		"p_0acf7ad42c59": [
+			"Shrooms",
+			"Open"
+		],
+		"p_0b03a1dcaf1e": [
+			"Open"
+		],
+		"p_0b2a02ad62ab": [
+			"Shrooms",
+			"Open"
+		],
+		"p_0b35587d2310": [
+			"Open"
+		],
 		"p_0b505049e6ee": [
 			"Open"
+		],
+		"p_0b87c75c12ca": [
+			"Water",
+			"Open"
+		],
+		"p_0b8aef10dfca": [
+			"Water",
+			"Shrooms"
+		],
+		"p_0ba79e00253d": [
+			"Open"
+		],
+		"p_0bb0def51a58": [
+			"Open"
+		],
+		"p_0be92837ad46": [
+			"Open"
+		],
+		"p_0bfcb28d2ef9": [
+			"Water",
+			"Shrooms"
 		],
 		"p_0c3de33f74af": [
 			"Shrooms"
@@ -201,27 +476,83 @@
 		"p_0c3f91f828e3": [
 			"Shrooms"
 		],
+		"p_0c4d944c1967": [
+			"Water",
+			"Open"
+		],
+		"p_0c4f02a44f37": [
+			"Open"
+		],
 		"p_0c66e08919a5": [
 			"Water",
 			"Shrooms"
 		],
+		"p_0c92ed20e6dc": [
+			"Open"
+		],
+		"p_0c993d5f22f4": [
+			"Shrooms",
+			"Open"
+		],
+		"p_0ca8a23a720a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_0cbe57c981ea": [
+			"Water"
+		],
 		"p_0cbeb353e43c": [
 			"Shrooms"
+		],
+		"p_0d0186f37d80": [
+			"Water"
 		],
 		"p_0d2349a55565": [
 			"Water"
 		],
+		"p_0d27c7d665f5": [
+			"Water",
+			"Open"
+		],
+		"p_0d3cd36769df": [
+			"Water",
+			"Shrooms"
+		],
+		"p_0d5754e5af12": [
+			"Shrooms"
+		],
+		"p_0d5b9c55db79": [
+			"Open"
+		],
 		"p_0dd9bb74840a": [
+			"Open"
+		],
+		"p_0de014c3f8f5": [
+			"Water",
 			"Open"
 		],
 		"p_0de208a8df9e": [
 			"Shrooms"
+		],
+		"p_0df57ee757a8": [
+			"Open"
+		],
+		"p_0e0bbce58a56": [
+			"Water",
+			"Shrooms"
+		],
+		"p_0e181a5519e1": [
+			"Shrooms",
+			"Open"
 		],
 		"p_0e3251b1c2ff": [
 			"Open"
 		],
 		"p_0e469cd51f12": [
 			"Water",
+			"Shrooms"
+		],
+		"p_0e5a94508a86": [
 			"Shrooms"
 		],
 		"p_0eadbc6ec63d": [
@@ -234,21 +565,97 @@
 		"p_0ec847709329": [
 			"Open"
 		],
+		"p_0ef9978233e1": [
+			"Shrooms",
+			"Open"
+		],
+		"p_0f055567405f": [
+			"Shrooms"
+		],
+		"p_0f0e4fa940dd": [
+			"Shrooms",
+			"Open"
+		],
+		"p_0f9ea43f8be5": [
+			"Water",
+			"Shrooms"
+		],
+		"p_0fa164a1d4d4": [
+			"Lava",
+			"Open"
+		],
 		"p_0fab5415247c": [
 			"Shrooms"
+		],
+		"p_0fb75749b0e4": [
+			"Open"
 		],
 		"p_0fc154405e73": [
 			"Water",
 			"Shrooms"
 		],
+		"p_0fcccc7a967b": [
+			"Water",
+			"Open"
+		],
+		"p_0fd6e81e12cd": [
+			"Water",
+			"Shrooms"
+		],
+		"p_0fed097a83c4": [
+			"Water"
+		],
 		"p_0ff5ae4568bc": [
 			"Water",
 			"Shrooms"
 		],
+		"p_0ffa74e99461": [
+			"Shrooms"
+		],
+		"p_100c60b90fd2": [
+			"Shrooms",
+			"Open"
+		],
 		"p_101ac4a1a224": [
 			"Shrooms"
 		],
+		"p_10308ab6b2dc": [
+			"Shrooms"
+		],
+		"p_103774873016": [
+			"Open"
+		],
+		"p_103a4a3e28c3": [
+			"Shrooms"
+		],
+		"p_103b15a3cd68": [
+			"Shrooms"
+		],
+		"p_103dc57bccb6": [
+			"Water"
+		],
+		"p_105aa1d9e858": [
+			"Shrooms"
+		],
+		"p_111a1f4d2a1c": [
+			"Shrooms"
+		],
 		"p_11253d475ecc": [
+			"Shrooms"
+		],
+		"p_11257876535d": [
+			"Water",
+			"Open"
+		],
+		"p_113718cdcd40": [
+			"Shrooms",
+			"Open"
+		],
+		"p_11374182555e": [
+			"Open"
+		],
+		"p_11470fbc9d0d": [
+			"Water",
 			"Shrooms"
 		],
 		"p_114755f2587c": [
@@ -258,16 +665,45 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_11d2ac2de14b": [
+			"Water",
+			"Open"
+		],
 		"p_120beff2a178": [
 			"Shrooms"
 		],
+		"p_121370a0b967": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1219ae14cb35": [
+			"Open"
+		],
+		"p_121d4a773dfb": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_1220db31c890": [
 			"Open"
+		],
+		"p_1221fd22e5a6": [
+			"Water"
 		],
 		"p_126a5b7c5a46": [
 			"Open"
 		],
 		"p_127abfd5b8d9": [
+			"Open"
+		],
+		"p_12817a7ee916": [
+			"Shrooms"
+		],
+		"p_1296b3486cdc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_12d3005853d2": [
 			"Open"
 		],
 		"p_130fc0fca447": [
@@ -277,32 +713,187 @@
 			"Lava",
 			"Open"
 		],
+		"p_131341fff80a": [
+			"Shrooms",
+			"Open"
+		],
 		"p_1337ce3d2b64": [
 			"Shrooms",
 			"Open"
 		],
+		"p_133bfdb804ac": [
+			"Shrooms"
+		],
+		"p_13778d5a466e": [
+			"Shrooms"
+		],
+		"p_13819506a417": [
+			"Water",
+			"Open"
+		],
+		"p_138622e12875": [
+			"Shrooms",
+			"Open"
+		],
+		"p_139c507b79cd": [
+			"Shrooms"
+		],
+		"p_13b1e0100ce0": [
+			"Water"
+		],
 		"p_1411b69ce32b": [
 			"Shrooms"
 		],
+		"p_14139e24f962": [
+			"Open"
+		],
 		"p_1437b96cb6e5": [
+			"Open"
+		],
+		"p_143f23f258ac": [
+			"Water",
+			"Shrooms",
 			"Open"
 		],
 		"p_14417c43458b": [
 			"Open"
 		],
+		"p_14461a97511f": [
+			"Shrooms"
+		],
+		"p_146acd8e9df3": [
+			"Open"
+		],
+		"p_146f42a18ec3": [
+			"Shrooms",
+			"Open"
+		],
+		"p_14873e2827af": [
+			"Shrooms"
+		],
 		"p_1504b6f79989": [
 			"Open"
 		],
+		"p_150695a576d9": [
+			"Water",
+			"Shrooms"
+		],
+		"p_15299255cf9a": [
+			"Open"
+		],
+		"p_153bb54c0dbb": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1544aac43236": [
+			"Shrooms"
+		],
 		"p_15974dcf49db": [
+			"Open"
+		],
+		"p_159ee6db96d4": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_15dc22ec257b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_15de827bbfcb": [
+			"Shrooms",
 			"Open"
 		],
 		"p_15e7d46ac3bf": [
 			"Shrooms"
 		],
+		"p_160c35a10cc5": [
+			"Water",
+			"Shrooms"
+		],
+		"p_16135356c3c3": [
+			"Shrooms",
+			"Open"
+		],
+		"p_16361f0d9b57": [
+			"Shrooms",
+			"Open"
+		],
 		"p_163b94d62aae": [
 			"Shrooms"
 		],
+		"p_166402bceec6": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1682816fcb82": [
+			"Open"
+		],
+		"p_16aa26a5879d": [
+			"Water",
+			"Shrooms"
+		],
+		"p_16ad8248bb0c": [
+			"Shrooms"
+		],
+		"p_16b82693c480": [
+			"Open"
+		],
+		"p_16f5e28652a7": [
+			"Shrooms"
+		],
+		"p_1711bce1636e": [
+			"Shrooms"
+		],
+		"p_171a81b6a509": [
+			"Water",
+			"Open"
+		],
+		"p_17a576036c3c": [
+			"Water",
+			"Shrooms"
+		],
 		"p_17b3cd92fb26": [
+			"Shrooms",
+			"Open"
+		],
+		"p_17ec82631dea": [
+			"Shrooms",
+			"Open"
+		],
+		"p_180b3f0d3cae": [
+			"Shrooms"
+		],
+		"p_1813d922c23e": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_1819febe26c6": [
+			"Shrooms",
+			"Open"
+		],
+		"p_184c5ad2207a": [
+			"Water",
+			"Open"
+		],
+		"p_1850130b511a": [
+			"Shrooms"
+		],
+		"p_1857ee3a063b": [
+			"Water",
+			"Shrooms"
+		],
+		"p_185f43ecb68d": [
+			"Open"
+		],
+		"p_1861e531f0d7": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_187f0755b656": [
+			"Water",
 			"Shrooms",
 			"Open"
 		],
@@ -312,27 +903,117 @@
 		"p_18f2a29d8ca5": [
 			"Open"
 		],
+		"p_18fcfd25e719": [
+			"Shrooms",
+			"Open"
+		],
+		"p_193a31da75f8": [
+			"Shrooms"
+		],
+		"p_195760e3e218": [
+			"Open"
+		],
+		"p_19ed50be8432": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1a2267c70f2d": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1a2fe491d9f8": [
+			"Shrooms"
+		],
+		"p_1a3a0907ef05": [
+			"Water",
+			"Shrooms"
+		],
+		"p_1a64d2602f0c": [
+			"Water"
+		],
 		"p_1a68a50591fb": [
 			"Open"
 		],
 		"p_1a85b2f4e098": [
 			"Open"
 		],
+		"p_1a87c87b587a": [
+			"Water",
+			"Open"
+		],
+		"p_1a8d638db7fd": [
+			"Water",
+			"Shrooms"
+		],
+		"p_1afc0d3735e2": [
+			"Shrooms",
+			"Open"
+		],
 		"p_1b05e99b9546": [
+			"Open"
+		],
+		"p_1b24dce0f589": [
+			"Shrooms",
 			"Open"
 		],
 		"p_1b7092622c00": [
 			"Water",
 			"Shrooms"
 		],
+		"p_1b7acfcc2688": [
+			"Water",
+			"Open"
+		],
+		"p_1b83482f9197": [
+			"Open"
+		],
+		"p_1b9461f94008": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1baf3614fcab": [
+			"Shrooms",
+			"Open"
+		],
 		"p_1bbb9acc4885": [
 			"Shrooms"
+		],
+		"p_1bcc415f41e3": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1be4f7272694": [
+			"Shrooms"
+		],
+		"p_1c0196e7b6a4": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1c141fc3d77f": [
+			"Water"
+		],
+		"p_1c20e7f62b0c": [
+			"Open"
+		],
+		"p_1c56079df945": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1c5d80fc4bdb": [
+			"Open"
 		],
 		"p_1c8df57365f7": [
 			"Open"
 		],
 		"p_1c920bcd5b39": [
 			"Water"
+		],
+		"p_1ca390b50ce4": [
+			"Water",
+			"Shrooms"
+		],
+		"p_1cc0987187fe": [
+			"Shrooms"
 		],
 		"p_1cc3fb648214": [
 			"Water",
@@ -341,6 +1022,9 @@
 		"p_1cc5079e0fbb": [
 			"Shrooms"
 		],
+		"p_1cdc38914079": [
+			"Water"
+		],
 		"p_1d026304452c": [
 			"Open"
 		],
@@ -348,18 +1032,70 @@
 			"Water",
 			"Open"
 		],
+		"p_1d432e4e2494": [
+			"Open"
+		],
+		"p_1d4750f61a13": [
+			"Shrooms"
+		],
+		"p_1d4773356120": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1d50567779f8": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1d5f3aa9cb30": [
+			"Shrooms",
+			"Open"
+		],
 		"p_1d6c072007dc": [
 			"Open"
 		],
+		"p_1d85e9df06ef": [
+			"Water",
+			"Shrooms"
+		],
+		"p_1db185d08f02": [
+			"Open"
+		],
 		"p_1dedc21df6c6": [
+			"Open"
+		],
+		"p_1e1cb64be7fa": [
 			"Open"
 		],
 		"p_1e1da914a1e6": [
 			"Water",
 			"Shrooms"
 		],
+		"p_1e50c21bd8e8": [
+			"Water",
+			"Open"
+		],
+		"p_1e7443af2672": [
+			"Shrooms"
+		],
+		"p_1ead2b71aa3e": [
+			"Shrooms"
+		],
+		"p_1ebcec70f304": [
+			"Lava",
+			"Open"
+		],
+		"p_1ede0c036c24": [
+			"Shrooms"
+		],
 		"p_1ee191912211": [
 			"Open"
+		],
+		"p_1f093719441d": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1f2e842e5a56": [
+			"Shrooms"
 		],
 		"p_1f3d9da9885d": [
 			"Open"
@@ -367,11 +1103,52 @@
 		"p_1f3e115c3449": [
 			"Shrooms"
 		],
+		"p_1f8c28038d5e": [
+			"Water",
+			"Open"
+		],
+		"p_1fa7536a3cee": [
+			"Shrooms",
+			"Open"
+		],
+		"p_1fab61d84be3": [
+			"Water",
+			"Shrooms"
+		],
+		"p_1fce9121d4d4": [
+			"Shrooms"
+		],
+		"p_2014e00a93a3": [
+			"Water"
+		],
+		"p_20379ab51f23": [
+			"Open"
+		],
+		"p_204ace83ce52": [
+			"Open"
+		],
+		"p_204dcbcd9c28": [
+			"Shrooms",
+			"Open"
+		],
 		"p_206083c7ad77": [
 			"Open"
 		],
+		"p_206a2c5ff28a": [
+			"Shrooms"
+		],
 		"p_2076df9b5303": [
 			"Open"
+		],
+		"p_208c830d6fc7": [
+			"Open"
+		],
+		"p_20ab8d61375f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_20de7e7ecc34": [
+			"Shrooms"
 		],
 		"p_20ff27f2d033": [
 			"Shrooms"
@@ -380,24 +1157,154 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_212a6aa64f94": [
+			"Shrooms",
+			"Open"
+		],
+		"p_21694a83e3fe": [
+			"Shrooms",
+			"Open"
+		],
+		"p_2171d63523e4": [
+			"Shrooms",
+			"Open"
+		],
+		"p_217a034a2bd9": [
+			"Shrooms"
+		],
+		"p_217f28bc71f5": [
+			"Open"
+		],
+		"p_2185f5636876": [
+			"Water",
+			"Shrooms"
+		],
 		"p_21bf1b37d064": [
+			"Open"
+		],
+		"p_21c3b9912c0f": [
+			"Shrooms",
 			"Open"
 		],
 		"p_21e488a4823e": [
 			"Open"
 		],
+		"p_21f5ff78ed18": [
+			"Water",
+			"Shrooms"
+		],
+		"p_2224369ffaaa": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_222d55d3bf3c": [
+			"Water",
+			"Open"
+		],
+		"p_2231d69f01f2": [
+			"Shrooms"
+		],
+		"p_22a9c3af09bf": [
+			"Water"
+		],
+		"p_22d556749e94": [
+			"Water"
+		],
 		"p_232a79869ae3": [
+			"Shrooms"
+		],
+		"p_232f033f6d58": [
+			"Shrooms",
+			"Open"
+		],
+		"p_235080653328": [
+			"Open"
+		],
+		"p_236401e687c0": [
+			"Shrooms"
+		],
+		"p_236e4e9dd9e9": [
+			"Shrooms",
+			"Open"
+		],
+		"p_2373fb255b75": [
 			"Shrooms"
 		],
 		"p_2379a110a52e": [
 			"Open"
 		],
+		"p_237f40f8f2df": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_23801a06d391": [
+			"Shrooms",
+			"Open"
+		],
+		"p_23c76172a1cd": [
+			"Open"
+		],
+		"p_2409f897513b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_242bd8be472e": [
+			"Open"
+		],
+		"p_244b555f29cc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_247b8666bf64": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_24d0a4028229": [
+			"Shrooms"
+		],
 		"p_24ebb0f45a60": [
 			"Water",
 			"Shrooms"
 		],
+		"p_24f6ad8613b7": [
+			"Shrooms",
+			"Open"
+		],
+		"p_25303c478061": [
+			"Shrooms"
+		],
+		"p_253ea918df37": [
+			"Shrooms"
+		],
+		"p_25716edfbb31": [
+			"Open"
+		],
+		"p_25881f127a64": [
+			"Water",
+			"Shrooms"
+		],
+		"p_25e704dfdcba": [
+			"Water",
+			"Shrooms"
+		],
+		"p_2616d82b23c3": [
+			"Shrooms"
+		],
+		"p_26204fd4c2b7": [
+			"Shrooms"
+		],
 		"p_26a5cb0bcc10": [
 			"Open"
+		],
+		"p_26c72f3c7b42": [
+			"Water",
+			"Shrooms"
+		],
+		"p_26cd467c154c": [
+			"Water"
 		],
 		"p_26ce3f1f7ff4": [
 			"Shrooms"
@@ -408,6 +1315,24 @@
 		],
 		"p_270e20c35f7d": [
 			"Open"
+		],
+		"p_271e1310ec98": [
+			"Water",
+			"Open"
+		],
+		"p_2727d30b6795": [
+			"Shrooms"
+		],
+		"p_2737172fb4fd": [
+			"Shrooms",
+			"Open"
+		],
+		"p_27465629ba1f": [
+			"Shrooms"
+		],
+		"p_274682fabc8d": [
+			"Water",
+			"Shrooms"
 		],
 		"p_27955d24c997": [
 			"Water",
@@ -420,18 +1345,51 @@
 			"Water",
 			"Open"
 		],
+		"p_27ed147d5745": [
+			"Shrooms"
+		],
 		"p_27ff626e5fd0": [
 			"Shrooms"
+		],
+		"p_280249d7ab87": [
+			"Shrooms",
+			"Open"
+		],
+		"p_280275a3e043": [
+			"Open"
 		],
 		"p_2816f15c642e": [
 			"Water",
 			"Open"
 		],
+		"p_281f5e16bbbc": [
+			"Water"
+		],
 		"p_2832e8a749cc": [
 			"Open"
 		],
+		"p_283553823c16": [
+			"Water",
+			"Shrooms"
+		],
+		"p_28531e589fc4": [
+			"Open"
+		],
+		"p_288f69052ca6": [
+			"Water"
+		],
 		"p_28b37e4076c5": [
 			"Open"
+		],
+		"p_28bdc2a231a1": [
+			"Open"
+		],
+		"p_28d0fb15bc98": [
+			"Shrooms",
+			"Open"
+		],
+		"p_29070c4013de": [
+			"Shrooms"
 		],
 		"p_290731db30f6": [
 			"Open"
@@ -439,7 +1397,17 @@
 		"p_292e691c16fe": [
 			"Shrooms"
 		],
+		"p_29444a5b46cb": [
+			"Water",
+			"Shrooms"
+		],
+		"p_299026910bd4": [
+			"Shrooms"
+		],
 		"p_299546d1a802": [
+			"Open"
+		],
+		"p_29970a9994e1": [
 			"Open"
 		],
 		"p_29c588ecedff": [
@@ -448,11 +1416,46 @@
 		"p_29cc12a59c40": [
 			"Open"
 		],
+		"p_29e0d4d7cfbd": [
+			"Water",
+			"Shrooms"
+		],
+		"p_29e88750cd8f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_29ec564e1996": [
+			"Open"
+		],
+		"p_29f8044f8025": [
+			"Shrooms",
+			"Open"
+		],
+		"p_2a5671342ced": [
+			"Shrooms",
+			"Open"
+		],
+		"p_2a5978f4cb93": [
+			"Shrooms"
+		],
 		"p_2a5c72f6a7ec": [
+			"Shrooms"
+		],
+		"p_2a64d3dbe113": [
+			"Shrooms"
+		],
+		"p_2a6ed0a1af23": [
+			"Water"
+		],
+		"p_2a7cdd7c472d": [
 			"Shrooms"
 		],
 		"p_2aa5184619e5": [
 			"Open"
+		],
+		"p_2aa81e7d0272": [
+			"Water",
+			"Shrooms"
 		],
 		"p_2ab48aa20131": [
 			"Water",
@@ -461,12 +1464,65 @@
 		"p_2abe3d6d7541": [
 			"Shrooms"
 		],
+		"p_2aede6386662": [
+			"Open"
+		],
 		"p_2af4d69940b9": [
+			"Open"
+		],
+		"p_2b08094bdff2": [
+			"Water",
+			"Shrooms"
+		],
+		"p_2b0c2a7b3b30": [
+			"Shrooms",
+			"Open"
+		],
+		"p_2b2356d3e8f8": [
+			"Shrooms"
+		],
+		"p_2b3134c666fb": [
+			"Open"
+		],
+		"p_2b3f597154f2": [
+			"Water",
+			"Open"
+		],
+		"p_2b5153078e57": [
+			"Shrooms"
+		],
+		"p_2b5b342dd7ef": [
+			"Shrooms"
+		],
+		"p_2b77a9135fc9": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_2b940ce70ed9": [
+			"Open"
+		],
+		"p_2b9a2b22bb7f": [
+			"Open"
+		],
+		"p_2bac333776f1": [
+			"Water",
+			"Open"
+		],
+		"p_2bb68af1e3c7": [
+			"Water",
+			"Shrooms"
+		],
+		"p_2bb77e4fcf24": [
+			"Water",
 			"Open"
 		],
 		"p_2bc823785ea0": [
 			"Lava",
 			"Open"
+		],
+		"p_2c0396283501": [
+			"Shrooms"
 		],
 		"p_2c62df1ee268": [
 			"Shrooms"
@@ -474,11 +1530,25 @@
 		"p_2c789d4dfb65": [
 			"Shrooms"
 		],
+		"p_2c82b2807172": [
+			"Shrooms",
+			"Open"
+		],
 		"p_2c93dfb5ec5f": [
 			"Shrooms"
 		],
 		"p_2c9fa0e2b6ec": [
 			"Open"
+		],
+		"p_2ce19cf4295d": [
+			"Open"
+		],
+		"p_2cf987b1fd0d": [
+			"Shrooms",
+			"Open"
+		],
+		"p_2cfff462697f": [
+			"Shrooms"
 		],
 		"p_2d24513baa79": [
 			"Shrooms",
@@ -491,12 +1561,35 @@
 		"p_2d861c4b0f83": [
 			"Shrooms"
 		],
+		"p_2d9a8a567ae1": [
+			"Water",
+			"Shrooms"
+		],
 		"p_2d9e322bef12": [
+			"Shrooms",
+			"Open"
+		],
+		"p_2def60da0ab8": [
+			"Open"
+		],
+		"p_2df6a0ae533e": [
 			"Shrooms",
 			"Open"
 		],
 		"p_2e1393dca408": [
 			"Shrooms"
+		],
+		"p_2e1d72d42a84": [
+			"Water",
+			"Open"
+		],
+		"p_2e32ca9cdfe6": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_2e538e4c82bb": [
+			"Open"
 		],
 		"p_2ec1bdf739b0": [
 			"Water",
@@ -505,14 +1598,38 @@
 		"p_2ec71f53b8ab": [
 			"Open"
 		],
+		"p_2f115912f159": [
+			"Shrooms"
+		],
+		"p_2f2d272b1b0c": [
+			"Shrooms"
+		],
 		"p_2f55243747e3": [
 			"Water",
 			"Shrooms"
 		],
+		"p_2f5a9acedd1f": [
+			"Water",
+			"Shrooms"
+		],
+		"p_2f6a7d267ba5": [
+			"Shrooms"
+		],
+		"p_2f919e5ad665": [
+			"Shrooms",
+			"Open"
+		],
 		"p_2fa962f0d4c0": [
 			"Open"
 		],
+		"p_2fcd4522b927": [
+			"Shrooms"
+		],
 		"p_2ffba30c833d": [
+			"Open"
+		],
+		"p_3026cdeb3394": [
+			"Shrooms",
 			"Open"
 		],
 		"p_30327db19f59": [
@@ -522,35 +1639,127 @@
 		"p_303ab1d4ad7d": [
 			"Open"
 		],
+		"p_3045b266611d": [
+			"Shrooms"
+		],
+		"p_306242f67515": [
+			"Water",
+			"Shrooms"
+		],
+		"p_306276470462": [
+			"Water",
+			"Shrooms"
+		],
 		"p_3064f8ade928": [
+			"Open"
+		],
+		"p_3086935e7059": [
+			"Water"
+		],
+		"p_308e9a303754": [
+			"Shrooms"
+		],
+		"p_311395039f3c": [
+			"Shrooms",
 			"Open"
 		],
 		"p_314d6a9d6a2e": [
 			"Open"
 		],
+		"p_3180dfa3c615": [
+			"Open"
+		],
+		"p_318cfe8780d1": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_31931b74507b": [
+			"Open"
+		],
+		"p_31ee2f0c6ed6": [
 			"Open"
 		],
 		"p_31eeb672c59e": [
 			"Open"
 		],
+		"p_3229fdd44556": [
+			"Open"
+		],
+		"p_32df51ba3c16": [
+			"Shrooms"
+		],
+		"p_331e3fd5bc7a": [
+			"Shrooms"
+		],
 		"p_332f6bd4f319": [
+			"Open"
+		],
+		"p_33562b09bf2f": [
 			"Open"
 		],
 		"p_336407e4e29d": [
 			"Open"
 		],
+		"p_33800d53ec73": [
+			"Shrooms",
+			"Open"
+		],
+		"p_33a1ee5577ec": [
+			"Shrooms"
+		],
 		"p_33c6867de28c": [
+			"Shrooms",
+			"Open"
+		],
+		"p_3412c8400497": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_3413f1ea377a": [
+			"Water",
+			"Shrooms"
+		],
+		"p_343bc1603dbb": [
 			"Shrooms",
 			"Open"
 		],
 		"p_346ede662f02": [
 			"Open"
 		],
+		"p_3479cf373236": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_34c9e9d2f6d7": [
+			"Water",
+			"Open"
+		],
+		"p_34e87bca23ef": [
+			"Shrooms"
+		],
 		"p_3504d9ae5ebd": [
 			"Open"
 		],
+		"p_352f5112a6c9": [
+			"Open"
+		],
+		"p_353afa57cbf2": [
+			"Open"
+		],
 		"p_354044b9fcbf": [
+			"Open"
+		],
+		"p_354567e6a218": [
+			"Shrooms"
+		],
+		"p_3548da1dc13a": [
+			"Open"
+		],
+		"p_3582614d8273": [
+			"Water",
 			"Open"
 		],
 		"p_358aa99cd260": [
@@ -563,7 +1772,14 @@
 		"p_35b6a273c676": [
 			"Open"
 		],
+		"p_35ff84e378df": [
+			"Shrooms"
+		],
 		"p_3650bcdc9605": [
+			"Open"
+		],
+		"p_36597b38b368": [
+			"Shrooms",
 			"Open"
 		],
 		"p_3683413704fa": [
@@ -581,11 +1797,73 @@
 			"Water",
 			"Open"
 		],
+		"p_36fbcd41d71b": [
+			"Shrooms"
+		],
+		"p_3705c80d57f9": [
+			"Shrooms",
+			"Open"
+		],
+		"p_370ae2731b79": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_3711c2eb109d": [
+			"Water",
+			"Shrooms"
+		],
+		"p_372f7f157f52": [
+			"Shrooms"
+		],
+		"p_373b51f4014d": [
+			"Shrooms"
+		],
+		"p_377c3ddb6a8d": [
+			"Open"
+		],
+		"p_377e30318a93": [
+			"Open"
+		],
+		"p_37906ab2af37": [
+			"Shrooms",
+			"Open"
+		],
+		"p_37972cca2035": [
+			"Water",
+			"Shrooms"
+		],
+		"p_37b927326a0e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_37c4df62e170": [
+			"Shrooms"
+		],
+		"p_37cf91e628e2": [
+			"Shrooms"
+		],
+		"p_37e9a3896f63": [
+			"Shrooms"
+		],
 		"p_37f93071aff7": [
 			"Water",
 			"Open"
 		],
 		"p_37fc0206e1b6": [
+			"Open"
+		],
+		"p_380b0db2afd8": [
+			"Shrooms"
+		],
+		"p_385604305957": [
+			"Water",
+			"Shrooms"
+		],
+		"p_385b5f5c68d5": [
+			"Open"
+		],
+		"p_3860dfe501f8": [
 			"Open"
 		],
 		"p_388a78f46e51": [
@@ -595,6 +1873,12 @@
 			"Open"
 		],
 		"p_38d9b378175f": [
+			"Shrooms"
+		],
+		"p_39154ac5bced": [
+			"Shrooms"
+		],
+		"p_396fd86d63bd": [
 			"Shrooms"
 		],
 		"p_39beaf06e42d": [
@@ -612,6 +1896,17 @@
 		"p_3a59c74805be": [
 			"Shrooms"
 		],
+		"p_3a7719763480": [
+			"Open"
+		],
+		"p_3a77a38cca53": [
+			"Shrooms",
+			"Open"
+		],
+		"p_3a7d1970046f": [
+			"Water",
+			"Shrooms"
+		],
 		"p_3ab5eaa08faf": [
 			"Shrooms"
 		],
@@ -622,32 +1917,169 @@
 		"p_3b0b0db5f621": [
 			"Open"
 		],
+		"p_3b18d3152400": [
+			"Water",
+			"Open"
+		],
 		"p_3b54451c18d0": [
 			"Water",
+			"Open"
+		],
+		"p_3b7698a06605": [
+			"Shrooms",
+			"Open"
+		],
+		"p_3b8cd6d8ac97": [
+			"Water",
+			"Shrooms"
+		],
+		"p_3b916e449fd7": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_3bd338c86949": [
+			"Shrooms"
+		],
+		"p_3bee9291a9f1": [
+			"Open"
+		],
+		"p_3c72facf5b7f": [
+			"Open"
+		],
+		"p_3c7c79f1b99f": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_3c8bd1b2756f": [
+			"Water",
+			"Open"
+		],
+		"p_3cab0baef338": [
+			"Open"
+		],
+		"p_3cb884f07976": [
+			"Shrooms"
+		],
+		"p_3d2000192193": [
+			"Shrooms",
 			"Open"
 		],
 		"p_3d2090485136": [
 			"Open"
 		],
+		"p_3d33cc8d989f": [
+			"Open"
+		],
 		"p_3d662d128b1e": [
+			"Open"
+		],
+		"p_3d6ecfd5cf1a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_3d7ff41307fe": [
 			"Open"
 		],
 		"p_3d8cc25cfa55": [
 			"Shrooms"
 		],
+		"p_3dc6a432bd3e": [
+			"Shrooms"
+		],
+		"p_3df1ec8dd693": [
+			"Open"
+		],
+		"p_3dfb22194578": [
+			"Open"
+		],
+		"p_3e153a7eece5": [
+			"Open"
+		],
+		"p_3e4b013e1673": [
+			"Open"
+		],
 		"p_3e530135cf1a": [
+			"Open"
+		],
+		"p_3e8dcdd93bad": [
+			"Water",
 			"Open"
 		],
 		"p_3eaa4cd8c585": [
 			"Open"
 		],
+		"p_3eacc2a02de5": [
+			"Open"
+		],
+		"p_3ed2315bc9f6": [
+			"Shrooms"
+		],
+		"p_3ee1fb628d4f": [
+			"Water",
+			"Shrooms"
+		],
+		"p_3efa5c2974f6": [
+			"Water",
+			"Shrooms"
+		],
+		"p_3efeeec0b499": [
+			"Shrooms",
+			"Open"
+		],
 		"p_3f1e56cbb256": [
 			"Open"
+		],
+		"p_3f33be626c4c": [
+			"Water"
 		],
 		"p_3f386a03d01d": [
 			"Open"
 		],
+		"p_3f581d62d913": [
+			"Open"
+		],
+		"p_3f5b1cba32e5": [
+			"Shrooms",
+			"Open"
+		],
+		"p_3f61bce3c480": [
+			"Shrooms",
+			"Open"
+		],
+		"p_3f89f74aa0d6": [
+			"Water",
+			"Open"
+		],
+		"p_3f8bc8989ea0": [
+			"Water"
+		],
+		"p_3f9bc9df86ba": [
+			"Open"
+		],
+		"p_3f9fc0a4b037": [
+			"Shrooms"
+		],
+		"p_3fa1b5116c44": [
+			"Open"
+		],
 		"p_3faf3db2b58e": [
+			"Open"
+		],
+		"p_3fcf7e7659dc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_3fdadc4e3f7b": [
+			"Shrooms"
+		],
+		"p_3fe05fddce64": [
+			"Lava",
+			"Open"
+		],
+		"p_3ff29be2b7b3": [
+			"Water",
 			"Open"
 		],
 		"p_3ff7256e6a6f": [
@@ -656,26 +2088,146 @@
 		"p_400860218b1b": [
 			"Shrooms"
 		],
+		"p_40148210b899": [
+			"Open"
+		],
+		"p_402b76352425": [
+			"Shrooms"
+		],
 		"p_402d519a6f07": [
 			"Water",
 			"Open"
 		],
+		"p_402da34610bb": [
+			"Open"
+		],
+		"p_404c9ec43a3a": [
+			"Shrooms"
+		],
+		"p_40876b328cac": [
+			"Water",
+			"Shrooms"
+		],
+		"p_40a4411e6dfc": [
+			"Open"
+		],
+		"p_40ad929a25ab": [
+			"Shrooms"
+		],
+		"p_40e0eb1822ed": [
+			"Open"
+		],
+		"p_40f1c1f22942": [
+			"Shrooms",
+			"Open"
+		],
+		"p_41185e41eec0": [
+			"Water",
+			"Shrooms"
+		],
+		"p_41187d4bb168": [
+			"Shrooms",
+			"Open"
+		],
+		"p_411c2d1f7767": [
+			"Water",
+			"Shrooms"
+		],
+		"p_4150fb7b113f": [
+			"Shrooms"
+		],
 		"p_4165fbf75b75": [
 			"Water"
+		],
+		"p_417030ae6dfd": [
+			"Water",
+			"Shrooms"
+		],
+		"p_418ddb7912c2": [
+			"Shrooms"
+		],
+		"p_41940a0ac0d1": [
+			"Open"
+		],
+		"p_4194475681ce": [
+			"Shrooms",
+			"Open"
 		],
 		"p_419c4ab42d27": [
 			"Shrooms"
 		],
+		"p_41aa886a7deb": [
+			"Shrooms"
+		],
+		"p_41ac73ab69d4": [
+			"Shrooms",
+			"Open"
+		],
 		"p_41c6a73e6015": [
 			"Shrooms"
 		],
+		"p_41ec2c9b4288": [
+			"Shrooms",
+			"Open"
+		],
+		"p_41feb587d6f8": [
+			"Open"
+		],
+		"p_422264eea7be": [
+			"Water",
+			"Shrooms"
+		],
+		"p_4224b7f3fa0c": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4244630cf61f": [
+			"Open"
+		],
 		"p_426848555c74": [
+			"Open"
+		],
+		"p_4290d8639896": [
+			"Water",
+			"Open"
+		],
+		"p_42a8349d4b7a": [
+			"Open"
+		],
+		"p_42bea10499da": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_42dba7ebee9e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_42efd78fc3d9": [
+			"Shrooms",
 			"Open"
 		],
 		"p_42f0c39bf280": [
 			"Open"
 		],
+		"p_42fc3a7689bb": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_4328e922d892": [
+			"Open"
+		],
+		"p_432cbe65e7c9": [
+			"Shrooms",
+			"Open"
+		],
+		"p_432e17108431": [
+			"Shrooms",
+			"Open"
+		],
+		"p_432ee9b9588a": [
+			"Water",
 			"Open"
 		],
 		"p_433a5b82e79c": [
@@ -684,18 +2236,103 @@
 		"p_433ea6b2033c": [
 			"Open"
 		],
+		"p_4355b13cf184": [
+			"Open"
+		],
+		"p_436a90fbf212": [
+			"Shrooms",
+			"Open"
+		],
+		"p_437aee83787b": [
+			"Water",
+			"Shrooms"
+		],
+		"p_4388aa6541ef": [
+			"Water",
+			"Shrooms"
+		],
+		"p_438a01fe7f0e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_43988c73d36b": [
+			"Shrooms"
+		],
 		"p_43ab67da00a0": [
 			"Shrooms"
 		],
+		"p_441dff5704fc": [
+			"Open"
+		],
+		"p_4427107abdeb": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4460467173c9": [
+			"Shrooms"
+		],
+		"p_44c5f2e0a0de": [
+			"Open"
+		],
+		"p_44c7a5e5274c": [
+			"Water",
+			"Open"
+		],
 		"p_44d25572a854": [
+			"Open"
+		],
+		"p_44d91ca5653a": [
+			"Shrooms"
+		],
+		"p_44f823c07ad3": [
+			"Water",
+			"Shrooms"
+		],
+		"p_44f9d6c248dc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_450801488259": [
+			"Open"
+		],
+		"p_451510afd044": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_453cfc5285ad": [
+			"Shrooms",
 			"Open"
 		],
 		"p_454211cbefc6": [
 			"Water",
 			"Shrooms"
 		],
+		"p_454cf3c62e24": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4566f3603823": [
+			"Open"
+		],
 		"p_456f65b89afb": [
 			"Water",
+			"Shrooms"
+		],
+		"p_4571863cd3d0": [
+			"Shrooms"
+		],
+		"p_459a1ac9249f": [
+			"Water"
+		],
+		"p_45cc51e25b34": [
+			"Water",
+			"Shrooms"
+		],
+		"p_45d801c19c4e": [
+			"Shrooms"
+		],
+		"p_45e4d859ce92": [
 			"Shrooms"
 		],
 		"p_4637ed231ca3": [
@@ -704,20 +2341,70 @@
 		"p_464a86b2cdf5": [
 			"Open"
 		],
+		"p_465a0da341f6": [
+			"Shrooms"
+		],
+		"p_4667d39c9e7e": [
+			"Shrooms",
+			"Open"
+		],
 		"p_4695431d082b": [
 			"Open"
 		],
+		"p_471de84a13b4": [
+			"Water",
+			"Shrooms"
+		],
 		"p_47259ff81bc1": [
+			"Shrooms"
+		],
+		"p_474571b6d74b": [
 			"Shrooms"
 		],
 		"p_4745801e3773": [
 			"Shrooms"
 		],
+		"p_475bf1f64134": [
+			"Water"
+		],
+		"p_477c9ed1fb0b": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_47b1e97d098d": [
 			"Water",
 			"Open"
 		],
+		"p_480c5e8e5a7e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_481ae9d41bc8": [
+			"Shrooms"
+		],
+		"p_4822b8edcfd2": [
+			"Water"
+		],
+		"p_483167f3ed52": [
+			"Open"
+		],
 		"p_4880b699b333": [
+			"Shrooms"
+		],
+		"p_48897bb1d8d5": [
+			"Shrooms",
+			"Open"
+		],
+		"p_48c5fc9e37e0": [
+			"Shrooms"
+		],
+		"p_48f68651c09f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_48fd296fea5d": [
+			"Water",
 			"Shrooms"
 		],
 		"p_493f6c13ed01": [
@@ -726,12 +2413,55 @@
 		"p_494cd1cd1e7f": [
 			"Water"
 		],
+		"p_49643ff94e6a": [
+			"Open"
+		],
+		"p_4973f45b87a8": [
+			"Shrooms"
+		],
 		"p_4978874fa04c": [
 			"Water",
 			"Shrooms"
 		],
+		"p_49b889542351": [
+			"Water",
+			"Shrooms"
+		],
+		"p_49d285cd7c22": [
+			"Shrooms"
+		],
+		"p_49fa208d1f67": [
+			"Shrooms"
+		],
+		"p_4a1bd8149788": [
+			"Open"
+		],
+		"p_4a3c5a894b0a": [
+			"Water",
+			"Shrooms"
+		],
+		"p_4a721f57755e": [
+			"Shrooms"
+		],
+		"p_4a7c6ddc3474": [
+			"Open"
+		],
+		"p_4aa7a74514a3": [
+			"Open"
+		],
 		"p_4abc4009dbeb": [
 			"Open"
+		],
+		"p_4acfaaaff539": [
+			"Shrooms"
+		],
+		"p_4ad253c5ecf2": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4ae81fa36a94": [
+			"Water",
+			"Shrooms"
 		],
 		"p_4af409bb9523": [
 			"Water",
@@ -740,8 +2470,20 @@
 		"p_4b28762702a6": [
 			"Open"
 		],
+		"p_4b2c8ff87248": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4b31aa3ff16b": [
+			"Water",
+			"Shrooms"
+		],
 		"p_4b49def57dde": [
 			"Water",
+			"Open"
+		],
+		"p_4b6fc55bb5a8": [
+			"Shrooms",
 			"Open"
 		],
 		"p_4b7743518f46": [
@@ -751,9 +2493,34 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_4bbbb751813a": [
+			"Open"
+		],
 		"p_4beafab7d609": [
 			"Water",
 			"Shrooms"
+		],
+		"p_4bf5622454ec": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4bfe7150bbd4": [
+			"Open"
+		],
+		"p_4c03814480e4": [
+			"Water",
+			"Open"
+		],
+		"p_4c17e5ebb1a0": [
+			"Water",
+			"Open"
+		],
+		"p_4c534fe300c0": [
+			"Water"
+		],
+		"p_4c912e8c1ace": [
+			"Shrooms",
+			"Open"
 		],
 		"p_4ca07c95fea6": [
 			"Shrooms",
@@ -763,16 +2530,55 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_4cd139753bc1": [
+			"Water",
+			"Shrooms"
+		],
+		"p_4cd3facb395f": [
+			"Shrooms"
+		],
+		"p_4cd613a59239": [
+			"Shrooms"
+		],
+		"p_4cdb8c7ab5b3": [
+			"Open"
+		],
+		"p_4cec32e43816": [
+			"Shrooms"
+		],
+		"p_4d1d328ceca9": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4d25f1079a04": [
+			"Water",
+			"Shrooms"
+		],
+		"p_4d35a3867635": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_4d3fade78887": [
 			"Open"
 		],
 		"p_4d5a186f348c": [
 			"Open"
 		],
+		"p_4d5ec43a6d53": [
+			"Open"
+		],
 		"p_4d627b5ece98": [
 			"Open"
 		],
 		"p_4d7469d8e256": [
+			"Open"
+		],
+		"p_4d874c20fa3b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4dcbc92451fd": [
 			"Open"
 		],
 		"p_4e2317773cb9": [
@@ -784,17 +2590,82 @@
 		"p_4e7949de3b1d": [
 			"Open"
 		],
+		"p_4e8e6d89c2cb": [
+			"Open"
+		],
 		"p_4e9c8c797223": [
 			"Open"
+		],
+		"p_4ec5bd3af84b": [
+			"Shrooms"
+		],
+		"p_4ec80f855ecd": [
+			"Open"
+		],
+		"p_4ecbba6b6e7b": [
+			"Open"
+		],
+		"p_4f014ab320cc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4f16d9d16eee": [
+			"Shrooms",
+			"Open"
+		],
+		"p_4f293a9b7e90": [
+			"Water",
+			"Shrooms"
+		],
+		"p_4f2bb7deb264": [
+			"Shrooms"
 		],
 		"p_4f8320bb2f6c": [
 			"Shrooms"
 		],
+		"p_4f8bbec3266f": [
+			"Open"
+		],
 		"p_4fa4a0bddb43": [
+			"Open"
+		],
+		"p_4fc3699ce7e9": [
+			"Open"
+		],
+		"p_4fdf0dfbe4d1": [
+			"Open"
+		],
+		"p_4fe91047fed1": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_4feaacf8636b": [
+			"Shrooms"
+		],
+		"p_4fffde29a852": [
+			"Water",
+			"Shrooms"
+		],
+		"p_502de2170a83": [
+			"Shrooms",
 			"Open"
 		],
 		"p_503f89b210e3": [
 			"Shrooms"
+		],
+		"p_5049a9dc66da": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5068ad0a851e": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_506a1f196156": [
+			"Shrooms",
+			"Open"
 		],
 		"p_50729c351255": [
 			"Lava",
@@ -804,32 +2675,129 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_50aaec025a30": [
+			"Shrooms",
+			"Open"
+		],
+		"p_50ccb6ca555e": [
+			"Water",
+			"Open"
+		],
+		"p_50f57d0619d6": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_5114dd12575b": [
+			"Water",
+			"Open"
+		],
+		"p_5129548262af": [
+			"Shrooms",
+			"Open"
+		],
 		"p_5138178e1b9c": [
+			"Open"
+		],
+		"p_514d9b9cce0c": [
+			"Water",
+			"Open"
+		],
+		"p_5184f91164f6": [
+			"Shrooms",
 			"Open"
 		],
 		"p_519e56e518ed": [
 			"Shrooms"
 		],
+		"p_51b5cdf23d60": [
+			"Water",
+			"Open"
+		],
 		"p_51b5fd97f175": [
 			"Water",
 			"Shrooms"
+		],
+		"p_51f1f3c47b0d": [
+			"Water",
+			"Shrooms"
+		],
+		"p_51f495cfffb6": [
+			"Water",
+			"Open"
 		],
 		"p_51fe9d02ae6b": [
 			"Water",
 			"Open"
 		],
+		"p_52171374f080": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5217cf685daf": [
+			"Water",
+			"Shrooms"
+		],
+		"p_522454bb8428": [
+			"Water",
+			"Shrooms"
+		],
+		"p_5263f72f082c": [
+			"Water",
+			"Shrooms"
+		],
+		"p_52654a0b7c15": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5268a7929cfe": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5271340e315e": [
+			"Shrooms",
+			"Open"
+		],
 		"p_5279757b2529": [
+			"Open"
+		],
+		"p_527c8c5260dc": [
+			"Water",
 			"Open"
 		],
 		"p_527ffc5ce8bc": [
 			"Water",
 			"Open"
 		],
+		"p_5286a1cf25f8": [
+			"Shrooms",
+			"Open"
+		],
+		"p_52af83c54c9b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_52c3f8c9b307": [
+			"Water",
+			"Shrooms"
+		],
 		"p_52c5fcd78d18": [
 			"Shrooms"
 		],
+		"p_53077f9ed275": [
+			"Water",
+			"Open"
+		],
+		"p_531a2b85496f": [
+			"Shrooms",
+			"Open"
+		],
 		"p_531c00b77a16": [
 			"Open"
+		],
+		"p_5321dbcda12e": [
+			"Water",
+			"Shrooms"
 		],
 		"p_53600de853c3": [
 			"Open"
@@ -841,11 +2809,34 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_53b6b6ad890a": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_53bd40b88433": [
+			"Open"
+		],
 		"p_53c79cf59f20": [
+			"Open"
+		],
+		"p_53d5784e2992": [
+			"Shrooms",
+			"Open"
+		],
+		"p_53eb62d14be8": [
+			"Water",
+			"Open"
+		],
+		"p_5401079c8c44": [
 			"Open"
 		],
 		"p_54524a395cd5": [
 			"Shrooms"
+		],
+		"p_545a4661740b": [
+			"Shrooms",
+			"Open"
 		],
 		"p_545bb131bd29": [
 			"Open"
@@ -860,6 +2851,29 @@
 		"p_547cc365668a": [
 			"Shrooms"
 		],
+		"p_54b9e299c8ba": [
+			"Shrooms"
+		],
+		"p_553fa350e556": [
+			"Open"
+		],
+		"p_5543573d82f8": [
+			"Water",
+			"Shrooms"
+		],
+		"p_5579a567830e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_557dad29c316": [
+			"Shrooms",
+			"Open"
+		],
+		"p_55857bbcc8d2": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_55d6085b3b15": [
 			"Open"
 		],
@@ -873,13 +2887,49 @@
 		"p_5613beecd059": [
 			"Open"
 		],
+		"p_561b5ede1ab2": [
+			"Shrooms",
+			"Open"
+		],
+		"p_562a4288ad13": [
+			"Open"
+		],
+		"p_562ffe087541": [
+			"Shrooms"
+		],
+		"p_5644424c483f": [
+			"Water",
+			"Open"
+		],
+		"p_565c2997221e": [
+			"Shrooms"
+		],
 		"p_56b2082ac5f7": [
 			"Open"
 		],
 		"p_56bca54c1bbf": [
 			"Open"
 		],
+		"p_56cf2b0b6787": [
+			"Shrooms"
+		],
+		"p_56dca6b6d526": [
+			"Open"
+		],
 		"p_56e411d07579": [
+			"Open"
+		],
+		"p_56fae6a3ec8b": [
+			"Open"
+		],
+		"p_575d34cbda8b": [
+			"Shrooms"
+		],
+		"p_577ad26e28a9": [
+			"Water",
+			"Shrooms"
+		],
+		"p_577c0d27a3b6": [
 			"Open"
 		],
 		"p_5791080719b8": [
@@ -888,11 +2938,37 @@
 		"p_57950659bd48": [
 			"Shrooms"
 		],
+		"p_57bbc08cee65": [
+			"Shrooms"
+		],
 		"p_57d71111aef5": [
 			"Water",
 			"Shrooms"
 		],
+		"p_57f48f3a7717": [
+			"Open"
+		],
+		"p_5849d7c595fd": [
+			"Water",
+			"Shrooms"
+		],
+		"p_58598c95735c": [
+			"Water",
+			"Shrooms"
+		],
+		"p_586ddf0e8e26": [
+			"Shrooms",
+			"Open"
+		],
 		"p_589098e33ce6": [
+			"Open"
+		],
+		"p_58f449b0f463": [
+			"Water",
+			"Open"
+		],
+		"p_58f5eb1ae17b": [
+			"Water",
 			"Open"
 		],
 		"p_590e405f63e8": [
@@ -902,10 +2978,26 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_593909d52aac": [
+			"Shrooms",
+			"Open"
+		],
+		"p_594070838f2f": [
+			"Open"
+		],
+		"p_595e84fde3a9": [
+			"Shrooms"
+		],
 		"p_59671bb9636a": [
 			"Shrooms"
 		],
 		"p_596801dfc159": [
+			"Shrooms"
+		],
+		"p_596adb2659c0": [
+			"Shrooms"
+		],
+		"p_596fc14ce022": [
 			"Shrooms"
 		],
 		"p_597b6d044103": [
@@ -917,7 +3009,57 @@
 		"p_5992f57494ba": [
 			"Open"
 		],
+		"p_59b897fdcdc1": [
+			"Shrooms",
+			"Open"
+		],
+		"p_59cc338484c6": [
+			"Shrooms"
+		],
+		"p_5a3f63c15b87": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_5a57636426f2": [
+			"Open"
+		],
+		"p_5ab93ab3eb7d": [
+			"Water"
+		],
+		"p_5ac65421feda": [
+			"Shrooms"
+		],
+		"p_5ae41803646a": [
+			"Shrooms"
+		],
+		"p_5afaebf52273": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5afce061e9d1": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_5b263b80a3d3": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5b2f13826378": [
+			"Shrooms"
+		],
+		"p_5b72af5975c3": [
+			"Water"
+		],
+		"p_5b73d04732c7": [
+			"Water"
+		],
 		"p_5b8162ab2233": [
+			"Open"
+		],
+		"p_5b91ca66ef9c": [
+			"Shrooms",
 			"Open"
 		],
 		"p_5ba540be65cd": [
@@ -929,18 +3071,72 @@
 		"p_5c2627a668b8": [
 			"Open"
 		],
+		"p_5c42a2fd0e96": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5c7799234771": [
+			"Open"
+		],
+		"p_5c9afd9a2e60": [
+			"Water",
+			"Shrooms"
+		],
 		"p_5ca64a132d93": [
 			"Shrooms"
 		],
 		"p_5cb04c2d4346": [
 			"Open"
 		],
+		"p_5cc9b1818070": [
+			"Open"
+		],
 		"p_5ce3345ea5c6": [
 			"Water",
 			"Open"
 		],
+		"p_5cee7dd40d6a": [
+			"Shrooms",
+			"Open"
+		],
 		"p_5d2e8bb17021": [
 			"Open"
+		],
+		"p_5d3e5b5e4b09": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5d97f66f3889": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5daf3fb5997f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5e09f44d5d01": [
+			"Shrooms",
+			"Open"
+		],
+		"p_5e0c424258ae": [
+			"Open"
+		],
+		"p_5e5fe3582a9d": [
+			"Shrooms"
+		],
+		"p_5e6c6850ded8": [
+			"Water",
+			"Shrooms"
+		],
+		"p_5eb2e2d874a1": [
+			"Open"
+		],
+		"p_5f117818d3dd": [
+			"Water",
+			"Open"
+		],
+		"p_5f2af4d38321": [
+			"Shrooms"
 		],
 		"p_5f4954797918": [
 			"Open"
@@ -952,24 +3148,112 @@
 		"p_5f4e09afa899": [
 			"Open"
 		],
+		"p_5f4f77e57935": [
+			"Water",
+			"Shrooms"
+		],
+		"p_5f69781b838c": [
+			"Shrooms"
+		],
+		"p_5f7be76e6653": [
+			"Shrooms",
+			"Open"
+		],
 		"p_5f9219bde234": [
 			"Water",
 			"Open"
 		],
+		"p_5f9a0722a15a": [
+			"Open"
+		],
+		"p_5fc163ec7563": [
+			"Water",
+			"Shrooms"
+		],
 		"p_5fc71e93ca91": [
+			"Open"
+		],
+		"p_5fd3b97ee403": [
+			"Water",
+			"Open"
+		],
+		"p_5fe74eb9faa1": [
+			"Water",
+			"Shrooms"
+		],
+		"p_5ff4a60de2f8": [
+			"Shrooms"
+		],
+		"p_6006c8ab11dd": [
+			"Water",
+			"Shrooms"
+		],
+		"p_6080e79bd59e": [
+			"Open"
+		],
+		"p_60889000470e": [
+			"Water",
+			"Shrooms"
+		],
+		"p_608e2e023f83": [
 			"Open"
 		],
 		"p_60b5df67a050": [
 			"Water",
 			"Open"
 		],
+		"p_60b8c8ddbcf9": [
+			"Water"
+		],
+		"p_60dcc39edf00": [
+			"Shrooms"
+		],
+		"p_60dd70f9171e": [
+			"Open"
+		],
+		"p_60e13b2f3eac": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_61091e3a8153": [
+			"Water",
+			"Shrooms"
+		],
 		"p_6123d2935758": [
 			"Open"
+		],
+		"p_614765a42c21": [
+			"Water"
 		],
 		"p_614c9109dc37": [
 			"Water"
 		],
 		"p_616a4fb489a9": [
+			"Shrooms"
+		],
+		"p_617a48d6fc8f": [
+			"Shrooms"
+		],
+		"p_61c0eb44f079": [
+			"Water",
+			"Shrooms"
+		],
+		"p_61e66e4b7980": [
+			"Shrooms"
+		],
+		"p_6212363066fb": [
+			"Shrooms"
+		],
+		"p_62165991bf79": [
+			"Water",
+			"Shrooms"
+		],
+		"p_621fdf8835fc": [
+			"Water",
+			"Open"
+		],
+		"p_622a645720b7": [
 			"Shrooms"
 		],
 		"p_622b5b069993": [
@@ -984,22 +3268,72 @@
 			"Water",
 			"Open"
 		],
+		"p_6267a5d64c74": [
+			"Open"
+		],
 		"p_62768a9e8a16": [
 			"Open"
 		],
 		"p_629b60e4fe94": [
 			"Open"
 		],
+		"p_62b9d9c18e29": [
+			"Water"
+		],
+		"p_62f1be81200e": [
+			"Shrooms"
+		],
 		"p_63177952e421": [
 			"Shrooms"
 		],
+		"p_63178e998df5": [
+			"Water"
+		],
+		"p_632af5277556": [
+			"Shrooms",
+			"Open"
+		],
+		"p_6330cb896107": [
+			"Water",
+			"Shrooms"
+		],
+		"p_6350f7792799": [
+			"Shrooms"
+		],
+		"p_635cdeedda6e": [
+			"Shrooms",
+			"Open"
+		],
 		"p_63973ec90384": [
 			"Shrooms"
+		],
+		"p_63c310bcb1ad": [
+			"Shrooms"
+		],
+		"p_63d5ffa51df5": [
+			"Shrooms",
+			"Open"
 		],
 		"p_641f2bc1e8a1": [
 			"Open"
 		],
 		"p_64276beeb381": [
+			"Shrooms",
+			"Open"
+		],
+		"p_6437ab0251e8": [
+			"Open"
+		],
+		"p_643af2ad5746": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_646f7c092113": [
+			"Water",
+			"Shrooms"
+		],
+		"p_6476f5f49c0f": [
 			"Shrooms",
 			"Open"
 		],
@@ -1010,24 +3344,79 @@
 			"Water",
 			"Open"
 		],
+		"p_64add12a705e": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_64b8cb26f849": [
 			"Open"
+		],
+		"p_64c346522e9c": [
+			"Water",
+			"Open"
+		],
+		"p_64dccf49029c": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_64ebfcfba753": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_6507f0bd66ff": [
+			"Water",
+			"Shrooms"
+		],
+		"p_6510fa220e71": [
+			"Shrooms"
 		],
 		"p_65214d9e6e34": [
 			"Water",
 			"Shrooms"
 		],
+		"p_654fca25ea58": [
+			"Shrooms"
+		],
+		"p_655a28ecdb11": [
+			"Water",
+			"Open"
+		],
 		"p_65807aeb9aec": [
 			"Open"
+		],
+		"p_658154540d3c": [
+			"Shrooms"
 		],
 		"p_65ab74c1c39d": [
 			"Water",
 			"Open"
 		],
+		"p_65ada44b7981": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_65d6587790bd": [
 			"Water"
 		],
+		"p_65df960fc864": [
+			"Water"
+		],
+		"p_65f7a1c3f9be": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_662d329f29ea": [
+			"Open"
+		],
+		"p_666d236ed695": [
+			"Open"
+		],
+		"p_66a9abdb5133": [
 			"Open"
 		],
 		"p_66add07e56ca": [
@@ -1040,34 +3429,98 @@
 		"p_66ba31383be8": [
 			"Open"
 		],
+		"p_66ccbf3e5009": [
+			"Shrooms",
+			"Open"
+		],
 		"p_670a673b35c8": [
 			"Open"
 		],
 		"p_670ecd09c8b9": [
 			"Open"
 		],
+		"p_674468bdd9ff": [
+			"Water",
+			"Shrooms"
+		],
 		"p_678cfc1be293": [
 			"Shrooms"
 		],
+		"p_6792635f0df1": [
+			"Water",
+			"Open"
+		],
 		"p_6793c10458d0": [
 			"Open"
+		],
+		"p_6797620f1fa6": [
+			"Open"
+		],
+		"p_67b67ad881e5": [
+			"Shrooms"
 		],
 		"p_67b8e1b583ff": [
 			"Water",
 			"Shrooms"
 		],
+		"p_67c67d7023a4": [
+			"Open"
+		],
 		"p_67f8a01a2886": [
 			"Water",
+			"Shrooms"
+		],
+		"p_68050c194055": [
+			"Water"
+		],
+		"p_681f7727a51b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_6828b20ad595": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_683f27d2e462": [
 			"Shrooms"
 		],
 		"p_684a24c5f48f": [
 			"Shrooms",
 			"Open"
 		],
+		"p_6868bc30dc53": [
+			"Open"
+		],
+		"p_687a15f62fda": [
+			"Open"
+		],
+		"p_687e01e854fe": [
+			"Open"
+		],
+		"p_6882d8ad604f": [
+			"Water",
+			"Open"
+		],
+		"p_6884c9a1a34c": [
+			"Water",
+			"Open"
+		],
 		"p_68ac9fb103a0": [
 			"Open"
 		],
+		"p_68b1aaab0e1e": [
+			"Open"
+		],
 		"p_68d73ef17f20": [
+			"Open"
+		],
+		"p_68e79afd81d6": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_68efe5dc9542": [
 			"Open"
 		],
 		"p_691553cf7309": [
@@ -1079,8 +3532,29 @@
 		"p_69547cae446f": [
 			"Shrooms"
 		],
+		"p_6956c231dba2": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_696fd756ade9": [
 			"Open"
+		],
+		"p_69888f8dddae": [
+			"Shrooms",
+			"Open"
+		],
+		"p_699652115216": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_69a990ddb85d": [
+			"Open"
+		],
+		"p_69b83f54e29d": [
+			"Water",
+			"Shrooms"
 		],
 		"p_69bd1a36925f": [
 			"Water",
@@ -1089,13 +3563,53 @@
 		"p_69ce1e5499cd": [
 			"Open"
 		],
+		"p_6a0234382692": [
+			"Open"
+		],
+		"p_6a0d46ac8045": [
+			"Water",
+			"Shrooms"
+		],
+		"p_6a2a2d6d7be9": [
+			"Water",
+			"Shrooms"
+		],
+		"p_6a910e9621ce": [
+			"Shrooms",
+			"Open"
+		],
+		"p_6ad39f3d54dc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_6ad7e7864bed": [
+			"Shrooms",
+			"Open"
+		],
+		"p_6adc425a70a9": [
+			"Shrooms",
+			"Open"
+		],
+		"p_6afffd3e43b0": [
+			"Shrooms"
+		],
 		"p_6b075c2292de": [
+			"Open"
+		],
+		"p_6b6fbc4d6b87": [
+			"Shrooms",
 			"Open"
 		],
 		"p_6bb63919a2c3": [
 			"Open"
 		],
 		"p_6bbe3ff33a67": [
+			"Open"
+		],
+		"p_6bbef46a54b5": [
+			"Open"
+		],
+		"p_6bd5ac278c6a": [
 			"Open"
 		],
 		"p_6bd869e5b12b": [
@@ -1105,8 +3619,18 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_6c04bbc8bc00": [
+			"Shrooms"
+		],
+		"p_6c0da3142b60": [
+			"Water"
+		],
 		"p_6c1d64af7b94": [
 			"Shrooms"
+		],
+		"p_6c20e602914a": [
+			"Shrooms",
+			"Open"
 		],
 		"p_6c2fba04b0dd": [
 			"Water",
@@ -1114,6 +3638,10 @@
 		],
 		"p_6c4d9740a656": [
 			"Open"
+		],
+		"p_6c65effad2b8": [
+			"Water",
+			"Shrooms"
 		],
 		"p_6c7ea2f1427e": [
 			"Open"
@@ -1124,18 +3652,89 @@
 		"p_6ca8e74edd36": [
 			"Open"
 		],
+		"p_6caabfcbcbe4": [
+			"Shrooms"
+		],
+		"p_6cc7607464d5": [
+			"Water",
+			"Shrooms"
+		],
 		"p_6cd6de51ca61": [
 			"Shrooms",
 			"Open"
 		],
+		"p_6ceb6405d808": [
+			"Shrooms"
+		],
+		"p_6d05692bf6b7": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_6d3d678a1aaf": [
+			"Shrooms",
+			"Open"
+		],
+		"p_6d4f67c03cad": [
+			"Shrooms"
+		],
+		"p_6d830bcc0489": [
+			"Shrooms",
+			"Open"
+		],
+		"p_6e4ee2791c1a": [
+			"Water"
+		],
+		"p_6f4699706de8": [
+			"Open"
+		],
+		"p_6f4ac96d642c": [
+			"Open"
+		],
+		"p_6f510a244ce7": [
+			"Water",
+			"Shrooms"
+		],
+		"p_6f56cc665077": [
+			"Shrooms"
+		],
 		"p_6fbe3c54a9e9": [
 			"Shrooms"
+		],
+		"p_6fcc56821e92": [
+			"Shrooms",
+			"Open"
+		],
+		"p_70041f773c59": [
+			"Water",
+			"Shrooms"
+		],
+		"p_701471bd2055": [
+			"Shrooms"
+		],
+		"p_709dd1645d4e": [
+			"Open"
 		],
 		"p_70ca38b73533": [
 			"Open"
 		],
+		"p_70d29f88a89c": [
+			"Open"
+		],
+		"p_70fb29c230d4": [
+			"Open"
+		],
+		"p_7102c9ea4a1d": [
+			"Water",
+			"Open"
+		],
 		"p_7110c0340a77": [
 			"Shrooms"
+		],
+		"p_713c44e301e0": [
+			"Water",
+			"Shrooms",
+			"Open"
 		],
 		"p_71583afb285b": [
 			"Water",
@@ -1147,16 +3746,58 @@
 		"p_718975ebc833": [
 			"Shrooms"
 		],
+		"p_7195c66be4a9": [
+			"Shrooms"
+		],
+		"p_71a883b07b04": [
+			"Open"
+		],
+		"p_71e48ef587fd": [
+			"Shrooms"
+		],
 		"p_71fb9c9be032": [
 			"Open"
 		],
 		"p_7231a89b4f12": [
 			"Open"
 		],
+		"p_72515ba9ba33": [
+			"Open"
+		],
 		"p_7260c7b1982a": [
 			"Shrooms"
 		],
+		"p_726f4e28d805": [
+			"Shrooms"
+		],
+		"p_72726bb6bc09": [
+			"Water",
+			"Shrooms"
+		],
+		"p_729c61bc2e5b": [
+			"Water",
+			"Open"
+		],
+		"p_72b1236ea8a5": [
+			"Shrooms"
+		],
+		"p_72bb1e47d9a1": [
+			"Water",
+			"Shrooms"
+		],
 		"p_72c758609ae9": [
+			"Open"
+		],
+		"p_72e7e57b80ed": [
+			"Water",
+			"Shrooms"
+		],
+		"p_730f13b3cc8d": [
+			"Shrooms",
+			"Open"
+		],
+		"p_7310eb15ddd4": [
+			"Shrooms",
 			"Open"
 		],
 		"p_733d292d114e": [
@@ -1167,15 +3808,62 @@
 			"Water",
 			"Open"
 		],
+		"p_736d73aa0dd9": [
+			"Water"
+		],
+		"p_739eb8e72af4": [
+			"Open"
+		],
+		"p_73a857795965": [
+			"Open"
+		],
+		"p_73bfd445f988": [
+			"Shrooms",
+			"Open"
+		],
 		"p_73c6fd0c1a30": [
 			"Water"
+		],
+		"p_73e984410b2a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_73f455c705cb": [
+			"Open"
+		],
+		"p_7413c5276dfe": [
+			"Shrooms",
+			"Open"
 		],
 		"p_741aae59c180": [
 			"Shrooms",
 			"Open"
 		],
+		"p_745688f0d0a6": [
+			"Water",
+			"Open"
+		],
+		"p_745a5a5d6e7a": [
+			"Shrooms"
+		],
+		"p_745fb23854bb": [
+			"Water",
+			"Open"
+		],
 		"p_7464e957c171": [
 			"Shrooms"
+		],
+		"p_747b0b5b81fe": [
+			"Shrooms",
+			"Open"
+		],
+		"p_7495a7ba55a2": [
+			"Water",
+			"Open"
+		],
+		"p_749daab3eb82": [
+			"Shrooms",
+			"Open"
 		],
 		"p_74afdf5d36f6": [
 			"Shrooms",
@@ -1188,14 +3876,72 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_74d61c4ca33e": [
+			"Water",
+			"Shrooms"
+		],
+		"p_74e201bdd182": [
+			"Water",
+			"Open"
+		],
+		"p_74e67cac02d1": [
+			"Shrooms",
+			"Open"
+		],
 		"p_74f5860d9a33": [
 			"Lava",
+			"Open"
+		],
+		"p_75396052ed8c": [
+			"Open"
+		],
+		"p_756a737b1299": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_75700ec34d7f": [
+			"Shrooms"
+		],
+		"p_7574824b5d6f": [
+			"Water",
+			"Shrooms"
+		],
+		"p_7586067caa5c": [
+			"Water",
+			"Shrooms"
+		],
+		"p_758b7b65f982": [
 			"Open"
 		],
 		"p_75bd3aac11a6": [
 			"Open"
 		],
 		"p_75c3b80a5fc2": [
+			"Open"
+		],
+		"p_75c5ed33d53c": [
+			"Open"
+		],
+		"p_75da5e075f49": [
+			"Water",
+			"Open"
+		],
+		"p_75edd6cd36f1": [
+			"Water",
+			"Shrooms"
+		],
+		"p_76029c835585": [
+			"Shrooms"
+		],
+		"p_7643aecaa283": [
+			"Water"
+		],
+		"p_7649fb764572": [
+			"Shrooms",
+			"Open"
+		],
+		"p_766a8aa933a0": [
 			"Open"
 		],
 		"p_767a9771c003": [
@@ -1205,10 +3951,57 @@
 			"Water",
 			"Open"
 		],
+		"p_76a29108f6d1": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_76c5a202ceea": [
+			"Shrooms",
+			"Open"
+		],
+		"p_76f6244488a7": [
+			"Water",
+			"Open"
+		],
+		"p_76f681eff86d": [
+			"Water",
+			"Open"
+		],
+		"p_76f94375c148": [
+			"Shrooms",
+			"Open"
+		],
 		"p_774560015eca": [
 			"Open"
 		],
+		"p_777a5f67b86b": [
+			"Shrooms"
+		],
 		"p_7783cc084d8b": [
+			"Shrooms"
+		],
+		"p_779c401ca807": [
+			"Shrooms",
+			"Open"
+		],
+		"p_77a3d47814c0": [
+			"Shrooms",
+			"Open"
+		],
+		"p_77a5134d27bc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_77d019be191c": [
+			"Shrooms"
+		],
+		"p_77e18fb4a07a": [
+			"Water",
+			"Shrooms"
+		],
+		"p_7842c30f7565": [
+			"Water",
 			"Shrooms"
 		],
 		"p_787ae39b6c16": [
@@ -1221,6 +4014,39 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_789c5c7687f5": [
+			"Shrooms",
+			"Open"
+		],
+		"p_78a3a6012a60": [
+			"Open"
+		],
+		"p_78b122da8c9f": [
+			"Water",
+			"Open"
+		],
+		"p_78c5ac4c30af": [
+			"Water",
+			"Shrooms"
+		],
+		"p_7907486c986a": [
+			"Water",
+			"Shrooms"
+		],
+		"p_7908c6e361f0": [
+			"Open"
+		],
+		"p_795bdf6be4dc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_797e4386ab80": [
+			"Shrooms",
+			"Open"
+		],
+		"p_7993c7c84f1d": [
+			"Open"
+		],
 		"p_79acb8f1ef05": [
 			"Open"
 		],
@@ -1230,14 +4056,51 @@
 		"p_79c5a5d53b04": [
 			"Open"
 		],
+		"p_79e3200b84ed": [
+			"Shrooms",
+			"Open"
+		],
+		"p_79ec9f9d263a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_79f2efe5a3c4": [
+			"Water",
+			"Shrooms"
+		],
+		"p_79ff8d675a5b": [
+			"Shrooms"
+		],
 		"p_7a04b6cd0af5": [
+			"Shrooms"
+		],
+		"p_7a07abaf69da": [
+			"Water",
 			"Shrooms"
 		],
 		"p_7a0aecdfa4c7": [
 			"Lava",
 			"Open"
 		],
+		"p_7a13e8852b02": [
+			"Open"
+		],
+		"p_7a37be7118af": [
+			"Shrooms",
+			"Open"
+		],
+		"p_7a5869c963a7": [
+			"Water"
+		],
+		"p_7a59a1e00c92": [
+			"Water",
+			"Open"
+		],
 		"p_7a847be4e6db": [
+			"Open"
+		],
+		"p_7a991a5e6049": [
+			"Water",
 			"Open"
 		],
 		"p_7aacdb5af33f": [
@@ -1246,14 +4109,56 @@
 		"p_7ab83bfd2f0d": [
 			"Water"
 		],
+		"p_7ac86528e5e8": [
+			"Shrooms"
+		],
+		"p_7aefb701518b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_7af7277e23b6": [
+			"Shrooms",
+			"Open"
+		],
 		"p_7affd47399f6": [
 			"Water",
 			"Shrooms"
 		],
+		"p_7b8b30b0f326": [
+			"Water",
+			"Open"
+		],
+		"p_7bbb216d4e4b": [
+			"Shrooms",
+			"Open"
+		],
 		"p_7bd9853a502e": [
 			"Open"
 		],
+		"p_7befd0aba363": [
+			"Open"
+		],
+		"p_7bf28a99e7fb": [
+			"Open"
+		],
+		"p_7bf76798a937": [
+			"Shrooms"
+		],
+		"p_7c1e8d683767": [
+			"Shrooms"
+		],
+		"p_7ca03c095d43": [
+			"Shrooms",
+			"Open"
+		],
 		"p_7caa398f0cdd": [
+			"Water"
+		],
+		"p_7cb8d1464525": [
+			"Water",
+			"Shrooms"
+		],
+		"p_7cbc1a32afb0": [
 			"Water"
 		],
 		"p_7cd87f7329ea": [
@@ -1266,9 +4171,21 @@
 		"p_7ce9c688ab73": [
 			"Open"
 		],
+		"p_7cfdf0f9bbcb": [
+			"Shrooms"
+		],
+		"p_7d2100fc08a3": [
+			"Shrooms"
+		],
 		"p_7d7537272034": [
 			"Shrooms",
 			"Open"
+		],
+		"p_7d891befc51d": [
+			"Shrooms"
+		],
+		"p_7da36f8e4f9d": [
+			"Shrooms"
 		],
 		"p_7dbd49e259cb": [
 			"Open"
@@ -1277,10 +4194,44 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_7ded9f9e9ae0": [
+			"Shrooms",
+			"Open"
+		],
+		"p_7df139cfaa9a": [
+			"Shrooms"
+		],
+		"p_7df2b73785c4": [
+			"Open"
+		],
+		"p_7df7836e5431": [
+			"Water",
+			"Open"
+		],
+		"p_7e25c75464c8": [
+			"Shrooms"
+		],
+		"p_7e43c4a98ea6": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_7e7f85710029": [
+			"Shrooms",
+			"Open"
+		],
 		"p_7ec81d08b70b": [
 			"Shrooms"
 		],
 		"p_7ec9d8e5c193": [
+			"Shrooms"
+		],
+		"p_7ee12a4237d6": [
+			"Water",
+			"Shrooms"
+		],
+		"p_7ee9776be9ae": [
+			"Water",
 			"Shrooms"
 		],
 		"p_7f259e5026ca": [
@@ -1294,13 +4245,71 @@
 		"p_7f482b0d95ca": [
 			"Open"
 		],
+		"p_7f59c96779b5": [
+			"Shrooms",
+			"Open"
+		],
+		"p_7f690fce0a4e": [
+			"Shrooms",
+			"Open"
+		],
 		"p_7f6d5d592e3c": [
 			"Open"
+		],
+		"p_7f7321df6601": [
+			"Water",
+			"Shrooms"
 		],
 		"p_7f863d00b752": [
 			"Shrooms"
 		],
+		"p_7fb9a0c6675d": [
+			"Open"
+		],
+		"p_7fea8dc2fe7f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_7ffef1766c77": [
+			"Water",
+			"Open"
+		],
+		"p_802a7293a65d": [
+			"Shrooms"
+		],
+		"p_80305fa6fb2f": [
+			"Shrooms"
+		],
+		"p_804b3358dfd4": [
+			"Shrooms",
+			"Open"
+		],
+		"p_805f8d48b7b0": [
+			"Water",
+			"Open"
+		],
+		"p_806a0da028c8": [
+			"Water",
+			"Shrooms"
+		],
 		"p_8091f85e88e4": [
+			"Shrooms"
+		],
+		"p_8098426e3d83": [
+			"Open"
+		],
+		"p_809a4781da3e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_80c95abf023c": [
+			"Open"
+		],
+		"p_80d6cbc0710e": [
+			"Shrooms"
+		],
+		"p_80db336abb58": [
+			"Water",
 			"Shrooms"
 		],
 		"p_80e3c833efe2": [
@@ -1312,29 +4321,107 @@
 		"p_8125d84fc5e7": [
 			"Shrooms"
 		],
+		"p_812c96f9deb4": [
+			"Open"
+		],
 		"p_813772eed7df": [
+			"Open"
+		],
+		"p_813ded8e04c4": [
+			"Water",
+			"Shrooms",
 			"Open"
 		],
 		"p_81461feb569a": [
 			"Shrooms"
 		],
+		"p_81651a8e4a8e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_816920ea5302": [
+			"Shrooms",
+			"Open"
+		],
+		"p_816b7cfbc5f2": [
+			"Open"
+		],
+		"p_81931b07d401": [
+			"Shrooms"
+		],
+		"p_819493305d37": [
+			"Shrooms"
+		],
+		"p_8196423e66a8": [
+			"Water",
+			"Open"
+		],
 		"p_81b10c19bc8c": [
 			"Shrooms"
 		],
+		"p_81c42d532370": [
+			"Open"
+		],
 		"p_81cb4c617de8": [
+			"Open"
+		],
+		"p_81ff008b4640": [
+			"Water"
+		],
+		"p_8213c37f7805": [
+			"Shrooms",
+			"Open"
+		],
+		"p_822950877dca": [
+			"Shrooms"
+		],
+		"p_823742c958f0": [
 			"Open"
 		],
 		"p_823939a2762f": [
 			"Shrooms"
 		],
+		"p_826549273571": [
+			"Open"
+		],
+		"p_82664be57878": [
+			"Shrooms"
+		],
 		"p_8276fa2f3ec7": [
+			"Open"
+		],
+		"p_82d9b4c3fb55": [
 			"Open"
 		],
 		"p_82dd2a9808f6": [
 			"Open"
 		],
+		"p_82e4a5bd16a8": [
+			"Shrooms"
+		],
+		"p_82fc50c367b4": [
+			"Water",
+			"Shrooms"
+		],
 		"p_832e9a28d283": [
 			"Shrooms"
+		],
+		"p_8345b7578714": [
+			"Water",
+			"Shrooms"
+		],
+		"p_836fc1b8198d": [
+			"Open"
+		],
+		"p_83776a11693a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8377f4028a1c": [
+			"Shrooms"
+		],
+		"p_83b74fad4738": [
+			"Open"
 		],
 		"p_83c0afdbcce3": [
 			"Water"
@@ -1354,14 +4441,45 @@
 		"p_8405bd671373": [
 			"Open"
 		],
+		"p_8428d678c224": [
+			"Shrooms"
+		],
+		"p_8449414af19d": [
+			"Water",
+			"Shrooms"
+		],
 		"p_844a04cefeb9": [
 			"Shrooms"
 		],
 		"p_848b5a98cf1d": [
 			"Open"
 		],
+		"p_84988573e1e4": [
+			"Open"
+		],
+		"p_84a42bac9447": [
+			"Shrooms"
+		],
+		"p_84b6bd5ee9bb": [
+			"Shrooms",
+			"Open"
+		],
+		"p_84e989d2e3fd": [
+			"Water",
+			"Open"
+		],
 		"p_84f691ab5efd": [
 			"Water",
+			"Shrooms"
+		],
+		"p_85753435c176": [
+			"Water"
+		],
+		"p_8596c9e0b90c": [
+			"Shrooms",
+			"Open"
+		],
+		"p_85faf795b891": [
 			"Shrooms"
 		],
 		"p_861c4f9421e8": [
@@ -1370,9 +4488,33 @@
 		"p_863b12d8e5bc": [
 			"Open"
 		],
+		"p_867c120d57e0": [
+			"Open"
+		],
+		"p_86840e88158e": [
+			"Water",
+			"Open"
+		],
+		"p_86993f9ac068": [
+			"Shrooms",
+			"Open"
+		],
 		"p_86b96bc00e44": [
 			"Water",
 			"Shrooms"
+		],
+		"p_86e759fc511c": [
+			"Shrooms",
+			"Open"
+		],
+		"p_87518bdd6591": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_87648969b1d7": [
+			"Shrooms",
+			"Open"
 		],
 		"p_879d14f75d6e": [
 			"Shrooms",
@@ -1385,11 +4527,32 @@
 		"p_880aca9dfa36": [
 			"Open"
 		],
+		"p_8812cd24a15f": [
+			"Open"
+		],
+		"p_881a3c913595": [
+			"Shrooms",
+			"Open"
+		],
+		"p_883bc1cc677b": [
+			"Shrooms",
+			"Open"
+		],
 		"p_883fd30f832d": [
+			"Open"
+		],
+		"p_884dd2b4a7f9": [
+			"Shrooms"
+		],
+		"p_884e8dc370fa": [
+			"Shrooms",
 			"Open"
 		],
 		"p_88b5b0cc1f34": [
 			"Open"
+		],
+		"p_88ddf2addcb8": [
+			"Water"
 		],
 		"p_88e10a7fb3d8": [
 			"Water",
@@ -1398,7 +4561,26 @@
 		"p_88e2bb6a4b8e": [
 			"Shrooms"
 		],
+		"p_88e66142eeed": [
+			"Shrooms"
+		],
+		"p_88f6d3502eba": [
+			"Water",
+			"Shrooms"
+		],
+		"p_88f985139606": [
+			"Water",
+			"Shrooms"
+		],
+		"p_89460fdbf66d": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_895580622206": [
+			"Shrooms"
+		],
+		"p_897e4515ffc1": [
 			"Shrooms"
 		],
 		"p_899f0a29da87": [
@@ -1408,10 +4590,33 @@
 		"p_89abbfa45e93": [
 			"Water"
 		],
+		"p_89c1b89c2c4a": [
+			"Shrooms",
+			"Open"
+		],
 		"p_89e0cc156ace": [
 			"Open"
 		],
+		"p_89e502c15ae9": [
+			"Water",
+			"Shrooms"
+		],
+		"p_89f780e142de": [
+			"Water",
+			"Open"
+		],
+		"p_8a0880c0947f": [
+			"Shrooms"
+		],
 		"p_8a591bf6d145": [
+			"Shrooms"
+		],
+		"p_8a613da7e0c3": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8a761def6208": [
+			"Water",
 			"Shrooms"
 		],
 		"p_8a9beab4c426": [
@@ -1421,35 +4626,164 @@
 		"p_8b0c04734659": [
 			"Open"
 		],
+		"p_8b1641209cff": [
+			"Open"
+		],
+		"p_8b431d46b957": [
+			"Shrooms",
+			"Open"
+		],
 		"p_8b64608a0738": [
+			"Open"
+		],
+		"p_8b6c3672d701": [
+			"Shrooms",
 			"Open"
 		],
 		"p_8b76f8e3984e": [
 			"Open"
 		],
+		"p_8b80db6f8c34": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8b81a32e3405": [
+			"Shrooms"
+		],
+		"p_8baee66c0159": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8bb57edf20e8": [
+			"Water"
+		],
+		"p_8bb58ad61f6c": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8bb63a1fcd7c": [
+			"Shrooms"
+		],
+		"p_8bd98d7b240f": [
+			"Open"
+		],
 		"p_8be4bcbd32fc": [
 			"Open"
+		],
+		"p_8bea8f94d7d3": [
+			"Water"
+		],
+		"p_8c32d088aacc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8c6d19b888ca": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8c9193736d48": [
+			"Shrooms"
+		],
+		"p_8c978914cde8": [
+			"Water",
+			"Shrooms"
 		],
 		"p_8cb7f5c4788b": [
 			"Open"
 		],
+		"p_8cb9d51f13d9": [
+			"Open"
+		],
+		"p_8cbbe987638d": [
+			"Shrooms"
+		],
 		"p_8d02f9d4fb2d": [
 			"Shrooms"
 		],
+		"p_8d0ed9311217": [
+			"Water",
+			"Open"
+		],
+		"p_8d33baa82298": [
+			"Shrooms"
+		],
+		"p_8d3fe5344560": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8d49e2852deb": [
+			"Open"
+		],
+		"p_8d4d22a109b4": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_8d5b420526dc": [
+			"Shrooms"
+		],
 		"p_8d7347af7f65": [
+			"Open"
+		],
+		"p_8d74e34bdfd9": [
+			"Shrooms"
+		],
+		"p_8d7f45aae79c": [
+			"Open"
+		],
+		"p_8db2a6d51085": [
+			"Open"
+		],
+		"p_8de7357c393e": [
+			"Open"
+		],
+		"p_8dfb3d323d85": [
+			"Open"
+		],
+		"p_8dfd5dc73782": [
 			"Open"
 		],
 		"p_8e00e24827a0": [
 			"Lava",
 			"Open"
 		],
+		"p_8e1328050c68": [
+			"Open"
+		],
+		"p_8e71580b8d91": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_8e8616adf485": [
+			"Open"
+		],
+		"p_8e8d614cab53": [
+			"Water",
 			"Open"
 		],
 		"p_8e92fc47ea46": [
 			"Open"
 		],
+		"p_8e9ea955c14f": [
+			"Open"
+		],
+		"p_8ec4ffba7b4f": [
+			"Shrooms"
+		],
 		"p_8ed2c61f61c0": [
+			"Shrooms"
+		],
+		"p_8ed62e653c2e": [
+			"Water",
+			"Open"
+		],
+		"p_8ed944a66204": [
+			"Water",
+			"Shrooms"
+		],
+		"p_8ee32a0e3d70": [
+			"Water",
 			"Shrooms"
 		],
 		"p_8ee72c3b5ab9": [
@@ -1459,26 +4793,145 @@
 		"p_8eefe0e3e27c": [
 			"Open"
 		],
+		"p_8f00118b3f60": [
+			"Water"
+		],
+		"p_8f535d96cca5": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8f7885c8df30": [
+			"Shrooms",
+			"Open"
+		],
 		"p_8f97fcd6f614": [
+			"Shrooms"
+		],
+		"p_8faecbddbc79": [
+			"Open"
+		],
+		"p_8fb243f4d3a9": [
 			"Shrooms"
 		],
 		"p_8fc9dbdf3572": [
 			"Shrooms"
 		],
+		"p_8fe7c96ebb4a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8fed9f942b26": [
+			"Shrooms",
+			"Open"
+		],
+		"p_8ff150842816": [
+			"Open"
+		],
+		"p_8ff6d2c00a8a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_90048684f8ab": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_900a20394270": [
+			"Open"
+		],
+		"p_900e7257cbc8": [
+			"Shrooms",
+			"Open"
+		],
+		"p_90149606bc16": [
+			"Shrooms"
+		],
+		"p_902ae86bff58": [
 			"Open"
 		],
 		"p_90423d1a6827": [
 			"Open"
 		],
+		"p_908020759761": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_90c30f9d89ef": [
+			"Shrooms",
+			"Open"
+		],
+		"p_90e2705cb349": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_90e2d2ed6145": [
+			"Shrooms"
+		],
+		"p_91818553c8e9": [
+			"Shrooms"
+		],
+		"p_91b8aeb23ed1": [
+			"Water",
+			"Shrooms"
+		],
 		"p_91cb7584e381": [
 			"Shrooms"
+		],
+		"p_920a4a9d13b6": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_922e4010d948": [
+			"Water",
+			"Open"
+		],
+		"p_922fcacfc68a": [
+			"Shrooms"
+		],
+		"p_928dc1bbb3aa": [
+			"Shrooms"
+		],
+		"p_92a0190b7006": [
+			"Open"
+		],
+		"p_92b16db555af": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_92b3b34d6f01": [
+			"Water",
+			"Open"
+		],
+		"p_92eea44c605f": [
+			"Open"
 		],
 		"p_92fc1f430635": [
 			"Water",
 			"Open"
 		],
+		"p_9301a36991d9": [
+			"Lava",
+			"Open"
+		],
+		"p_93045b31fc4e": [
+			"Shrooms"
+		],
+		"p_9311c618e979": [
+			"Shrooms"
+		],
 		"p_9326fc38f2a8": [
+			"Open"
+		],
+		"p_934b5c5728c3": [
+			"Shrooms",
+			"Open"
+		],
+		"p_9382967c9949": [
+			"Shrooms",
 			"Open"
 		],
 		"p_939fd283e987": [
@@ -1487,21 +4940,62 @@
 		"p_93ada2887a6d": [
 			"Shrooms"
 		],
+		"p_93bc53aaa1a6": [
+			"Shrooms",
+			"Open"
+		],
 		"p_93c60bb2335b": [
+			"Open"
+		],
+		"p_93cb6a5607d7": [
+			"Water",
+			"Shrooms"
+		],
+		"p_93cdeab265f7": [
+			"Shrooms"
+		],
+		"p_93e1b246493b": [
 			"Open"
 		],
 		"p_93ff6b37f2bf": [
 			"Shrooms"
 		],
+		"p_94185a8c8c3f": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_9419d22c2c8a": [
+			"Open"
+		],
+		"p_945c742adc83": [
+			"Open"
+		],
 		"p_945cd180b6e5": [
 			"Water",
 			"Shrooms"
+		],
+		"p_9466140ff862": [
+			"Shrooms",
+			"Open"
 		],
 		"p_947f15646e2b": [
 			"Shrooms",
 			"Open"
 		],
+		"p_948302c3f307": [
+			"Open"
+		],
 		"p_94ccf075164c": [
+			"Open"
+		],
+		"p_94d00b489a44": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_94dbbca1263f": [
+			"Shrooms",
 			"Open"
 		],
 		"p_94fd0c0fcf29": [
@@ -1514,18 +5008,85 @@
 			"Water",
 			"Open"
 		],
+		"p_951b9a36c49e": [
+			"Open"
+		],
+		"p_951c03f4ff43": [
+			"Open"
+		],
 		"p_953160c6935f": [
 			"Shrooms"
 		],
+		"p_95372cb4a49f": [
+			"Water",
+			"Open"
+		],
 		"p_953a08e4f06a": [
+			"Shrooms"
+		],
+		"p_95bae5463a57": [
+			"Shrooms"
+		],
+		"p_95bb8b129a45": [
+			"Water"
+		],
+		"p_95e07af25d64": [
+			"Shrooms"
+		],
+		"p_95e08c2e53c6": [
+			"Water",
+			"Shrooms"
+		],
+		"p_95e456c2ba7b": [
+			"Shrooms"
+		],
+		"p_95ea3d0e2089": [
+			"Open"
+		],
+		"p_95f147b9859d": [
+			"Shrooms"
+		],
+		"p_9600049703cb": [
 			"Shrooms"
 		],
 		"p_96015ab1f710": [
 			"Open"
 		],
+		"p_961e6e9033ca": [
+			"Shrooms"
+		],
+		"p_961ebba8cf26": [
+			"Water",
+			"Shrooms"
+		],
+		"p_9623fd26df4e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_964834de56b2": [
+			"Water",
+			"Open"
+		],
+		"p_9669f050f20d": [
+			"Water",
+			"Shrooms"
+		],
+		"p_96adf14a6562": [
+			"Water"
+		],
 		"p_96f0ec45b2df": [
 			"Water",
 			"Open"
+		],
+		"p_9784f0ce85db": [
+			"Shrooms",
+			"Open"
+		],
+		"p_97858f488443": [
+			"Open"
+		],
+		"p_97d4a9a7b245": [
+			"Shrooms"
 		],
 		"p_97e41526d05a": [
 			"Open"
@@ -1534,7 +5095,31 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_981ce47f6ca3": [
+			"Shrooms",
+			"Open"
+		],
+		"p_981fd23145ea": [
+			"Water"
+		],
 		"p_9820ef0e9b94": [
+			"Shrooms"
+		],
+		"p_984d2c55849f": [
+			"Open"
+		],
+		"p_98575b5783ec": [
+			"Shrooms"
+		],
+		"p_98821d24fdb4": [
+			"Shrooms",
+			"Open"
+		],
+		"p_989ee7bf995f": [
+			"Water",
+			"Open"
+		],
+		"p_98ded8f9503d": [
 			"Shrooms"
 		],
 		"p_98e0417cd445": [
@@ -1560,12 +5145,29 @@
 		"p_9934be6ba9e4": [
 			"Shrooms"
 		],
+		"p_993859e68367": [
+			"Shrooms",
+			"Open"
+		],
 		"p_993a960d6c2f": [
 			"Lava",
 			"Open"
 		],
+		"p_99864a8b453e": [
+			"Open"
+		],
+		"p_9987c9b29005": [
+			"Open"
+		],
 		"p_999681cb2cee": [
 			"Shrooms"
+		],
+		"p_99a493c834c9": [
+			"Water",
+			"Shrooms"
+		],
+		"p_99ab12a8bf5b": [
+			"Open"
 		],
 		"p_99b6a3dac518": [
 			"Shrooms"
@@ -1573,29 +5175,110 @@
 		"p_99df1921423d": [
 			"Shrooms"
 		],
+		"p_99f041ae5a4b": [
+			"Lava",
+			"Open"
+		],
 		"p_9a0f213f4d5a": [
+			"Open"
+		],
+		"p_9a111375c4c9": [
+			"Shrooms",
 			"Open"
 		],
 		"p_9a66106b2ffa": [
 			"Open"
 		],
+		"p_9a80ae731563": [
+			"Shrooms",
+			"Open"
+		],
+		"p_9a83b1004ad5": [
+			"Water",
+			"Shrooms"
+		],
 		"p_9a9fdaa94d78": [
 			"Water",
+			"Open"
+		],
+		"p_9ab3f3017166": [
 			"Open"
 		],
 		"p_9addd4d29537": [
 			"Shrooms"
 		],
+		"p_9af6aef1ca46": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_9af9b0b8fb89": [
+			"Shrooms",
+			"Open"
+		],
+		"p_9b0e830c9514": [
+			"Water",
+			"Open"
+		],
+		"p_9b20051572c4": [
+			"Water",
+			"Shrooms"
+		],
+		"p_9b20e994b627": [
+			"Shrooms",
+			"Open"
+		],
+		"p_9b498a601525": [
+			"Water",
+			"Shrooms"
+		],
+		"p_9b50f625463e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_9b82b10a9a2c": [
+			"Shrooms"
+		],
+		"p_9bba3592cecb": [
+			"Shrooms"
+		],
+		"p_9bce5b8925f9": [
+			"Shrooms"
+		],
 		"p_9beb2f736cd6": [
 			"Shrooms"
+		],
+		"p_9bf615d9f4fb": [
+			"Open"
+		],
+		"p_9c047e9b4f8f": [
+			"Water",
+			"Open"
 		],
 		"p_9c47d13ab0f9": [
 			"Water",
 			"Open"
 		],
+		"p_9c7c4d5f1376": [
+			"Open"
+		],
+		"p_9c87bf89185f": [
+			"Open"
+		],
+		"p_9cb9d6e1e169": [
+			"Shrooms",
+			"Open"
+		],
+		"p_9cc0ddfb7ad1": [
+			"Water",
+			"Shrooms"
+		],
 		"p_9d3707ecf584": [
 			"Water",
 			"Open"
+		],
+		"p_9d5f9942e004": [
+			"Lava"
 		],
 		"p_9d70e2e4b79c": [
 			"Open"
@@ -1603,25 +5286,110 @@
 		"p_9d713311dcd2": [
 			"Open"
 		],
+		"p_9d792673e0a7": [
+			"Shrooms"
+		],
+		"p_9d7e647fce03": [
+			"Open"
+		],
+		"p_9dc3dc0dc7e9": [
+			"Shrooms",
+			"Open"
+		],
 		"p_9dcfdddf974e": [
+			"Open"
+		],
+		"p_9dd46a762702": [
+			"Shrooms"
+		],
+		"p_9e25de0826f3": [
+			"Shrooms",
 			"Open"
 		],
 		"p_9e49329b3111": [
 			"Open"
 		],
+		"p_9e87513fed75": [
+			"Open"
+		],
+		"p_9eb86c4d8ede": [
+			"Water",
+			"Open"
+		],
+		"p_9ec1ddeca327": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_9ec2f27f3590": [
+			"Shrooms",
+			"Open"
+		],
+		"p_9ee5153630a8": [
+			"Water",
+			"Shrooms"
+		],
+		"p_9fca9da01ffe": [
+			"Shrooms",
+			"Open"
+		],
+		"p_9fdc8467369b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_9fe76e1ab652": [
+			"Water",
+			"Shrooms"
+		],
 		"p_9fed8210914b": [
 			"Shrooms"
 		],
+		"p_a0036e406af2": [
+			"Open"
+		],
+		"p_a0088d5f123c": [
+			"Shrooms"
+		],
 		"p_a03b63160852": [
+			"Shrooms"
+		],
+		"p_a03f94e047b0": [
+			"Water",
 			"Shrooms"
 		],
 		"p_a08d28af09a4": [
 			"Water",
 			"Shrooms"
 		],
+		"p_a09c1cd0c1b3": [
+			"Open"
+		],
+		"p_a09f2c9d8ba6": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a0f092fcd2c9": [
+			"Water"
+		],
+		"p_a0fccdd6808a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a111cfa3d8ea": [
+			"Water",
+			"Shrooms"
+		],
 		"p_a12457f67d1c": [
 			"Shrooms",
 			"Open"
+		],
+		"p_a1546d1c76f0": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_a1e2c02f2ac1": [
+			"Shrooms"
 		],
 		"p_a2205fee77f6": [
 			"Shrooms"
@@ -1633,16 +5401,95 @@
 		"p_a24e81698eb3": [
 			"Open"
 		],
+		"p_a2558e222d20": [
+			"Shrooms"
+		],
+		"p_a28a8cf7f2c4": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a292cae78298": [
+			"Shrooms"
+		],
 		"p_a2969cd1d752": [
+			"Shrooms"
+		],
+		"p_a29e16fd5df9": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a302da759381": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a315fa003915": [
+			"Shrooms"
+		],
+		"p_a31b814bde66": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a354dc70572c": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a37168b87b76": [
+			"Water",
+			"Open"
+		],
+		"p_a373e0338003": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a3a744fda34e": [
+			"Shrooms"
+		],
+		"p_a3dd2c3a1fd3": [
+			"Shrooms"
+		],
+		"p_a4336bc67350": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_a441a706e9dc": [
+			"Water",
+			"Open"
+		],
+		"p_a4815038acca": [
+			"Open"
+		],
+		"p_a48a23e1d326": [
 			"Shrooms"
 		],
 		"p_a4ad34810f62": [
 			"Open"
 		],
+		"p_a4b760d97328": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a4b93fa717dd": [
+			"Shrooms"
+		],
+		"p_a4b9531ee595": [
+			"Water",
+			"Shrooms"
+		],
 		"p_a4cb0fe0416a": [
 			"Open"
 		],
+		"p_a4e484a81b02": [
+			"Shrooms",
+			"Open"
+		],
 		"p_a4f0dede18cd": [
+			"Shrooms"
+		],
+		"p_a4f81ada7088": [
+			"Shrooms"
+		],
+		"p_a4fa8e65cea3": [
 			"Shrooms"
 		],
 		"p_a52378e292d1": [
@@ -1652,16 +5499,68 @@
 		"p_a526c0bacd2b": [
 			"Shrooms"
 		],
+		"p_a52fa45e547d": [
+			"Water",
+			"Open"
+		],
+		"p_a55c15da7d1b": [
+			"Shrooms",
+			"Open"
+		],
 		"p_a55f79feac5a": [
+			"Open"
+		],
+		"p_a56568becc31": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a570d11b2a36": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a57dc532eb99": [
+			"Open"
+		],
+		"p_a5a7d550df99": [
+			"Water",
+			"Open"
+		],
+		"p_a5a8e235ada4": [
+			"Shrooms",
 			"Open"
 		],
 		"p_a5bee57cfd19": [
 			"Shrooms"
 		],
+		"p_a5cd83b05c10": [
+			"Open"
+		],
 		"p_a5d4e322740e": [
 			"Shrooms"
 		],
+		"p_a5d8781f72b9": [
+			"Shrooms"
+		],
+		"p_a5e562600ddd": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a634df1e1b7d": [
+			"Open"
+		],
+		"p_a64cb2dd2ab8": [
+			"Shrooms",
+			"Open"
+		],
 		"p_a66b6b8dd8d3": [
+			"Open"
+		],
+		"p_a690511c5518": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a69e0bf36aac": [
+			"Shrooms",
 			"Open"
 		],
 		"p_a6a12e338622": [
@@ -1670,26 +5569,96 @@
 		"p_a6c46c970456": [
 			"Shrooms"
 		],
+		"p_a6c6f82ffb95": [
+			"Shrooms",
+			"Open"
+		],
 		"p_a6c835b3b6de": [
 			"Shrooms"
 		],
 		"p_a6f5ddb2acfb": [
 			"Shrooms"
 		],
+		"p_a6fb21547f8d": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a77551600f2d": [
+			"Water",
+			"Shrooms"
+		],
 		"p_a775d5291cfc": [
+			"Open"
+		],
+		"p_a7a66215a8e5": [
+			"Shrooms"
+		],
+		"p_a7b1b10daaa6": [
+			"Shrooms",
 			"Open"
 		],
 		"p_a7bca2ed0d66": [
 			"Open"
 		],
+		"p_a8180291415b": [
+			"Shrooms"
+		],
+		"p_a818e32d7116": [
+			"Open"
+		],
+		"p_a845e0da7c49": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a85be19cdf18": [
+			"Water",
+			"Open"
+		],
 		"p_a870e33094cc": [
 			"Shrooms"
+		],
+		"p_a875b143ebcf": [
+			"Shrooms"
+		],
+		"p_a884747519b9": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a89fc2618212": [
+			"Shrooms"
+		],
+		"p_a8bb6dcf7691": [
+			"Shrooms",
+			"Open"
 		],
 		"p_a8d2701d09e1": [
 			"Open"
 		],
+		"p_a8e4e754b112": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a8e828a4fba3": [
+			"Shrooms",
+			"Open"
+		],
+		"p_a92ec647921c": [
+			"Water"
+		],
+		"p_a9317344c2fa": [
+			"Shrooms"
+		],
+		"p_a936549ab92f": [
+			"Open"
+		],
+		"p_a9434cca21e8": [
+			"Open"
+		],
 		"p_a95515abdc93": [
 			"Water",
+			"Open"
+		],
+		"p_a97becbfbb3b": [
 			"Open"
 		],
 		"p_a98e30394298": [
@@ -1699,14 +5668,41 @@
 		"p_a996b867f9f8": [
 			"Open"
 		],
+		"p_a9aa2690fd18": [
+			"Open"
+		],
 		"p_a9e92b38f741": [
 			"Shrooms"
+		],
+		"p_aa40abc85cc5": [
+			"Shrooms"
+		],
+		"p_aa5e77706dfb": [
+			"Open"
+		],
+		"p_aa5ec74759ae": [
+			"Shrooms",
+			"Open"
+		],
+		"p_aa6ad1023f15": [
+			"Open"
 		],
 		"p_aa762befc48d": [
 			"Open"
 		],
+		"p_aa80e31460ac": [
+			"Shrooms"
+		],
+		"p_aa8e47e73859": [
+			"Water",
+			"Open"
+		],
 		"p_aaa2fe9eddf2": [
 			"Water"
+		],
+		"p_aac00d597753": [
+			"Water",
+			"Shrooms"
 		],
 		"p_aacc8248e465": [
 			"Shrooms"
@@ -1714,15 +5710,61 @@
 		"p_aacecdce55b4": [
 			"Open"
 		],
+		"p_aad75773db67": [
+			"Shrooms",
+			"Open"
+		],
+		"p_aae2869b6912": [
+			"Water",
+			"Shrooms"
+		],
+		"p_aaf7f6958431": [
+			"Shrooms",
+			"Open"
+		],
+		"p_aafb29a02b4b": [
+			"Open"
+		],
+		"p_ab00fb90abb1": [
+			"Water",
+			"Open"
+		],
+		"p_ab126d4d6de5": [
+			"Shrooms"
+		],
 		"p_ab3bea19e054": [
 			"Shrooms"
+		],
+		"p_ab48b83dc506": [
+			"Open"
 		],
 		"p_ab75b51223b1": [
 			"Open"
 		],
+		"p_ab776c2474fd": [
+			"Shrooms"
+		],
 		"p_aba3dc52a413": [
 			"Water",
 			"Shrooms"
+		],
+		"p_ac017ce90dc7": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ac1cc4bf9c1d": [
+			"Open"
+		],
+		"p_ac300f587ba2": [
+			"Shrooms"
+		],
+		"p_ac4504550c70": [
+			"Water",
+			"Shrooms"
+		],
+		"p_aca0c6ab9060": [
+			"Shrooms",
+			"Open"
 		],
 		"p_acae879f7193": [
 			"Shrooms",
@@ -1734,11 +5776,28 @@
 		"p_acc1b407f71a": [
 			"Open"
 		],
+		"p_acd49bf753ab": [
+			"Open"
+		],
+		"p_acdb7c350002": [
+			"Open"
+		],
 		"p_ad085bb0184d": [
 			"Open"
 		],
 		"p_ad1f60be325e": [
 			"Shrooms"
+		],
+		"p_ad236bfb8e89": [
+			"Water"
+		],
+		"p_ad23dd23c65f": [
+			"Open"
+		],
+		"p_ad2add3701a7": [
+			"Water",
+			"Shrooms",
+			"Open"
 		],
 		"p_ad2cddbd3384": [
 			"Water",
@@ -1748,13 +5807,31 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_ad5717e9c167": [
+			"Open"
+		],
+		"p_ad706b8db99f": [
+			"Water",
+			"Shrooms"
+		],
 		"p_ad7b08eb8c0a": [
 			"Water",
 			"Open"
 		],
+		"p_ad9f6317a9d8": [
+			"Shrooms",
+			"Open"
+		],
+		"p_adb709e40c45": [
+			"Water",
+			"Shrooms"
+		],
 		"p_add8a095e3e3": [
 			"Water",
 			"Shrooms"
+		],
+		"p_ade526ab6352": [
+			"Open"
 		],
 		"p_adef76ff7698": [
 			"Shrooms"
@@ -1763,31 +5840,117 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_adfde975ee45": [
+			"Water"
+		],
+		"p_ae134d360c7f": [
+			"Shrooms"
+		],
+		"p_ae21073ec74c": [
+			"Open"
+		],
+		"p_ae21caeff559": [
+			"Shrooms"
+		],
+		"p_ae2d14f199c9": [
+			"Open"
+		],
 		"p_ae4990bca872": [
 			"Water",
 			"Shrooms"
 		],
+		"p_ae60a7d43b16": [
+			"Open"
+		],
+		"p_ae6cf0b3c5f0": [
+			"Water",
+			"Open"
+		],
+		"p_ae808d44b807": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ae8f022648af": [
+			"Shrooms",
+			"Open"
+		],
 		"p_ae974249cc22": [
 			"Open"
+		],
+		"p_aec2fe7c1473": [
+			"Shrooms"
 		],
 		"p_aedc825a147a": [
 			"Water",
 			"Open"
 		],
+		"p_aee521ef62c1": [
+			"Open"
+		],
+		"p_af23b4450a3c": [
+			"Shrooms"
+		],
+		"p_af739c8ba4b7": [
+			"Water"
+		],
 		"p_afa00f51eec9": [
 			"Shrooms",
+			"Open"
+		],
+		"p_afbd8dd1d78d": [
+			"Shrooms"
+		],
+		"p_afbfff09208f": [
 			"Open"
 		],
 		"p_aff1e278bd38": [
 			"Open"
 		],
+		"p_b08846fdaa95": [
+			"Open"
+		],
+		"p_b091a86800b1": [
+			"Shrooms"
+		],
+		"p_b0aa04841307": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_b0ae75ae7418": [
+			"Shrooms"
+		],
+		"p_b0d911bd9767": [
+			"Shrooms",
+			"Open"
+		],
 		"p_b0ef4736de0d": [
+			"Open"
+		],
+		"p_b0f2a356e942": [
 			"Open"
 		],
 		"p_b11e6e8afffe": [
 			"Shrooms"
 		],
+		"p_b14be231d399": [
+			"Shrooms",
+			"Open"
+		],
+		"p_b14cc47e47a6": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b14ef4318097": [
+			"Water",
+			"Open"
+		],
 		"p_b17058e57d1a": [
+			"Open"
+		],
+		"p_b17bc2c48244": [
+			"Water",
+			"Shrooms",
 			"Open"
 		],
 		"p_b182a74c1264": [
@@ -1795,6 +5958,9 @@
 			"Open"
 		],
 		"p_b1b194c4c85b": [
+			"Shrooms"
+		],
+		"p_b1c0e05a0a3e": [
 			"Shrooms"
 		],
 		"p_b1d929901b54": [
@@ -1809,7 +5975,29 @@
 		"p_b1fc40cb9b31": [
 			"Shrooms"
 		],
+		"p_b217cc562ca6": [
+			"Open"
+		],
+		"p_b23990fdb93c": [
+			"Shrooms"
+		],
+		"p_b24aa23e6fd3": [
+			"Shrooms"
+		],
+		"p_b254e5dc2411": [
+			"Water"
+		],
+		"p_b28882d663b1": [
+			"Water",
+			"Open"
+		],
 		"p_b28c43c11eab": [
+			"Open"
+		],
+		"p_b2a56f01c580": [
+			"Shrooms"
+		],
+		"p_b2b56339a3d0": [
 			"Open"
 		],
 		"p_b2ee4e1f1bef": [
@@ -1819,23 +6007,97 @@
 		"p_b3061640e7d7": [
 			"Open"
 		],
+		"p_b348f2d72196": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
 		"p_b362eba26d0a": [
 			"Water",
 			"Shrooms"
+		],
+		"p_b366110efb64": [
+			"Open"
+		],
+		"p_b36a03e65e69": [
+			"Water"
+		],
+		"p_b387eda55c75": [
+			"Shrooms"
+		],
+		"p_b3a83daa77a2": [
+			"Shrooms",
+			"Open"
+		],
+		"p_b3c48993bb4d": [
+			"Shrooms",
+			"Open"
+		],
+		"p_b3cd0f4614ad": [
+			"Open"
 		],
 		"p_b3dbee3cc2d3": [
 			"Water",
 			"Shrooms"
 		],
+		"p_b402fef00564": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b40b6863af92": [
+			"Open"
+		],
+		"p_b4143fee9b00": [
+			"Water"
+		],
 		"p_b41c2003174c": [
+			"Open"
+		],
+		"p_b43afda4cdb1": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b44f33557310": [
+			"Shrooms",
+			"Open"
+		],
+		"p_b48ca9d5dc34": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b50344477a3e": [
+			"Water",
+			"Shrooms",
 			"Open"
 		],
 		"p_b504fd13e3ed": [
 			"Shrooms"
 		],
+		"p_b5050dcc0c66": [
+			"Water"
+		],
+		"p_b50f467b519b": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b526e97fb7be": [
+			"Water"
+		],
 		"p_b544bf1cb65c": [
 			"Shrooms",
 			"Open"
+		],
+		"p_b560676444a3": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_b591563253f7": [
+			"Water",
+			"Open"
+		],
+		"p_b5938bb6c945": [
+			"Shrooms"
 		],
 		"p_b5d1b5475b20": [
 			"Open"
@@ -1846,14 +6108,107 @@
 		"p_b5ff7f206a5e": [
 			"Open"
 		],
+		"p_b60b61d37695": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_b61267ea9636": [
+			"Open"
+		],
 		"p_b6199eceec7f": [
 			"Shrooms"
+		],
+		"p_b61ea032e92b": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b63ddb6270ae": [
+			"Open"
+		],
+		"p_b645a530c3cd": [
+			"Water",
+			"Open"
+		],
+		"p_b65d962971ad": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_b666e4220893": [
+			"Water",
+			"Open"
+		],
+		"p_b672f60eccd7": [
+			"Open"
+		],
+		"p_b69079ac4105": [
+			"Water"
 		],
 		"p_b69408da9c64": [
 			"Open"
 		],
+		"p_b6ca5d958f14": [
+			"Shrooms"
+		],
+		"p_b6eb6337bc13": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b713fad0597d": [
+			"Open"
+		],
+		"p_b71eeb1e84a3": [
+			"Lava",
+			"Open"
+		],
+		"p_b7240222d663": [
+			"Shrooms",
+			"Open"
+		],
+		"p_b746f6d1c70b": [
+			"Shrooms"
+		],
+		"p_b751f6e069e0": [
+			"Shrooms"
+		],
+		"p_b78645413a0b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_b78d97ba4f57": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_b790d6ca7d8d": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b7a7d312c1c8": [
+			"Shrooms",
+			"Open"
+		],
+		"p_b7b39b05153e": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b7c1b26fede2": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b7c7449f6b98": [
+			"Shrooms"
+		],
+		"p_b7f1b16e098d": [
+			"Shrooms",
+			"Open"
+		],
 		"p_b8047ea3d551": [
 			"Open"
+		],
+		"p_b805e6ae99d6": [
+			"Water"
 		],
 		"p_b814b006fd06": [
 			"Open"
@@ -1861,10 +6216,36 @@
 		"p_b8341ff1e33d": [
 			"Open"
 		],
+		"p_b839ee782ccd": [
+			"Shrooms",
+			"Open"
+		],
 		"p_b83b15b822ec": [
 			"Shrooms"
 		],
+		"p_b83e7a85cb69": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b84815364435": [
+			"Open"
+		],
+		"p_b85152463222": [
+			"Open"
+		],
 		"p_b85e6f64dbb1": [
+			"Shrooms"
+		],
+		"p_b89cd2f6ab3c": [
+			"Open"
+		],
+		"p_b8c3744d8e16": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_b8c7de9d4951": [
+			"Water",
 			"Shrooms"
 		],
 		"p_b8d65ba9f054": [
@@ -1874,20 +6255,67 @@
 			"Water",
 			"Open"
 		],
+		"p_b8f241ac5929": [
+			"Water",
+			"Shrooms"
+		],
+		"p_b8f2e27bfc46": [
+			"Shrooms"
+		],
 		"p_b922b2d76135": [
 			"Open"
 		],
 		"p_b9274d33674b": [
 			"Open"
 		],
+		"p_b92c6a2e1223": [
+			"Open"
+		],
 		"p_b94091b44bae": [
+			"Open"
+		],
+		"p_b95f09d27858": [
+			"Shrooms"
+		],
+		"p_b95f88a5b89c": [
+			"Open"
+		],
+		"p_b97a26c4a4b8": [
+			"Water",
 			"Open"
 		],
 		"p_b9f32a90e0a8": [
 			"Shrooms",
 			"Open"
 		],
+		"p_ba03be1b9226": [
+			"Shrooms"
+		],
 		"p_ba0f048c62f4": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ba27f96aadfa": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ba4bf7d7f418": [
+			"Water",
+			"Shrooms"
+		],
+		"p_ba5e7a2a09b3": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ba6a6c613025": [
+			"Water",
+			"Open"
+		],
+		"p_ba833f8e073f": [
+			"Shrooms"
+		],
+		"p_ba86b6b8bdb3": [
+			"Water",
 			"Shrooms",
 			"Open"
 		],
@@ -1898,22 +6326,110 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_bafade8afcae": [
+			"Shrooms"
+		],
+		"p_bafb68341e85": [
+			"Open"
+		],
 		"p_bb0650fc8852": [
 			"Shrooms"
+		],
+		"p_bb26d0af43e0": [
+			"Shrooms"
+		],
+		"p_bb3f4d575950": [
+			"Shrooms",
+			"Open"
 		],
 		"p_bb46c8197760": [
 			"Open"
 		],
+		"p_bb794cdf9467": [
+			"Shrooms"
+		],
+		"p_bb8d70941ee6": [
+			"Open"
+		],
+		"p_bbc235618b90": [
+			"Open"
+		],
+		"p_bc041e547982": [
+			"Shrooms",
+			"Open"
+		],
+		"p_bc27bb8bd5ec": [
+			"Open"
+		],
+		"p_bc3939fba9f1": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_bc3d7e9b582a": [
+			"Shrooms"
+		],
 		"p_bc46be71f8e8": [
+			"Shrooms"
+		],
+		"p_bc80fc760a52": [
+			"Shrooms",
+			"Open"
+		],
+		"p_bcb02d364ddf": [
+			"Water"
+		],
+		"p_bccfabe3055f": [
+			"Water",
 			"Shrooms"
 		],
 		"p_bcd51182bb5b": [
 			"Open"
 		],
+		"p_bce506f3d162": [
+			"Shrooms"
+		],
+		"p_bce5156f6ef6": [
+			"Shrooms",
+			"Open"
+		],
+		"p_bce5cd7b23f7": [
+			"Open"
+		],
 		"p_bcff7bc571c7": [
 			"Water"
 		],
+		"p_bd02634834cf": [
+			"Shrooms",
+			"Open"
+		],
+		"p_bd2f82da7bd7": [
+			"Shrooms",
+			"Open"
+		],
 		"p_bd315bc73375": [
+			"Shrooms"
+		],
+		"p_bd3a5057b2f8": [
+			"Open"
+		],
+		"p_bd52e64cedaf": [
+			"Shrooms",
+			"Open"
+		],
+		"p_bd6ec0f78bc1": [
+			"Open"
+		],
+		"p_bd84c8120805": [
+			"Shrooms",
+			"Open"
+		],
+		"p_bd8f0fd207ed": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_bd9d30aac6d5": [
 			"Shrooms"
 		],
 		"p_bdd634fef9f8": [
@@ -1934,8 +6450,56 @@
 		"p_be499d1051d4": [
 			"Shrooms"
 		],
+		"p_bea08544c13b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_bec104ffe13c": [
+			"Water",
+			"Shrooms"
+		],
+		"p_bf39099a69ab": [
+			"Shrooms"
+		],
+		"p_bf3d7f0f467c": [
+			"Open"
+		],
+		"p_bf63ae9ac477": [
+			"Water",
+			"Open"
+		],
+		"p_bf72e9b8ace0": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_bf9fa8418830": [
+			"Shrooms",
+			"Open"
+		],
+		"p_bfe2b0e04e7d": [
+			"Shrooms"
+		],
+		"p_bfe95e93da81": [
+			"Shrooms",
+			"Open"
+		],
+		"p_bfeac3bc6605": [
+			"Open"
+		],
+		"p_bfedd79d1f02": [
+			"Open"
+		],
 		"p_bfff58812d30": [
 			"Open"
+		],
+		"p_c01ea7ecb903": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_c01f2027f0f2": [
+			"Shrooms"
 		],
 		"p_c05e41b5c1fb": [
 			"Open"
@@ -1943,14 +6507,61 @@
 		"p_c06167340dd1": [
 			"Open"
 		],
+		"p_c06555ed1b4f": [
+			"Shrooms"
+		],
+		"p_c08f2cecc5cf": [
+			"Shrooms"
+		],
+		"p_c099b865beb5": [
+			"Shrooms"
+		],
+		"p_c0a25d099cd3": [
+			"Shrooms"
+		],
+		"p_c0b594ed6040": [
+			"Open"
+		],
+		"p_c0efd8ae0702": [
+			"Open"
+		],
 		"p_c0f5f5e75c3b": [
+			"Open"
+		],
+		"p_c0f7ec429366": [
+			"Shrooms"
+		],
+		"p_c15a56e1994b": [
+			"Water",
 			"Open"
 		],
 		"p_c15d57c0673f": [
 			"Water",
 			"Shrooms"
 		],
+		"p_c17c6fc9942f": [
+			"Shrooms"
+		],
+		"p_c17f8cf21e65": [
+			"Open"
+		],
+		"p_c19bef5529b0": [
+			"Open"
+		],
 		"p_c1b578252502": [
+			"Shrooms"
+		],
+		"p_c1b5e33eccf7": [
+			"Shrooms"
+		],
+		"p_c1cb8f1d919c": [
+			"Open"
+		],
+		"p_c1d9fdc92c02": [
+			"Open"
+		],
+		"p_c1ed022230e5": [
+			"Water",
 			"Shrooms"
 		],
 		"p_c1ee0a21c858": [
@@ -1963,36 +6574,149 @@
 		"p_c223c4e33209": [
 			"Open"
 		],
+		"p_c250d3f2599f": [
+			"Open"
+		],
 		"p_c2511bee7bd1": [
 			"Water",
+			"Shrooms"
+		],
+		"p_c257d1720126": [
+			"Shrooms",
+			"Open"
+		],
+		"p_c26aa75f427d": [
+			"Water",
+			"Open"
+		],
+		"p_c27b132dbda1": [
 			"Shrooms"
 		],
 		"p_c2d1d3cf6def": [
 			"Water",
 			"Shrooms"
 		],
+		"p_c2ee4e7f2a97": [
+			"Open"
+		],
 		"p_c33d9b8615b8": [
+			"Open"
+		],
+		"p_c34b96122771": [
+			"Shrooms",
+			"Open"
+		],
+		"p_c381af6b5a74": [
+			"Water",
 			"Open"
 		],
 		"p_c382197dce3a": [
 			"Shrooms"
 		],
+		"p_c38c4a477f56": [
+			"Shrooms"
+		],
+		"p_c39e06ec52a2": [
+			"Shrooms",
+			"Open"
+		],
+		"p_c3a56f184db0": [
+			"Water"
+		],
+		"p_c3ac0e23552b": [
+			"Open"
+		],
 		"p_c3edd40a7452": [
+			"Open"
+		],
+		"p_c3f439a12981": [
+			"Shrooms"
+		],
+		"p_c3ff8b145050": [
+			"Open"
+		],
+		"p_c431f89c1fe7": [
 			"Open"
 		],
 		"p_c49e324fd298": [
 			"Open"
 		],
+		"p_c4ddaa137fd9": [
+			"Water",
+			"Shrooms"
+		],
+		"p_c4eaaf96ab11": [
+			"Shrooms",
+			"Open"
+		],
+		"p_c4f112bb9242": [
+			"Open"
+		],
+		"p_c4fb6739123d": [
+			"Open"
+		],
+		"p_c5127e6b3645": [
+			"Open"
+		],
+		"p_c52680f74307": [
+			"Open"
+		],
+		"p_c538cfe02f80": [
+			"Shrooms"
+		],
+		"p_c53e757d9937": [
+			"Open"
+		],
 		"p_c5475f30ff91": [
 			"Open"
+		],
+		"p_c5478021e9cd": [
+			"Water",
+			"Open"
+		],
+		"p_c58ab24e08f2": [
+			"Open"
+		],
+		"p_c5b586e35d6c": [
+			"Shrooms",
+			"Open"
+		],
+		"p_c5b781fdc4b2": [
+			"Shrooms"
+		],
+		"p_c5db3d465dc9": [
+			"Water",
+			"Shrooms"
 		],
 		"p_c607198f4b5a": [
 			"Open"
 		],
+		"p_c623b7ecfc38": [
+			"Open"
+		],
+		"p_c63290108e8e": [
+			"Shrooms",
+			"Open"
+		],
+		"p_c6377f5f4a24": [
+			"Water",
+			"Shrooms"
+		],
 		"p_c63a2dad4646": [
 			"Open"
 		],
+		"p_c66a180e30a6": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_c6705e57f61c": [
+			"Water"
+		],
 		"p_c68ee170d7ee": [
+			"Shrooms"
+		],
+		"p_c6a29ff1d1f0": [
 			"Shrooms"
 		],
 		"p_c6a485d665fe": [
@@ -2002,25 +6726,85 @@
 		"p_c6bc377e11b9": [
 			"Open"
 		],
+		"p_c6e76671e229": [
+			"Water",
+			"Open"
+		],
 		"p_c6f7b5c46119": [
+			"Open"
+		],
+		"p_c6ff84a41b11": [
 			"Open"
 		],
 		"p_c71ac001739e": [
 			"Open"
 		],
+		"p_c73c7223093c": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_c74c13284fc7": [
+			"Shrooms",
+			"Open"
+		],
 		"p_c790f7159788": [
 			"Open"
+		],
+		"p_c7caea25d09d": [
+			"Water",
+			"Shrooms"
 		],
 		"p_c7da25f49101": [
 			"Open"
 		],
+		"p_c7edc90e8821": [
+			"Shrooms"
+		],
 		"p_c7f28be4dfbc": [
+			"Open"
+		],
+		"p_c7f76b9da933": [
+			"Water",
+			"Open"
+		],
+		"p_c7f8a2d06074": [
+			"Shrooms"
+		],
+		"p_c802006f2ea6": [
+			"Shrooms"
+		],
+		"p_c81f5aa9d1fd": [
+			"Water",
+			"Shrooms",
 			"Open"
 		],
 		"p_c82a066dee61": [
 			"Shrooms"
 		],
+		"p_c839ea193c9a": [
+			"Water",
+			"Shrooms"
+		],
+		"p_c85515648cb3": [
+			"Water",
+			"Shrooms"
+		],
 		"p_c8785f373918": [
+			"Open"
+		],
+		"p_c8a0eb0a952c": [
+			"Open"
+		],
+		"p_c92262a55d7c": [
+			"Shrooms"
+		],
+		"p_c93421397424": [
+			"Open"
+		],
+		"p_c95f76ec2051": [
+			"Water",
+			"Shrooms",
 			"Open"
 		],
 		"p_c99e5104ef16": [
@@ -2029,27 +6813,133 @@
 		"p_c9ab43fa332d": [
 			"Shrooms"
 		],
+		"p_c9e9e360b025": [
+			"Water",
+			"Open"
+		],
+		"p_ca3f1be4ab2b": [
+			"Shrooms",
+			"Open"
+		],
 		"p_ca409dbf9227": [
+			"Open"
+		],
+		"p_ca413667fd24": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ca4b994f79e1": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ca606b2301cf": [
+			"Open"
+		],
+		"p_ca61ea9a3707": [
+			"Shrooms"
+		],
+		"p_ca7d11489293": [
+			"Water",
+			"Open"
+		],
+		"p_caa2dac1989d": [
+			"Water",
+			"Open"
+		],
+		"p_cab2f6ff75fc": [
+			"Shrooms",
+			"Open"
+		],
+		"p_cac31724bf7b": [
 			"Open"
 		],
 		"p_cae14506589b": [
 			"Open"
 		],
+		"p_caead87871fe": [
+			"Shrooms",
+			"Open"
+		],
+		"p_caf633eef94f": [
+			"Water",
+			"Shrooms"
+		],
+		"p_cb061c9c7830": [
+			"Shrooms"
+		],
+		"p_cb2252df5234": [
+			"Shrooms",
+			"Open"
+		],
 		"p_cb2d3af2a03b": [
 			"Open"
 		],
+		"p_cb70e335159a": [
+			"Shrooms"
+		],
 		"p_cb8b3c08d5be": [
+			"Open"
+		],
+		"p_cb9eba632880": [
+			"Shrooms",
+			"Open"
+		],
+		"p_cba5f9b63635": [
+			"Open"
+		],
+		"p_cbdc194f1c98": [
+			"Shrooms"
+		],
+		"p_cc027ad5ba82": [
+			"Water",
+			"Shrooms"
+		],
+		"p_cc08ae4f0d57": [
+			"Shrooms",
 			"Open"
 		],
 		"p_cc1e388df24e": [
 			"Open"
 		],
+		"p_cc1f7ce04805": [
+			"Shrooms"
+		],
 		"p_cc21d98c2f52": [
 			"Water",
 			"Open"
 		],
+		"p_cc2eb30717a2": [
+			"Open"
+		],
+		"p_cc3354d4e6f2": [
+			"Water",
+			"Open"
+		],
+		"p_cc4b343ba132": [
+			"Shrooms"
+		],
+		"p_cc5b8d706297": [
+			"Shrooms",
+			"Open"
+		],
+		"p_cc79f4a245bb": [
+			"Shrooms",
+			"Open"
+		],
+		"p_cc911a29a383": [
+			"Open"
+		],
 		"p_ccb4241d0af0": [
 			"Shrooms",
+			"Open"
+		],
+		"p_ccb6c8f2df61": [
+			"Shrooms"
+		],
+		"p_ccdbb7a3b4c5": [
+			"Open"
+		],
+		"p_ccdfb592ed5e": [
 			"Open"
 		],
 		"p_ccea894c9a9d": [
@@ -2065,8 +6955,27 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_cd10ae005523": [
+			"Shrooms"
+		],
 		"p_cd28aa9ecae5": [
 			"Open"
+		],
+		"p_cdc797ea0585": [
+			"Water",
+			"Shrooms"
+		],
+		"p_ce5c3800ce78": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ce9d04ade470": [
+			"Shrooms",
+			"Open"
+		],
+		"p_cea2fcc4ec0c": [
+			"Water",
+			"Shrooms"
 		],
 		"p_ced10fe75f34": [
 			"Shrooms"
@@ -2074,10 +6983,68 @@
 		"p_cef0b937f173": [
 			"Open"
 		],
+		"p_cf329be6af16": [
+			"Water",
+			"Open"
+		],
+		"p_cf3de964a624": [
+			"Shrooms",
+			"Open"
+		],
+		"p_cf4afbfca79a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_cf88b9821924": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_d00d773f7188": [
+			"Shrooms"
+		],
+		"p_d00e88749b99": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d04216d9fa4c": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_d05e54d8f5d4": [
+			"Shrooms"
+		],
+		"p_d06865219d5c": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d08df2e45828": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d08e08bfdd1d": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d0d63553c840": [
+			"Shrooms"
+		],
+		"p_d0d7ef724b1b": [
+			"Shrooms",
+			"Open"
+		],
 		"p_d110a60bcef6": [
 			"Open"
 		],
+		"p_d124ec56ec20": [
+			"Shrooms",
+			"Open"
+		],
 		"p_d1294a3ec372": [
+			"Open"
+		],
+		"p_d12c007ced44": [
 			"Open"
 		],
 		"p_d14340029ef4": [
@@ -2089,20 +7056,101 @@
 		"p_d15461dba302": [
 			"Shrooms"
 		],
+		"p_d161e6c5d0bb": [
+			"Open"
+		],
 		"p_d17d90c3e63e": [
 			"Water"
 		],
+		"p_d181836acb16": [
+			"Shrooms"
+		],
 		"p_d1a1e72036e0": [
+			"Open"
+		],
+		"p_d1ad982a6b15": [
+			"Water",
+			"Open"
+		],
+		"p_d1aefe67abd7": [
+			"Open"
+		],
+		"p_d1b64ed2bfd4": [
+			"Shrooms"
+		],
+		"p_d1dac8e4dd60": [
+			"Water"
+		],
+		"p_d1ec6a484b53": [
+			"Water",
+			"Open"
+		],
+		"p_d20ccb6240d0": [
+			"Open"
+		],
+		"p_d237138ba66e": [
+			"Water",
+			"Open"
+		],
+		"p_d2475be88f48": [
+			"Water",
+			"Open"
+		],
+		"p_d25728691f3b": [
+			"Water",
+			"Shrooms"
+		],
+		"p_d29265a36421": [
+			"Open"
+		],
+		"p_d29a04a6ee5d": [
+			"Shrooms",
 			"Open"
 		],
 		"p_d2b002ef66b7": [
 			"Open"
 		],
+		"p_d2cc83b08154": [
+			"Open"
+		],
+		"p_d31ca43b8f66": [
+			"Shrooms",
+			"Open"
+		],
 		"p_d32cf4eb9e2e": [
 			"Shrooms"
 		],
+		"p_d3301633123c": [
+			"Open"
+		],
+		"p_d34780ef63ab": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_d36def733dec": [
+			"Shrooms"
+		],
+		"p_d3729586d01f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d385f549699b": [
+			"Shrooms",
+			"Open"
+		],
 		"p_d3b6d95373f9": [
 			"Open"
+		],
+		"p_d3d5e70cf05e": [
+			"Open"
+		],
+		"p_d3ed5925edfd": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d4021448666a": [
+			"Shrooms"
 		],
 		"p_d42d9e758158": [
 			"Shrooms"
@@ -2113,6 +7161,13 @@
 		"p_d455ec5de747": [
 			"Open"
 		],
+		"p_d4b2c3b99003": [
+			"Water",
+			"Open"
+		],
+		"p_d4d1e29af7d4": [
+			"Open"
+		],
 		"p_d4eab15c5402": [
 			"Water",
 			"Open"
@@ -2120,20 +7175,51 @@
 		"p_d4f94cd54b06": [
 			"Open"
 		],
+		"p_d4fdb70842ab": [
+			"Shrooms"
+		],
+		"p_d50f3d4b7704": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d54117970ff6": [
+			"Shrooms"
+		],
 		"p_d550ac92a889": [
+			"Shrooms"
+		],
+		"p_d56dcf01bbb7": [
 			"Shrooms"
 		],
 		"p_d5750dd438ba": [
 			"Open"
 		],
+		"p_d57ef08350a1": [
+			"Water",
+			"Shrooms"
+		],
 		"p_d5a6bcf4e61a": [
 			"Open"
+		],
+		"p_d5d67d59072d": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d5d9fa1855d5": [
+			"Shrooms"
 		],
 		"p_d5f126dce1c5": [
 			"Open"
 		],
+		"p_d5fa3c37a520": [
+			"Shrooms"
+		],
 		"p_d6110e53c888": [
 			"Shrooms"
+		],
+		"p_d617c624ac86": [
+			"Water",
+			"Open"
 		],
 		"p_d62568d14839": [
 			"Water",
@@ -2143,36 +7229,107 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_d668f793c9be": [
+			"Water",
+			"Open"
+		],
+		"p_d66b3dccf8cf": [
+			"Open"
+		],
 		"p_d671bf49e499": [
 			"Water",
 			"Shrooms"
 		],
+		"p_d684506c8440": [
+			"Shrooms",
+			"Open"
+		],
 		"p_d69e07d125cd": [
 			"Open"
+		],
+		"p_d6a8788a3101": [
+			"Water",
+			"Shrooms"
 		],
 		"p_d6b20026d166": [
 			"Water",
 			"Shrooms"
 		],
+		"p_d6bbf40b7559": [
+			"Water",
+			"Open"
+		],
+		"p_d6d2bea952a8": [
+			"Lava",
+			"Open"
+		],
 		"p_d6ec87fd72e3": [
+			"Open"
+		],
+		"p_d736622fa961": [
+			"Water",
+			"Open"
+		],
+		"p_d743dee5fa37": [
 			"Open"
 		],
 		"p_d75126c6bdcd": [
 			"Shrooms"
 		],
+		"p_d75331f68ea0": [
+			"Water",
+			"Shrooms"
+		],
+		"p_d7645609a30a": [
+			"Open"
+		],
+		"p_d7670032baa3": [
+			"Open"
+		],
+		"p_d76785e99209": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d7818810a056": [
+			"Open"
+		],
+		"p_d783dcce7162": [
+			"Open"
+		],
+		"p_d7a995219e1d": [
+			"Shrooms",
+			"Open"
+		],
 		"p_d7effb1cc970": [
 			"Water"
+		],
+		"p_d7f038df1bef": [
+			"Open"
 		],
 		"p_d7f2dba2a200": [
 			"Lava",
 			"Open"
 		],
+		"p_d8127376d191": [
+			"Shrooms",
+			"Open"
+		],
 		"p_d82808c20e95": [
 			"Open"
+		],
+		"p_d83d5bc8d38b": [
+			"Shrooms"
 		],
 		"p_d84501898bf2": [
 			"Water",
 			"Shrooms"
+		],
+		"p_d868869aa440": [
+			"Shrooms"
+		],
+		"p_d884c2cfb64d": [
+			"Shrooms",
+			"Open"
 		],
 		"p_d89164e5c9b0": [
 			"Open"
@@ -2180,20 +7337,64 @@
 		"p_d8c5f4da49f1": [
 			"Shrooms"
 		],
+		"p_d8d6afa7b324": [
+			"Open"
+		],
+		"p_d8e8631efbd7": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d8f214087c12": [
+			"Lava",
+			"Open"
+		],
 		"p_d91cadb87277": [
+			"Open"
+		],
+		"p_d93edd0a2dea": [
+			"Shrooms",
 			"Open"
 		],
 		"p_d93f8a994f0a": [
 			"Open"
 		],
+		"p_d9403fd17558": [
+			"Shrooms"
+		],
+		"p_d9440ba3222e": [
+			"Shrooms"
+		],
+		"p_d947def7556a": [
+			"Shrooms"
+		],
 		"p_d959f9644b6d": [
 			"Open"
+		],
+		"p_d97e0881e294": [
+			"Shrooms",
+			"Open"
+		],
+		"p_d9a9913ba8f5": [
+			"Shrooms"
+		],
+		"p_d9b232dfa024": [
+			"Shrooms"
+		],
+		"p_d9b54c7becef": [
+			"Shrooms"
 		],
 		"p_d9bebecc97d2": [
 			"Open"
 		],
+		"p_d9c02495d86a": [
+			"Shrooms"
+		],
 		"p_da1aaf43bcf3": [
 			"Shrooms"
+		],
+		"p_da2335d797b3": [
+			"Shrooms",
+			"Open"
 		],
 		"p_da278795f70e": [
 			"Water",
@@ -2203,7 +7404,20 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_da7e6327765b": [
+			"Shrooms",
+			"Open"
+		],
 		"p_dae5080f32da": [
+			"Open"
+		],
+		"p_db014aa8e13b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_db0faf073b2f": [
+			"Water",
+			"Shrooms",
 			"Open"
 		],
 		"p_db23dc8c5b4c": [
@@ -2212,17 +7426,38 @@
 		"p_db40572ed8f8": [
 			"Open"
 		],
+		"p_db580829f73b": [
+			"Water",
+			"Shrooms"
+		],
 		"p_db5ca9d17a87": [
 			"Shrooms"
 		],
+		"p_db7af404d71c": [
+			"Open"
+		],
+		"p_db80a7f83caa": [
+			"Shrooms",
+			"Open"
+		],
 		"p_db9a3e041674": [
+			"Shrooms"
+		],
+		"p_dba047e5dac7": [
 			"Shrooms"
 		],
 		"p_dbcbaa8b598e": [
 			"Open"
 		],
+		"p_dbf251ce06d7": [
+			"Water",
+			"Open"
+		],
 		"p_dc10d0d57d33": [
 			"Water",
+			"Shrooms"
+		],
+		"p_dc2f0dac5f5e": [
 			"Shrooms"
 		],
 		"p_dc3db21ab9bc": [
@@ -2232,18 +7467,62 @@
 		"p_dc4d851ed93d": [
 			"Open"
 		],
+		"p_dc5134372e34": [
+			"Open"
+		],
+		"p_dc5fc5e93779": [
+			"Water",
+			"Shrooms"
+		],
 		"p_dc6c572d7811": [
+			"Shrooms"
+		],
+		"p_dc8d8f0e24ea": [
+			"Water",
+			"Open"
+		],
+		"p_dca45cab0f27": [
+			"Water",
+			"Shrooms"
+		],
+		"p_dcee522c04e7": [
+			"Shrooms"
+		],
+		"p_dcf82e5e851f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_dd104423dd00": [
 			"Shrooms"
 		],
 		"p_dd4f18b82b31": [
 			"Open"
 		],
+		"p_dd5d3b1679ed": [
+			"Water",
+			"Shrooms"
+		],
 		"p_dd6252260df9": [
 			"Water",
 			"Shrooms"
 		],
+		"p_dd63cd4e9581": [
+			"Shrooms",
+			"Open"
+		],
 		"p_dd84a50952c7": [
 			"Open"
+		],
+		"p_dddfd2b7a9f4": [
+			"Water",
+			"Open"
+		],
+		"p_dde3ed665fb4": [
+			"Water",
+			"Shrooms"
+		],
+		"p_dde7a9103416": [
+			"Shrooms"
 		],
 		"p_dded10d7e8de": [
 			"Water",
@@ -2253,17 +7532,59 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_de06fe6b7f02": [
+			"Open"
+		],
 		"p_de3fa4f79560": [
+			"Open"
+		],
+		"p_de47208dca4e": [
+			"Water"
+		],
+		"p_de5bec238f73": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_de64767af951": [
+			"Water"
+		],
+		"p_de64dd0bb8fc": [
+			"Shrooms"
+		],
+		"p_de992753fa10": [
 			"Open"
 		],
 		"p_de9b9def309a": [
 			"Open"
 		],
+		"p_dee15259ea21": [
+			"Shrooms",
+			"Open"
+		],
 		"p_defc05f48ca0": [
+			"Open"
+		],
+		"p_defcb7048b77": [
+			"Shrooms",
 			"Open"
 		],
 		"p_df065cbec017": [
 			"Shrooms"
+		],
+		"p_df0e230699ab": [
+			"Shrooms"
+		],
+		"p_df2274615fd9": [
+			"Water",
+			"Open"
+		],
+		"p_df2bbc7f8021": [
+			"Water",
+			"Open"
+		],
+		"p_df7b1be52783": [
+			"Water"
 		],
 		"p_df85edff1f23": [
 			"Shrooms"
@@ -2274,6 +7595,13 @@
 		"p_dfcd339e040f": [
 			"Open"
 		],
+		"p_dfe28791f3ab": [
+			"Water",
+			"Shrooms"
+		],
+		"p_dff8101fe272": [
+			"Water"
+		],
 		"p_e03522f05479": [
 			"Water",
 			"Shrooms"
@@ -2281,11 +7609,36 @@
 		"p_e052018ff05b": [
 			"Open"
 		],
+		"p_e071570a738f": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_e08b47760733": [
+			"Open"
+		],
+		"p_e0cd0bec4f71": [
+			"Water",
+			"Shrooms"
+		],
+		"p_e0d0006e2fbf": [
+			"Shrooms"
+		],
 		"p_e14a360c1f59": [
 			"Open"
 		],
+		"p_e1539160f88e": [
+			"Water",
+			"Shrooms"
+		],
+		"p_e16a553176d7": [
+			"Shrooms"
+		],
 		"p_e183abf270db": [
 			"Shrooms"
+		],
+		"p_e1d132699e00": [
+			"Open"
 		],
 		"p_e225cfc505ad": [
 			"Open"
@@ -2297,10 +7650,73 @@
 			"Shrooms",
 			"Open"
 		],
+		"p_e2a6871516ce": [
+			"Water",
+			"Shrooms"
+		],
+		"p_e2a7a80b685e": [
+			"Water",
+			"Shrooms"
+		],
+		"p_e2c59d32b1c7": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e2eb4c03f578": [
+			"Water"
+		],
 		"p_e2fff4a4c963": [
 			"Open"
 		],
+		"p_e32b8b1ea360": [
+			"Shrooms"
+		],
+		"p_e3446972c447": [
+			"Shrooms"
+		],
+		"p_e3745d7485e6": [
+			"Open"
+		],
+		"p_e38b7a48b223": [
+			"Shrooms"
+		],
+		"p_e3adacd4cb0d": [
+			"Shrooms"
+		],
+		"p_e3b658bd275e": [
+			"Water"
+		],
+		"p_e3d4848ed5f3": [
+			"Shrooms"
+		],
+		"p_e3fabc4e2bf2": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e4012c642eed": [
+			"Open"
+		],
+		"p_e41b8a287b21": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e4274aff802d": [
+			"Shrooms"
+		],
+		"p_e447e8ea466d": [
+			"Open"
+		],
+		"p_e4653bf9a2eb": [
+			"Water",
+			"Shrooms"
+		],
 		"p_e46d8b48ba2c": [
+			"Shrooms"
+		],
+		"p_e4b8037ef9dd": [
+			"Open"
+		],
+		"p_e4bd63c80c1c": [
 			"Shrooms"
 		],
 		"p_e4f806aca6d8": [
@@ -2310,32 +7726,201 @@
 		"p_e50d708c9c23": [
 			"Open"
 		],
+		"p_e52265bc33ad": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e5455f9c4601": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e56a9df5ba71": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e59709efe30f": [
+			"Shrooms"
+		],
 		"p_e5af271f67a1": [
 			"Shrooms"
+		],
+		"p_e5caff01c1c2": [
+			"Open"
 		],
 		"p_e5d19408d2e6": [
 			"Open"
 		],
+		"p_e5fbea24c0d1": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e602c757bd65": [
+			"Water",
+			"Shrooms"
+		],
 		"p_e60398bb60bf": [
+			"Open"
+		],
+		"p_e61ea4b51dbd": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e62e9ade1ed7": [
+			"Open"
+		],
+		"p_e634670743c4": [
+			"Shrooms"
+		],
+		"p_e66023913e4d": [
+			"Shrooms"
+		],
+		"p_e67abf28a55a": [
+			"Water",
+			"Shrooms"
+		],
+		"p_e67e0e40ab61": [
+			"Shrooms"
+		],
+		"p_e6802acd56c2": [
+			"Water",
+			"Shrooms"
+		],
+		"p_e68e7514a344": [
+			"Open"
+		],
+		"p_e6f4bc37c344": [
 			"Open"
 		],
 		"p_e6f5680ff8b1": [
 			"Shrooms",
 			"Open"
 		],
+		"p_e6f801e1f8f6": [
+			"Shrooms"
+		],
 		"p_e729650e3e53": [
+			"Shrooms"
+		],
+		"p_e74832268dea": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e7552396b7f7": [
+			"Water",
+			"Open"
+		],
+		"p_e77cfa3b599e": [
+			"Shrooms"
+		],
+		"p_e7901b5b7efd": [
 			"Shrooms"
 		],
 		"p_e7981efc0e0d": [
 			"Water"
 		],
+		"p_e7aad56f334b": [
+			"Open"
+		],
+		"p_e7cd1d957b0d": [
+			"Water",
+			"Open"
+		],
+		"p_e7d41ce94cd7": [
+			"Water",
+			"Shrooms"
+		],
+		"p_e803dd4ba1cd": [
+			"Shrooms"
+		],
+		"p_e8158cd3d298": [
+			"Water",
+			"Shrooms"
+		],
 		"p_e84d7f46cc66": [
+			"Open"
+		],
+		"p_e8a69c3854b7": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e8b6e95494f0": [
+			"Water",
+			"Open"
+		],
+		"p_e8bfb10c1a26": [
+			"Open"
+		],
+		"p_e8cc45d5e0f2": [
+			"Water"
+		],
+		"p_e8e8cd0a30be": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e8e93ba07b3a": [
 			"Open"
 		],
 		"p_e8eb42e0fe62": [
 			"Open"
 		],
+		"p_e91ba3f1127c": [
+			"Shrooms"
+		],
+		"p_e92c1a3a2e01": [
+			"Water",
+			"Shrooms"
+		],
+		"p_e952ebfb33a2": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_e98be202a876": [
+			"Water",
+			"Shrooms"
+		],
+		"p_e99a9ff1322c": [
+			"Shrooms"
+		],
+		"p_e9e7ce5b3fab": [
+			"Shrooms",
+			"Open"
+		],
+		"p_e9f59407b1f0": [
+			"Shrooms"
+		],
+		"p_ea4be02f6a00": [
+			"Open"
+		],
+		"p_ea4c85c764b7": [
+			"Shrooms"
+		],
+		"p_ea6d58e2d046": [
+			"Open"
+		],
+		"p_ea8c73fbe959": [
+			"Open"
+		],
 		"p_ea91d0fcc4ff": [
+			"Open"
+		],
+		"p_eaca48390a78": [
+			"Water",
+			"Shrooms"
+		],
+		"p_eaece9f763a3": [
+			"Open"
+		],
+		"p_eaf7ad5562b7": [
+			"Shrooms"
+		],
+		"p_eafb36e446ba": [
+			"Shrooms",
+			"Open"
+		],
+		"p_eb44bd89d1c6": [
+			"Water",
+			"Shrooms",
 			"Open"
 		],
 		"p_eb5653293d28": [
@@ -2345,6 +7930,13 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_ebac05afc2c9": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ebb1e8a2018e": [
+			"Open"
+		],
 		"p_ec29461df5a6": [
 			"Water",
 			"Shrooms"
@@ -2352,24 +7944,93 @@
 		"p_ec6eae58becd": [
 			"Open"
 		],
+		"p_ec77fd4aa647": [
+			"Shrooms"
+		],
+		"p_ec7fd26f02db": [
+			"Shrooms"
+		],
+		"p_ec822c2d9b3f": [
+			"Open"
+		],
 		"p_ecc01be80e4e": [
 			"Water",
 			"Shrooms"
 		],
+		"p_ecf4e754d6aa": [
+			"Open"
+		],
+		"p_ecfcc2dd6386": [
+			"Shrooms"
+		],
+		"p_ed002eb52eea": [
+			"Open"
+		],
+		"p_ed0ff401f401": [
+			"Shrooms",
+			"Open"
+		],
 		"p_ed1424042e06": [
+			"Open"
+		],
+		"p_ed6759df46d1": [
+			"Shrooms"
+		],
+		"p_ed6a689c48ae": [
+			"Shrooms"
+		],
+		"p_ed7434e7107d": [
+			"Open"
+		],
+		"p_ed7bea3290f0": [
+			"Water"
+		],
+		"p_ed854262778e": [
+			"Shrooms",
 			"Open"
 		],
 		"p_ed9149622bbe": [
 			"Shrooms"
 		],
+		"p_edadc1a4b894": [
+			"Shrooms"
+		],
+		"p_edbd1ec2ceb6": [
+			"Water",
+			"Shrooms"
+		],
 		"p_ee3a9332f0b2": [
 			"Shrooms"
+		],
+		"p_ee697fb1d0f3": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_ee7d0baadf18": [
+			"Open"
 		],
 		"p_ee80c3606e2e": [
 			"Water",
 			"Shrooms"
 		],
+		"p_eebac18287bb": [
+			"Water",
+			"Open"
+		],
 		"p_eec482286b2a": [
+			"Open"
+		],
+		"p_eecf4719b99b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_eed62f7b2e81": [
+			"Open"
+		],
+		"p_eee9cdb03df2": [
+			"Water",
+			"Shrooms",
 			"Open"
 		],
 		"p_eefb7cf83195": [
@@ -2379,15 +8040,91 @@
 			"Water",
 			"Shrooms"
 		],
+		"p_ef7e5b76447e": [
+			"Water",
+			"Open"
+		],
+		"p_ef8842564032": [
+			"Open"
+		],
+		"p_ef89b3589e52": [
+			"Water",
+			"Open"
+		],
+		"p_eff8dc0110ec": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f01c49739eab": [
+			"Shrooms"
+		],
 		"p_f024dc9b9c2f": [
 			"Shrooms",
+			"Open"
+		],
+		"p_f0359cfc82c0": [
+			"Shrooms"
+		],
+		"p_f077a6fb5fff": [
 			"Open"
 		],
 		"p_f08700cc02c5": [
 			"Water",
 			"Shrooms"
 		],
+		"p_f0b949a99564": [
+			"Open"
+		],
+		"p_f0f2330dcdec": [
+			"Water",
+			"Open"
+		],
+		"p_f101115a01b2": [
+			"Open"
+		],
 		"p_f11f4918eb2b": [
+			"Open"
+		],
+		"p_f12509adb92e": [
+			"Water",
+			"Shrooms"
+		],
+		"p_f12847b50af9": [
+			"Open"
+		],
+		"p_f13273477499": [
+			"Water",
+			"Shrooms"
+		],
+		"p_f13605b690cb": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_f13a8dec31c8": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f163a1accf28": [
+			"Water",
+			"Shrooms"
+		],
+		"p_f175c3be2337": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f1783a8a15dd": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f197166e8486": [
+			"Open"
+		],
+		"p_f1b7051bac53": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f1bb2ceb8324": [
 			"Open"
 		],
 		"p_f1d02ebd0f5f": [
@@ -2396,21 +8133,91 @@
 		"p_f1d4eee30143": [
 			"Open"
 		],
+		"p_f1d5848b033e": [
+			"Shrooms"
+		],
+		"p_f1d74c947b92": [
+			"Shrooms"
+		],
+		"p_f1e53e567d00": [
+			"Water",
+			"Open"
+		],
 		"p_f1f12da28bdc": [
 			"Open"
 		],
 		"p_f205fc20cfa0": [
 			"Open"
 		],
+		"p_f25420bd0ae5": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f25e5f60e1db": [
+			"Open"
+		],
+		"p_f266911ca399": [
+			"Shrooms"
+		],
+		"p_f2a534cc2b85": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f2a583b672a3": [
+			"Open"
+		],
+		"p_f2adc471c91d": [
+			"Shrooms",
+			"Open"
+		],
 		"p_f2cf8dee5bd9": [
+			"Open"
+		],
+		"p_f2e32e7231a6": [
+			"Open"
+		],
+		"p_f2ef670089e1": [
+			"Water"
+		],
+		"p_f2feff0cd1f5": [
+			"Water",
+			"Open"
+		],
+		"p_f33c3d9e8f95": [
+			"Shrooms"
+		],
+		"p_f33c4da2a0fa": [
+			"Shrooms",
 			"Open"
 		],
 		"p_f33f943a6215": [
 			"Water",
 			"Shrooms"
 		],
+		"p_f3410964cbd5": [
+			"Open"
+		],
+		"p_f36819187138": [
+			"Water",
+			"Open"
+		],
+		"p_f3913fc43a2f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f39902f4a82a": [
+			"Water",
+			"Shrooms"
+		],
 		"p_f3b2ce8fe077": [
 			"Open"
+		],
+		"p_f3c3fa058822": [
+			"Water",
+			"Shrooms"
+		],
+		"p_f3d0adbb6cb6": [
+			"Shrooms"
 		],
 		"p_f3ddd9519d56": [
 			"Open"
@@ -2418,11 +8225,50 @@
 		"p_f3ec5040bad7": [
 			"Shrooms"
 		],
+		"p_f3f87916f98c": [
+			"Water",
+			"Open"
+		],
+		"p_f425492e8f9c": [
+			"Shrooms",
+			"Open"
+		],
 		"p_f46b09afbe35": [
 			"Shrooms"
 		],
+		"p_f499fb6fc3b3": [
+			"Water",
+			"Open"
+		],
+		"p_f4b060b20eec": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f4d34afe6c5a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f4e2b6aecce8": [
+			"Open"
+		],
 		"p_f505502d755e": [
 			"Water",
+			"Shrooms"
+		],
+		"p_f51528bb5d0f": [
+			"Open"
+		],
+		"p_f51528e4d74b": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f5247309ba9d": [
+			"Water"
+		],
+		"p_f53ee42682f9": [
+			"Open"
+		],
+		"p_f53f1a6c91d1": [
 			"Shrooms"
 		],
 		"p_f564212739d9": [
@@ -2431,7 +8277,28 @@
 		"p_f56f13ac3cd5": [
 			"Open"
 		],
+		"p_f572dd4fc332": [
+			"Open"
+		],
+		"p_f576c435ec59": [
+			"Water"
+		],
+		"p_f583bc106f0f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f5a2b6d4cdfe": [
+			"Water",
+			"Shrooms"
+		],
 		"p_f5b59211dd6e": [
+			"Open"
+		],
+		"p_f5c1f2f1cd4f": [
+			"Shrooms"
+		],
+		"p_f62bf9bea538": [
+			"Shrooms",
 			"Open"
 		],
 		"p_f6456eed7f4d": [
@@ -2440,51 +8307,275 @@
 		"p_f64a597c42a7": [
 			"Open"
 		],
+		"p_f6515ba34a7c": [
+			"Shrooms"
+		],
+		"p_f664ec99a56c": [
+			"Open"
+		],
 		"p_f67a3220b0b9": [
 			"Shrooms"
 		],
+		"p_f68f9c040201": [
+			"Shrooms"
+		],
+		"p_f69c0bb746be": [
+			"Open"
+		],
+		"p_f6c8b61bc315": [
+			"Shrooms"
+		],
+		"p_f6d1579bc6ee": [
+			"Open"
+		],
 		"p_f6f436af96ec": [
+			"Open"
+		],
+		"p_f6f5cc8dcbc8": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f72ecc81ef58": [
+			"Shrooms",
 			"Open"
 		],
 		"p_f76f87b808b6": [
 			"Open"
 		],
+		"p_f7c076a30105": [
+			"Water",
+			"Shrooms"
+		],
+		"p_f818e87ce2b9": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f83baa459867": [
+			"Shrooms"
+		],
+		"p_f843523c6c55": [
+			"Shrooms"
+		],
+		"p_f852b982b6e5": [
+			"Open"
+		],
+		"p_f85d7c2b2b66": [
+			"Open"
+		],
+		"p_f888109fdc3b": [
+			"Shrooms",
+			"Open"
+		],
 		"p_f89667dcb41a": [
 			"Open"
+		],
+		"p_f89bccea5b71": [
+			"Open"
+		],
+		"p_f8a53c743e4f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f8a7d5490fef": [
+			"Open"
+		],
+		"p_f92fa347ae76": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f932108474d2": [
+			"Open"
+		],
+		"p_f939437de2ff": [
+			"Shrooms",
+			"Open"
+		],
+		"p_f9a23ee631e5": [
+			"Shrooms"
+		],
+		"p_f9b01dad5404": [
+			"Shrooms"
 		],
 		"p_f9fac8660695": [
 			"Shrooms"
 		],
+		"p_fa3a8fbe983a": [
+			"Shrooms"
+		],
+		"p_fa3d8acd4774": [
+			"Water",
+			"Shrooms"
+		],
+		"p_fa919d7efd53": [
+			"Shrooms",
+			"Open"
+		],
 		"p_fab36728d194": [
+			"Shrooms",
+			"Open"
+		],
+		"p_faf5d3800a8f": [
+			"Shrooms",
+			"Open"
+		],
+		"p_fb4a3dd03729": [
+			"Open"
+		],
+		"p_fb6b58fde368": [
+			"Shrooms",
+			"Open"
+		],
+		"p_fb8655dc912e": [
+			"Water",
+			"Shrooms"
+		],
+		"p_fbc96f4b7033": [
+			"Open"
+		],
+		"p_fbcf2c26e510": [
+			"Open"
+		],
+		"p_fbdd157ae959": [
+			"Shrooms",
+			"Open"
+		],
+		"p_fbe99f4c5671": [
 			"Shrooms",
 			"Open"
 		],
 		"p_fc7aae10a5aa": [
 			"Water"
 		],
+		"p_fcd7ea254e10": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_fce549900b00": [
+			"Shrooms"
+		],
 		"p_fd0d366f89fe": [
 			"Water",
+			"Open"
+		],
+		"p_fd641fd7b0c9": [
+			"Open"
+		],
+		"p_fd6aef178ec1": [
+			"Water",
+			"Open"
+		],
+		"p_fd7647990866": [
+			"Shrooms",
 			"Open"
 		],
 		"p_fd8033f4175c": [
 			"Open"
 		],
+		"p_fd88f77fe54c": [
+			"Shrooms",
+			"Open"
+		],
 		"p_fd91878dfb11": [
 			"Water"
 		],
+		"p_fd91aec9477a": [
+			"Shrooms",
+			"Open"
+		],
+		"p_fd95ad0c2c32": [
+			"Shrooms"
+		],
+		"p_fdb51e64696e": [
+			"Shrooms"
+		],
+		"p_fdbe19da3d92": [
+			"Open"
+		],
+		"p_fde65e5b7356": [
+			"Open"
+		],
+		"p_fe10de8d4a13": [
+			"Shrooms",
+			"Open"
+		],
 		"p_fe19a97fb1e6": [
 			"Water",
+			"Shrooms"
+		],
+		"p_fe3c6e1d2092": [
+			"Shrooms",
+			"Open"
+		],
+		"p_fe3df270bc00": [
+			"Water"
+		],
+		"p_fe5f8e4d0d5c": [
+			"Water"
+		],
+		"p_fe605ceb65d8": [
+			"Open"
+		],
+		"p_fe74654eed3f": [
+			"Open"
+		],
+		"p_fe8c2adeaf21": [
 			"Shrooms"
 		],
 		"p_fe94b0b69e9a": [
 			"Water",
 			"Shrooms"
 		],
+		"p_fe9c626590c1": [
+			"Shrooms",
+			"Open"
+		],
+		"p_feb5724fab8d": [
+			"Water"
+		],
+		"p_fec6df4c226f": [
+			"Water",
+			"Shrooms"
+		],
+		"p_fec7ffaf7814": [
+			"Open"
+		],
 		"p_fecc771ee710": [
 			"Open"
 		],
+		"p_ff0965d5fc1b": [
+			"Open"
+		],
+		"p_ff22622143ff": [
+			"Shrooms"
+		],
 		"p_ff5dfd9f7ae6": [
 			"Open"
+		],
+		"p_ff668366944c": [
+			"Water",
+			"Shrooms",
+			"Open"
+		],
+		"p_ff6f72de60e8": [
+			"Water",
+			"Shrooms"
+		],
+		"p_ffb445252c8f": [
+			"Shrooms"
+		],
+		"p_ffb682f62b77": [
+			"Shrooms",
+			"Open"
+		],
+		"p_ffbd43e6f8ac": [
+			"Shrooms"
+		],
+		"p_fff542ba5b7f": [
+			"Shrooms"
+		],
+		"p_fff7fb88a5fd": [
+			"Shrooms"
 		]
 	},
 	"tagging_rules": [

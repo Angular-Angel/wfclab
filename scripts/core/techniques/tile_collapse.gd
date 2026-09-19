@@ -520,15 +520,34 @@ class Session extends SynthesisSession:
 	
 	@warning_ignore("integer_division")
 	func _propagate(trace: Array, single: bool = false) -> bool:
+		## AC-3 over all deltas. Rule deltas (di >= evidence count) carry
+		## a precomputed complement of their union source-tag mask: if
+		## dom[s] holds ANY candidate outside that union, the arc's allowed
+		## set is full and cannot prune — skip in a couple of word ops.
+		## All-rule-relevant slots revise eagerly, which is what keeps
+		## self-exclusion rules from clumping into late contradictions.
+		var ne := _index.evidence_delta_count
+		var total := _index.delta_list.size()
 		while not _queue_empty():
 			var s := _queue_pop()
 			var sx := s % _out_w
 			var sy := s / _out_w
-			for di in _index.delta_list.size():
+			for di in total:
+				if di >= ne:
+					var inv: PackedInt64Array = _index.rule_src_not[di]
+					var all_src := true
+					for w in nwords:
+						if dom[s][w] & inv[w] != 0:
+							all_src = false
+							break
+					if not all_src:
+						continue
 				var delta: Vector2i = _index.delta_list[di]
 				var qx := sx + delta.x
 				var qy := sy + delta.y
 				if qx < 0 or qx >= _out_w or qy < 0 or qy >= _out_h:
+					# delta_has_outside is false for rule deltas, so the
+					# border branch only ever fires on evidence deltas.
 					if _bordered and _index.delta_has_outside[di]:
 						if not _apply_border(s, di, trace):
 							return false
@@ -920,7 +939,7 @@ class Session extends SynthesisSession:
 		return "slot (%d,%d) wiped via offset (%d,%d) from (%d,%d): needs one of %s, slot only allows %s" % [
 				at % _out_w, at / _out_w, off.x, off.y,
 				from % _out_w, from / _out_w,
-				_short(w["allowed"]), _short(w["domain"])]
+				_short(w["allowed"]), _short(w["domain"])] + (" [authored rule]" if w.get("rule", false) else "")
 	
 	
 	func _ids_of(m: PackedInt64Array, cap := 12) -> Array:
@@ -940,6 +959,7 @@ class Session extends SynthesisSession:
 			"delta": _index.delta_pixel[di],
 			"allowed": _ids_of(allowed),
 			"domain": _ids_of(dom[q]),
+			"rule": di >= _index.evidence_delta_count,
 		})
 	
 

@@ -275,24 +275,26 @@ func _append_delta(o: Vector2i, pix: Vector2i) -> int:
 func _exclude_at(di: int, src_tag: String, dst_tag: String) -> void:
 	var dst := tag_mask(dst_tag)
 	var src := tag_mask(src_tag)
+	if di >= evidence_delta_count:
+		var u: PackedInt64Array = rule_src[di]
+		for k in src.size():
+			u[k] = u[k] | src[k]
+		rule_src[di] = u                # COW write-back — required
 	for w in src.size():
 		var v: int = src[w]
 		while v != 0:
 			var low := v & -v
 			v ^= low
 			var pi := (w << 6) + TileCollapse._ctz(low)
-			var m: PackedInt64Array = nb_mask[pi][di]
+			var m: PackedInt64Array
 			if nb_empty[pi][di]:
 				m = TileCollapse.mask_full(nwords, part_ids.size())
+			else:
+				m = (nb_mask[pi][di] as PackedInt64Array).duplicate()
 			for k in m.size():
 				m[k] = m[k] & ~dst[k]
-			nb_mask[pi][di] = m         # COW write-back — required
+			nb_mask[pi][di] = m
 			nb_empty[pi][di] = false
-			if di >= evidence_delta_count:
-				var u: PackedInt64Array = rule_src[di]
-				for j in src.size():
-					u[j] = u[j] | src[j]
-				rule_src[di] = u                # COW write-back — required
 
 
 # --- evidence query layer (unchanged) -------------------------------------------

@@ -122,7 +122,7 @@ func _ready() -> void:
 	_rule_editor = _build_rule_editor()
 	_rule_editor.visible = false
 	right.add_child(_rule_editor)
-	AppData.rules_changed.connect(_refresh_rules)
+	AppData.rules_changed.connect(_refresh_rules, CONNECT_DEFERRED)
 	_refresh_rules()
 
 	# Debounced refresh for edits (dragging a spin box shouldn't rebuild

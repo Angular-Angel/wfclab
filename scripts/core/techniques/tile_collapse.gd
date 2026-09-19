@@ -597,6 +597,7 @@ class Session extends SynthesisSession:
 		if unconstrained:
 			return true
 		# intersect q with allowed, recording exactly which bits died
+		var pre := dom[q].duplicate()
 		var qdom := dom[q]
 		var removed := PackedInt64Array()
 		removed.resize(nwords)
@@ -953,12 +954,12 @@ class Session extends SynthesisSession:
 		return out
 
 
-	func _record_wipe(q: int, s: int, di: int, allowed: PackedInt64Array, trace: Array) -> void:
+	func _record_wipe(q: int, s: int, di: int, allowed: PackedInt64Array, trace: Array, pre = null) -> void:
 		trace.append({
 			"at": q, "from": s,
 			"delta": _index.delta_pixel[di],
 			"allowed": _ids_of(allowed),
-			"domain": _ids_of(dom[q]),
+			"domain": _ids_of(dom[q]) if not pre else _ids_of(pre),
 			"rule": di >= _index.evidence_delta_count,
 		})
 	

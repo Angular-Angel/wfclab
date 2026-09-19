@@ -148,7 +148,7 @@ func _ready() -> void:
 	_palette_popup = _build_palette_popup()
 	right.add_child(_palette_popup)
 	AppData.parts_changed.connect(func() -> void: _all_palette_valid = false)
-	AppData.tagging_rules_changed.connect(_refresh_tag_rules)
+	AppData.tagging_rules_changed.connect(_refresh_tag_rules, CONNECT_DEFERRED)
 	_refresh_tag_rules()
 
 	right.add_child(_mk_label("Transforms for source part"))

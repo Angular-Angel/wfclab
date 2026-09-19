@@ -52,8 +52,8 @@
 				"params": {
 					"custom_step": {
 						"__v2i": [
-							2,
-							2
+							4,
+							4
 						]
 					},
 					"directional": true,
@@ -92,8 +92,8 @@
 			"rotation_90": true,
 			"stride": {
 				"__v2i": [
-					2,
-					2
+					4,
+					4
 				]
 			},
 			"tile_size": {

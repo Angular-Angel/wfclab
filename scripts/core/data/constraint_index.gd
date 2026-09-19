@@ -3,6 +3,13 @@ class_name ConstraintIndex extends RefCounted
 ## enabled flags and weight overrides once, centrally — every synthesizer
 ## sees the same edited world. Built as an immutable snapshot: safe to read
 ## from a worker thread even if the UI keeps editing.
+##
+## Authored content (tags + rules) is compiled in prepare(): rules append
+## slot-unit deltas and prune neighbor masks but NEVER touch _offsets, so
+## get_offsets() — and therefore TileCollapse._derive_step/_derive_deltas and
+## the Parts-tab neighbor view — stays evidence-only.
+## NOTE: prepare() mutates the derived tables. Safe under the current
+## one-session-per-index UI; revisit if two sessions ever share an index.
 
 const OUTSIDE := "~outside"   # virtual part: the region beyond a source border
 
@@ -13,19 +20,23 @@ var _weights: Dictionary = {}     # part_id -> effective weight
 var tile_size := Vector2i(1, 1)
 var _has_outside := false
 
-
 # --- integer-id layer -------------------------------------------------------
 var part_ids: Array[String] = []          # int -> id, in _parts.keys() order
 var _int_of: Dictionary = {}              # id -> int
 var part_weights := PackedFloat64Array()  # effective weight per int
 var nwords := 0                           # 64-bit words per domain mask
 
+# --- authored layer (stored at build, compiled in prepare) -------------------
+var authored_tags: Dictionary = {}        # part_id -> Array[String]
+var authored_rules: Array = []            # rule Dictionaries in AppData format
+var _tag_bits: Dictionary = {}            # tag -> PackedInt64Array over part ints
+
 # --- per-delta tables (filled by prepare()) ---------------------------------
-var delta_list: Array[Vector2i] = []      # slot-unit deltas, _derive_deltas order
+var delta_list: Array[Vector2i] = []      # slot-unit deltas
 var delta_pixel: Array[Vector2i] = []     # delta * step
 var delta_has_outside: Array[bool] = []   # replaces _has_outside_evidence()
 var nb_mask: Array = []                   # [part_int][delta_int] -> PackedInt64Array
-var nb_empty: Array = []                  # [part_int][delta_int] -> bool
+var nb_empty: Array = []                  # [part_int][delta_int] -> bool (no evidence)
 var border_ok: Array = []                 # [part_int][delta_int] -> bool (has OUTSIDE)
 var _pixel_to_di: Dictionary = {}         # Vector2i -> delta index
 
@@ -33,9 +44,11 @@ var _pixel_to_di: Dictionary = {}         # Vector2i -> delta index
 func has_outside() -> bool:
 	return _has_outside
 
-static func build(parts: Array[Part], constraints: Array[Constraint]) -> ConstraintIndex:
+
+static func build(parts: Array[Part], constraints: Array[Constraint],
+		tag_map: Dictionary = {}, rules: Array = []) -> ConstraintIndex:
 	var idx := ConstraintIndex.new()
-	
+
 	for p: Part in parts:
 		if not p.enabled:
 			continue
@@ -64,16 +77,19 @@ static func build(parts: Array[Part], constraints: Array[Constraint]) -> Constra
 		if c.params.get("symmetric", false):
 			idx._add(b, offset, a, w)
 			idx._add(a, -offset, b, w)
+	idx.authored_tags = tag_map
+	idx.authored_rules = rules
 	return idx
 
 
+## Called once per session with the evidence-derived deltas; compiles tags,
+## builds the per-delta tables, then compiles authored rules on top. Rule
+## deltas may exceed the passed deltas — TileCollapse consumes
+## _index.delta_list, so exclusions propagate without solver changes.
 func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
 	if part_ids.is_empty():
-		for id: String in _parts.keys():          # order = old dict order
-			_int_of[id] = part_ids.size()
-			part_ids.append(id)
-			part_weights.append(_weights.get(id, 0.0))
-		nwords = (part_ids.size() + 63) >> 6
+		_assign_ints()
+	_compile_tags()
 	delta_list = deltas.duplicate()
 	delta_pixel.clear()
 	_pixel_to_di.clear()
@@ -95,21 +111,152 @@ func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
 			var nb: Dictionary = by_offset.get("%d,%d" % [off.x, off.y], {})
 			var m := PackedInt64Array(); m.resize(nwords)
 			var has_out := false
-			var dict_empty := nb.is_empty()
 			for nid: String in nb.keys():
 				if nid == OUTSIDE:
 					has_out = true
 					continue
 				if not _int_of.has(nid):
-					continue
+					continue            # defensive; build() filters disabled parts
 				m[_int_of[nid] >> 6] |= 1 << (_int_of[nid] & 63)
 			mrow[di] = m
-			erow[di] = dict_empty      # was: all_zero
+			erow[di] = nb.is_empty()    # raw-dict empty: OUTSIDE-only evidence is NOT empty
 			brow[di] = has_out
 			if has_out:
 				delta_has_outside[di] = true
 		nb_mask.append(mrow); nb_empty.append(erow); border_ok.append(brow)
+	_compile_rules(step)
 
+
+func _assign_ints() -> void:
+	for id: String in _parts.keys():
+		_int_of[id] = part_ids.size()
+		part_ids.append(id)
+		part_weights.append(_weights.get(id, 0.0))
+	nwords = (part_ids.size() + 63) >> 6
+
+
+# --- tag compilation ----------------------------------------------------------
+
+func _compile_tags() -> void:
+	_tag_bits.clear()
+	if nwords == 0:
+		return
+	for id: Variant in authored_tags:
+		var pi: int = _int_of.get(String(id), -1)
+		if pi == -1:
+			continue   # tags on merged-away or disabled parts are inert
+		for tag: Variant in authored_tags[id]:
+			if not (tag is String) or (tag as String).is_empty():
+				continue
+			var m: PackedInt64Array = _tag_bits.get(tag, PackedInt64Array())
+			if m.size() != nwords:
+				m.resize(nwords)
+			m[pi >> 6] |= 1 << (pi & 63)
+			_tag_bits[tag] = m
+
+
+## Bitmask over part ints for a tag; empty (and inert) before prepare().
+func tag_mask(tag: String) -> PackedInt64Array:
+	return _tag_bits.get(tag, PackedInt64Array())
+
+
+# --- rule compilation -----------------------------------------------------------
+
+func _compile_rules(step: Vector2i) -> void:
+	for rule: Dictionary in authored_rules:
+		if not bool(rule.get("enabled", true)):
+			continue
+		match String(rule.get("type", "")):
+			"exclusion":
+				_apply_exclusion(rule, step)
+			_:
+				push_warning("ConstraintIndex: unknown rule type '%s' skipped."
+						% String(rule.get("type", "")))
+
+
+## "No part of tag_a within distance (slot units) of a part of tag_b."
+## Authored negative knowledge: applies regardless of what the examples
+## observed, so unknown_free must never neutralize it (see _exclude_at).
+func _apply_exclusion(rule: Dictionary, step: Vector2i) -> void:
+	var tag_a := String(rule.get("tag_a", ""))
+	var tag_b := String(rule.get("tag_b", ""))
+	var dist := maxi(1, int(rule.get("distance", 1)))
+	var metric := String(rule.get("metric", "chebyshev"))
+	if tag_a.is_empty() or tag_b.is_empty():
+		return
+	if not _tag_bits.has(tag_a) or not _tag_bits.has(tag_b):
+		push_warning("ConstraintIndex: exclusion rule references unknown tag(s) '%s'/'%s'; inert."
+				% [tag_a, tag_b])
+		return
+	for o: Vector2i in _offsets_within(dist, metric):
+		var pix := Vector2i(o.x * step.x, o.y * step.y)
+		var di: int = _pixel_to_di.get(pix, -1)
+		if di == -1:
+			di = _append_delta(o, pix)
+		_exclude_at(di, tag_a, tag_b)
+		_exclude_at(di, tag_b, tag_a)   # tag_a == tag_b harmlessly double-applies
+
+
+## All slot offsets with metric-distance <= dist, excluding the origin.
+## Deterministic row-major order. Distance is inclusive ("within X").
+func _offsets_within(dist: int, metric: String) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for dy in range(-dist, dist + 1):
+		for dx in range(-dist, dist + 1):
+			if dx == 0 and dy == 0:
+				continue
+			var ok := false
+			match metric:
+				"manhattan":
+					ok = absi(dx) + absi(dy) <= dist
+				"euclidean":
+					ok = dx * dx + dy * dy <= dist * dist
+				_:
+					ok = true   # chebyshev (default)
+			if ok:
+				out.append(Vector2i(dx, dy))
+	return out
+
+
+## Append a rule-only delta column: every part starts fully allowed (no
+## evidence at this offset, but "unobserved" must not mean "free" for an
+## authored rule), nb_empty=false, no OUTSIDE evidence.
+func _append_delta(o: Vector2i, pix: Vector2i) -> int:
+	var di := delta_list.size()
+	delta_list.append(o)
+	delta_pixel.append(pix)
+	_pixel_to_di[pix] = di
+	delta_has_outside.append(false)
+	var full := TileCollapse.mask_full(nwords, part_ids.size())
+	for pi in part_ids.size():
+		nb_mask[pi].append(full.duplicate())
+		nb_empty[pi].append(false)
+		border_ok[pi].append(false)
+	return di
+
+
+## Remove every dst-tag bit from src-tag parts' neighbor masks at delta di.
+## If a src part had no evidence at this offset, start from the full mask —
+## otherwise unknown_free would silently void the exclusion.
+func _exclude_at(di: int, src_tag: String, dst_tag: String) -> void:
+	var dst := tag_mask(dst_tag)
+	var src := tag_mask(src_tag)
+	for w in src.size():
+		var v: int = src[w]
+		while v != 0:
+			var low := v & -v
+			v ^= low
+			var pi := (w << 6) + TileCollapse._ctz(low)
+			var m: PackedInt64Array = nb_mask[pi][di]
+			if nb_empty[pi][di]:
+				m = TileCollapse.mask_full(nwords, part_ids.size())
+			for k in m.size():
+				m[k] = m[k] & ~dst[k]
+			nb_mask[pi][di] = m         # COW write-back — required
+			nb_empty[pi][di] = false
+
+
+# --- evidence query layer (unchanged) -------------------------------------------
 
 func _add(a: String, offset: Vector2i, b: String, w: float) -> void:
 	if not _neighbors.has(a):

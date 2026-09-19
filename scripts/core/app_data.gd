@@ -8,6 +8,8 @@ signal parts_changed
 signal constraints_changed
 signal edits_changed
 signal synthesis_changed
+signal rules_changed
+signal tagging_rules_changed
 
 var images: Dictionary = {}          # id -> ImageAssetData
 var outputs: Dictionary = {}         # id -> {asset, stats, meta}
@@ -25,6 +27,11 @@ var part_edits: Dictionary = {}        # part_id -> {enabled, weight_override}
 var transform_edits: Dictionary = {}   # canonical_id -> {transform_key -> enabled}
 var constraint_edits: Dictionary = {}  # constraint_id -> {enabled, weight_override}
 var alias_records: Array = []          # [{from, into}] — part merge records
+var tag_edits: Dictionary = {}         # part_id -> Array[String]; survives re-decomposition
+var rules: Array = []                  # authored rules (Dictionaries); source of truth for UI
+var _next_rule_number := 1
+var tagging_rules: Array = []          # auto-tag rules; applied via apply_tagging_rules()
+var _next_tag_rule_number := 1
 
 var _raw_parts: Array[Part] = []
 var _raw_constraints: Array[Constraint] = []
@@ -34,13 +41,20 @@ var _alias_mapping: Dictionary = {}    # merged-away id -> survivor id
 func _ready() -> void:
 	parts_changed.connect(func() -> void: _index_valid = false)
 	constraints_changed.connect(func() -> void: _index_valid = false)
+	# Tag, rule, weight, and enabled edits all change what the index snapshot
+	# bakes in. This also fixes a pre-existing staleness bug: weight_override
+	# and enabled edits used to leave the built index stale until the next
+	# parts_changed/constraints_changed.
+	edits_changed.connect(func() -> void: _index_valid = false)
+	rules_changed.connect(func() -> void: _index_valid = false)
 
 
 ## The defined seam for synthesizers: built on the main thread, returned as
 ## an immutable snapshot (safe to hand to a worker task).
 func get_constraint_index() -> ConstraintIndex:
 	if not _index_valid:
-		_index = ConstraintIndex.build(get_part_list(), get_constraint_list())
+		_index = ConstraintIndex.build(get_part_list(), get_constraint_list(),
+				tag_edits, rules)
 		_index_valid = true
 	return _index
 
@@ -210,6 +224,181 @@ func clear_all_edits() -> void:
 	edits_changed.emit()
 
 
+# --- Tags (edits layer) --------------------------------------------------------
+## Tags live here, not on Part, so they survive re-decomposition the same way
+## other edits do. They are read through by the UI and baked into the
+## ConstraintIndex as bitmasks at build time. Tags on parts that are later
+## merged away or disabled become inert (the id no longer materializes).
+
+func get_tags(part_id: String) -> Array[String]:
+	var list: Array[String] = []
+	list.assign(tag_edits.get(part_id, []))
+	return list
+
+
+func get_all_tags() -> Array[String]:
+	var seen := {}
+	for id: String in tag_edits:
+		for tag: Variant in tag_edits[id]:
+			if tag is String and not (tag as String).is_empty():
+				seen[tag] = true
+	var out: Array[String] = []
+	out.assign(seen.keys())
+	out.sort()
+	return out
+
+
+func add_part_tag(part_id: String, tag: String) -> void:
+	if _add_tag_silent(part_id, tag):
+		edits_changed.emit()
+
+
+func _add_tag_silent(part_id: String, tag: String) -> bool:
+	tag = tag.strip_edges()
+	if tag.is_empty() or not parts.has(part_id):
+		return false
+	var arr: Array = tag_edits.get(part_id, [])
+	if arr.has(tag):
+		return false
+	arr.append(tag)
+	tag_edits[part_id] = arr
+	return true
+
+
+func remove_part_tag(part_id: String, tag: String) -> void:
+	if not tag_edits.has(part_id):
+		return
+	var arr: Array = tag_edits[part_id]
+	arr.erase(tag)
+	if arr.is_empty():
+		tag_edits.erase(part_id)
+	edits_changed.emit()
+
+
+# --- Authored rules -------------------------------------------------------------
+## Source of truth for the rules UI; compiled into the index by
+## ConstraintIndex.prepare(). Rules are NOT expanded into the constraints
+## dictionary — they are derived data, recomputed on every index build.
+## Note: "Clear All Edits" deliberately leaves tags and rules intact.
+
+func add_rule(rule: Dictionary) -> String:
+	var r := rule.duplicate(true)
+	r["id"] = "rule_%d" % _next_rule_number
+	_next_rule_number += 1
+	r["enabled"] = bool(r.get("enabled", true))
+	rules.append(r)
+	rules_changed.emit()
+	return r["id"]
+
+
+func update_rule(id: String, fields: Dictionary) -> void:
+	for r: Dictionary in rules:
+		if String(r.get("id", "")) != id:
+			continue
+		for k: String in fields:
+			if k != "id":
+				r[k] = fields[k]
+		rules_changed.emit()
+		return
+
+
+func remove_rule(id: String) -> void:
+	for i in rules.size():
+		if String((rules[i] as Dictionary).get("id", "")) == id:
+			rules.remove_at(i)
+			rules_changed.emit()
+			return
+
+
+## Callers must treat the returned array as read-only.
+func get_rules() -> Array:
+	return rules
+
+
+# --- Auto-tag rules --------------------------------------------------------------
+## Color-coverage rules that assign tags to materialized parts. Rules are
+## applied EXPLICITLY (apply_tagging_rules), never implicitly during
+## materialization — otherwise manually removed tags would resurrect on the
+## next re-decomposition. "Strip" removes a tag everywhere; both operations
+## write through the normal tag_edits layer and are idempotent.
+
+func add_tagging_rule(rule: Dictionary) -> String:
+	var r := rule.duplicate(true)
+	r["id"] = "tagrule_%d" % _next_tag_rule_number
+	_next_tag_rule_number += 1
+	r["enabled"] = bool(r.get("enabled", true))
+	tagging_rules.append(r)
+	tagging_rules_changed.emit()
+	return r["id"]
+
+
+func update_tagging_rule(id: String, fields: Dictionary) -> void:
+	for r: Dictionary in tagging_rules:
+		if String(r.get("id", "")) != id:
+			continue
+		for k: String in fields:
+			if k != "id":
+				r[k] = fields[k]
+		tagging_rules_changed.emit()
+		return
+
+
+func remove_tagging_rule(id: String) -> void:
+	for i in tagging_rules.size():
+		if String((tagging_rules[i] as Dictionary).get("id", "")) == id:
+			tagging_rules.remove_at(i)
+			tagging_rules_changed.emit()
+			return
+
+
+## Callers must treat the returned array as read-only.
+func get_tagging_rules() -> Array:
+	return tagging_rules
+
+
+## Applies every enabled rule to all materialized parts. Additive and
+## idempotent: parts already carrying the tag are left untouched and are
+## not counted. Emits edits_changed exactly once. Returns
+## {"tagged_parts": int, "per_rule": {rule_id: int}}.
+func apply_tagging_rules() -> Dictionary:
+	var report := {"tagged_parts": 0, "per_rule": {}}
+	for rule: Dictionary in tagging_rules:
+		if not bool(rule.get("enabled", true)):
+			continue
+		var tag := String(rule.get("tag", ""))
+		if tag.is_empty():
+			continue
+		var count := 0
+		for id: String in parts:
+			var p: Part = parts[id]
+			if p == null or p.pixel_data == null:
+				continue
+			if TagMatcher.rule_matches(p.pixel_data, rule):
+				if _add_tag_silent(id, tag):
+					count += 1
+		report["per_rule"][String(rule.get("id", "?"))] = count
+		report["tagged_parts"] = int(report["tagged_parts"]) + count
+	if int(report["tagged_parts"]) > 0:
+		edits_changed.emit()
+	return report
+
+
+func strip_tag_everywhere(tag: String) -> int:
+	if tag.is_empty():
+		return 0
+	var removed := 0
+	for id: String in tag_edits.keys():   # keys() copy: dict is mutated below
+		var arr: Array = tag_edits[id]
+		if arr.has(tag):
+			arr.erase(tag)
+			removed += 1
+			if arr.is_empty():
+				tag_edits.erase(id)
+	if removed > 0:
+		edits_changed.emit()
+	return removed
+
+
 # --- Materialization ------------------------------------------------------------
 
 func _materialize_parts() -> void:
@@ -347,13 +536,16 @@ func save_project(path: String) -> bool:
 	for asset: ImageAssetData in get_image_list():
 		image_records.append({"path": asset.path, "id": asset.id})
 	var data := {
-		"version": 1,
+		"version": 2,
 		"images": image_records,
 		"run": last_run_config,
 		"part_edits": part_edits,
 		"transform_edits": transform_edits,
 		"constraint_edits": constraint_edits,
 		"alias_records": alias_records,
+		"tag_edits": tag_edits,
+		"rules": rules,
+		"tagging_rules": tagging_rules,
 	}
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
@@ -393,6 +585,19 @@ func load_project(path: String) -> Dictionary:
 	constraint_edits = data.get("constraint_edits", {})
 	alias_records = []
 	alias_records.assign(data.get("alias_records", []))
+	tag_edits = _decode_tag_edits(data.get("tag_edits", {}))
+	
+	rules = []
+	var loaded_rules: Variant = data.get("rules", [])
+	if loaded_rules is Array:
+		rules.assign(loaded_rules)
+	_next_rule_number = _max_rule_number() + 1
+	
+	tagging_rules = []
+	var loaded_tag_rules: Variant = data.get("tagging_rules", [])
+	if loaded_tag_rules is Array:
+		tagging_rules.assign(loaded_tag_rules)
+	_next_tag_rule_number = _max_tag_rule_number() + 1
 
 	for rec: Dictionary in data.get("images", []):
 		var asset := ImageAssetData.load_from_path(rec["path"])
@@ -405,4 +610,36 @@ func load_project(path: String) -> Dictionary:
 	outputs_changed.emit()
 	parts_changed.emit()
 	constraints_changed.emit()
+	rules_changed.emit()
 	return data
+
+
+func _decode_tag_edits(src: Variant) -> Dictionary:
+	var out := {}
+	if src is Dictionary:
+		for k: Variant in src:
+			var arr: Array[String] = []
+			for t: Variant in src[k]:
+				if t is String and not (t as String).is_empty():
+					arr.append(t)
+			if not arr.is_empty():
+				out[String(k)] = arr
+	return out
+
+
+func _max_rule_number() -> int:
+	var maxn := 0
+	for r: Variant in rules:
+		var rid := String((r as Dictionary).get("id", ""))
+		if rid.begins_with("rule_") and rid.substr(5).is_valid_int():
+			maxn = maxi(maxn, int(rid.substr(5)))
+	return maxn
+
+
+func _max_tag_rule_number() -> int:
+	var maxn := 0
+	for r: Variant in tagging_rules:
+		var rid := String((r as Dictionary).get("id", ""))
+		if rid.begins_with("tagrule_") and rid.substr(8).is_valid_int():
+			maxn = maxi(maxn, int(rid.substr(8)))
+	return maxn

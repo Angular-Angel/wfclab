@@ -26,6 +26,16 @@ var _selected_pair: Array[Part] = []
 var _selected_constraints: Array[Constraint] = []
 var _style_cache: Dictionary = {}
 
+var _rules_box: VBoxContainer
+var _rules_status: Label
+var _add_rule_button: Button
+var _rule_editor: VBoxContainer
+var _re_tag_a: OptionButton
+var _re_tag_b: OptionButton
+var _re_distance: SpinBox
+var _re_metric: OptionButton
+var _editing_rule_id := ""
+
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -98,6 +108,22 @@ func _ready() -> void:
 	_c_weight_spin.max_value = 99999.0
 	_c_weight_spin.value_changed.connect(_on_c_weight_changed)
 	weight_row.add_child(_c_weight_spin)
+
+	right.add_child(_mk_label("Authored Rules"))
+	_rules_status = Label.new()
+	_rules_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	right.add_child(_rules_status)
+	_rules_box = VBoxContainer.new()
+	right.add_child(_rules_box)
+	_add_rule_button = Button.new()
+	_add_rule_button.text = "Add exclusion rule…"
+	_add_rule_button.pressed.connect(_on_add_rule_pressed)
+	right.add_child(_add_rule_button)
+	_rule_editor = _build_rule_editor()
+	_rule_editor.visible = false
+	right.add_child(_rule_editor)
+	AppData.rules_changed.connect(_refresh_rules)
+	_refresh_rules()
 
 	# Debounced refresh for edits (dragging a spin box shouldn't rebuild
 	# the matrix 30 times a second).
@@ -334,3 +360,175 @@ func _on_evidence_selected(index: int) -> void:
 	var min_p := Vector2i(mini(p0.x, p1.x), mini(p0.y, p1.y))
 	var max_p := Vector2i(maxi(p0.x, p1.x), maxi(p0.y, p1.y))
 	occurrence_selected.emit(ev["image_id"], min_p, max_p + size - min_p)
+
+
+func _build_rule_editor() -> VBoxContainer:
+	var box := VBoxContainer.new()
+	var row_a := HBoxContainer.new()
+	box.add_child(row_a)
+	row_a.add_child(_mk_label("Tag A"))
+	_re_tag_a = OptionButton.new()
+	_re_tag_a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row_a.add_child(_re_tag_a)
+	var row_b := HBoxContainer.new()
+	box.add_child(row_b)
+	row_b.add_child(_mk_label("Tag B"))
+	_re_tag_b = OptionButton.new()
+	_re_tag_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row_b.add_child(_re_tag_b)
+	var row_d := HBoxContainer.new()
+	box.add_child(row_d)
+	row_d.add_child(_mk_label("Exclusion radius"))
+	_re_distance = SpinBox.new()
+	_re_distance.min_value = 1
+	_re_distance.max_value = 32
+	_re_distance.value = 3
+	_re_distance.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row_d.add_child(_re_distance)
+	var row_m := HBoxContainer.new()
+	box.add_child(row_m)
+	row_m.add_child(_mk_label("Metric"))
+	_re_metric = OptionButton.new()
+	for m: String in ["chebyshev", "euclidean", "manhattan"]:
+		_re_metric.add_item(m)
+	_re_metric.select(0)
+	row_m.add_child(_re_metric)
+	var btn_row := HBoxContainer.new()
+	box.add_child(btn_row)
+	var apply := Button.new()
+	apply.text = "Apply"
+	apply.pressed.connect(_on_rule_apply)
+	btn_row.add_child(apply)
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.pressed.connect(_on_rule_cancel)
+	btn_row.add_child(cancel)
+	var note := Label.new()
+	note.text = "Slot units, inclusive. Applied at synthesis time; takes effect on the next run."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(note)
+	return box
+
+
+func _populate_tag_options() -> void:
+	# Populated on every open, so tags created in the Parts tab appear.
+	var tags := AppData.get_all_tags()
+	for ob: OptionButton in [_re_tag_a, _re_tag_b]:
+		ob.clear()
+		for tag: String in tags:
+			ob.add_item(tag)
+
+
+func _select_tag(ob: OptionButton, tag: String) -> void:
+	for i in ob.item_count:
+		if ob.get_item_text(i) == tag:
+			ob.select(i)
+			return
+	if ob.item_count > 0:
+		ob.select(0)
+
+
+func _on_add_rule_pressed() -> void:
+	_editing_rule_id = ""
+	_populate_tag_options()
+	if _re_tag_a.item_count > 0:
+		_re_tag_a.select(0)
+	if _re_tag_b.item_count > 1:
+		_re_tag_b.select(1)   # default to a different tag than A
+	_re_distance.set_value_no_signal(3)
+	_re_metric.select(0)
+	_rule_editor.visible = true
+
+
+func _on_edit_rule_pressed(id: String) -> void:
+	for r: Dictionary in AppData.get_rules():
+		if String(r.get("id", "")) != id:
+			continue
+		_editing_rule_id = id
+		_populate_tag_options()
+		_select_tag(_re_tag_a, String(r.get("tag_a", "")))
+		_select_tag(_re_tag_b, String(r.get("tag_b", "")))
+		_re_distance.set_value_no_signal(float(r.get("distance", 3)))
+		var metric := String(r.get("metric", "chebyshev"))
+		for i in _re_metric.item_count:
+			if _re_metric.get_item_text(i) == metric:
+				_re_metric.select(i)
+		_rule_editor.visible = true
+		return
+
+
+func _on_rule_apply() -> void:
+	var tag_a := _re_tag_a.get_item_text(_re_tag_a.selected) if _re_tag_a.item_count > 0 else ""
+	var tag_b := _re_tag_b.get_item_text(_re_tag_b.selected) if _re_tag_b.item_count > 0 else ""
+	if tag_a.is_empty() or tag_b.is_empty():
+		_rules_status.text = "Both tags must be chosen. Tag some parts in the Parts tab first."
+		return
+	var fields := {
+		"type": "exclusion",
+		"tag_a": tag_a,
+		"tag_b": tag_b,
+		"distance": int(_re_distance.value),
+		"metric": _re_metric.get_item_text(_re_metric.selected),
+	}
+	if _editing_rule_id.is_empty():
+		AppData.add_rule(fields)
+	else:
+		AppData.update_rule(_editing_rule_id, fields)
+	_rule_editor.visible = false
+
+
+func _on_rule_cancel() -> void:
+	_rule_editor.visible = false
+	_editing_rule_id = ""
+
+
+func _on_rule_delete(id: String) -> void:
+	if _editing_rule_id == id:
+		_on_rule_cancel()
+	AppData.remove_rule(id)
+
+
+func _on_rule_enabled_toggled(pressed: bool, id: String) -> void:
+	AppData.update_rule(id, {"enabled": pressed})
+
+
+func _refresh_rules() -> void:
+	for child in _rules_box.get_children():
+		child.free()
+	var all_rules := AppData.get_rules()
+	if all_rules.is_empty():
+		_rules_status.text = "No authored rules."
+	else:
+		var enabled_count := 0
+		for r: Dictionary in all_rules:
+			if bool(r.get("enabled", true)):
+				enabled_count += 1
+		_rules_status.text = "%d rule(s), %d enabled — applied at synthesis time." % [
+			all_rules.size(), enabled_count]
+	for r: Dictionary in all_rules:
+		var id := String(r.get("id", ""))
+		var row := HBoxContainer.new()
+		_rules_box.add_child(row)
+		var check := CheckButton.new()
+		check.set_pressed_no_signal(bool(r.get("enabled", true)))
+		check.toggled.connect(_on_rule_enabled_toggled.bind(id))
+		row.add_child(check)
+		var label := Label.new()
+		label.text = _rule_summary(r)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(label)
+		var edit := Button.new()
+		edit.text = "Edit"
+		edit.pressed.connect(_on_edit_rule_pressed.bind(id))
+		row.add_child(edit)
+		var del := Button.new()
+		del.text = "×"
+		del.pressed.connect(_on_rule_delete.bind(id))
+		row.add_child(del)
+
+
+func _rule_summary(r: Dictionary) -> String:
+	return "no \"%s\" within %d (%s) of \"%s\"" % [
+		String(r.get("tag_a", "")), int(r.get("distance", 1)),
+		String(r.get("metric", "chebyshev")), String(r.get("tag_b", ""))]

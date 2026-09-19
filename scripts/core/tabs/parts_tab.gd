@@ -32,9 +32,29 @@ var _pinned: Part = null
 var _occurrence_data: Array[Dictionary] = []
 var _diff_count := 0
 
+var _tags_box: VBoxContainer
+var _tag_input: LineEdit
+var _tag_filter: OptionButton
+
 var _neighbors_box: VBoxContainer
 const MAX_NEIGHBOR_OFFSETS := 12
 const MAX_NEIGHBORS_PER_OFFSET := 24
+
+var _auto_tag_box: VBoxContainer
+var _auto_tag_status: Label
+var _auto_editor: VBoxContainer
+var _at_tag_input: LineEdit
+var _at_colors_box: HBoxContainer
+var _at_color_buttons: Array[ColorPickerButton] = []
+var _at_tolerance: SpinBox
+var _at_min_fraction: SpinBox
+var _editing_tag_rule_id := ""
+var _palette_popup: PopupPanel
+var _palette_source: OptionButton
+var _palette_status: Label
+var _palette_grid: GridContainer
+var _all_palette_cache: Dictionary = {}
+var _all_palette_valid := false
 
 
 func _ready() -> void:
@@ -50,7 +70,13 @@ func _ready() -> void:
 	split.add_child(left)
 
 	_grid_status = Label.new()
-	left.add_child(_grid_status)
+	var filter_row := HBoxContainer.new()
+	left.add_child(filter_row)
+	filter_row.add_child(_mk_label("Tag filter:"))
+	_tag_filter = OptionButton.new()
+	_tag_filter.item_selected.connect(func(_i: int) -> void: _rebuild())
+	filter_row.add_child(_tag_filter)
+	filter_row.add_child(_grid_status)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -91,6 +117,39 @@ func _ready() -> void:
 	_enabled_check.text = "Enabled"
 	_enabled_check.toggled.connect(_on_enabled_toggled)
 	right.add_child(_enabled_check)
+	
+	right.add_child(_mk_label("Tags"))
+	_tag_input = LineEdit.new()
+	_tag_input.placeholder_text = "New tag + Enter"
+	_tag_input.text_submitted.connect(_on_tag_submitted)
+	right.add_child(_tag_input)
+	_tags_box = VBoxContainer.new()
+	right.add_child(_tags_box)
+	
+	right.add_child(_mk_label("Auto-Tag Rules"))
+	_auto_tag_status = Label.new()
+	_auto_tag_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	right.add_child(_auto_tag_status)
+	_auto_tag_box = VBoxContainer.new()
+	right.add_child(_auto_tag_box)
+	var apply_row := HBoxContainer.new()
+	right.add_child(apply_row)
+	var apply_btn := Button.new()
+	apply_btn.text = "Apply all rules"
+	apply_btn.pressed.connect(_on_apply_tagging_rules)
+	apply_row.add_child(apply_btn)
+	var add_btn := Button.new()
+	add_btn.text = "Add rule…"
+	add_btn.pressed.connect(_on_add_tag_rule_pressed)
+	apply_row.add_child(add_btn)
+	_auto_editor = _build_tag_rule_editor()
+	_auto_editor.visible = false
+	right.add_child(_auto_editor)
+	_palette_popup = _build_palette_popup()
+	right.add_child(_palette_popup)
+	AppData.parts_changed.connect(func() -> void: _all_palette_valid = false)
+	AppData.tagging_rules_changed.connect(_refresh_tag_rules)
+	_refresh_tag_rules()
 
 	right.add_child(_mk_label("Transforms for source part"))
 	_transforms_box = VBoxContainer.new()
@@ -165,6 +224,102 @@ func _ready() -> void:
 	_rebuild()
 
 
+func _build_tag_rule_editor() -> VBoxContainer:
+	var box := VBoxContainer.new()
+	var tag_row := HBoxContainer.new()
+	box.add_child(tag_row)
+	tag_row.add_child(_mk_label("Tag"))
+	_at_tag_input = LineEdit.new()
+	_at_tag_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tag_row.add_child(_at_tag_input)
+	var colors_head := HBoxContainer.new()
+	box.add_child(colors_head)
+	colors_head.add_child(_mk_label("Target colors"))
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	colors_head.add_child(spacer)
+	var pick := Button.new()
+	pick.text = "Pick from tiles…"
+	pick.pressed.connect(_open_palette_popup)
+	colors_head.add_child(pick)
+	_at_colors_box = HBoxContainer.new()
+	box.add_child(_at_colors_box)
+	var color_btns := HBoxContainer.new()
+	box.add_child(color_btns)
+	var add_color := Button.new()
+	add_color.text = "+ color"
+	add_color.pressed.connect(_on_add_color_pressed)
+	color_btns.add_child(add_color)
+	var del_color := Button.new()
+	del_color.text = "− color"
+	del_color.pressed.connect(_on_remove_color_pressed)
+	color_btns.add_child(del_color)
+	var tol_row := HBoxContainer.new()
+	box.add_child(tol_row)
+	tol_row.add_child(_mk_label("Per-channel tolerance"))
+	_at_tolerance = SpinBox.new()
+	_at_tolerance.min_value = 0
+	_at_tolerance.max_value = 255
+	_at_tolerance.value = 16
+	_at_tolerance.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tol_row.add_child(_at_tolerance)
+	var frac_row := HBoxContainer.new()
+	box.add_child(frac_row)
+	frac_row.add_child(_mk_label("Min coverage %"))
+	_at_min_fraction = SpinBox.new()
+	_at_min_fraction.min_value = 0.0
+	_at_min_fraction.max_value = 100.0
+	_at_min_fraction.step = 0.5
+	_at_min_fraction.value = 10.0
+	_at_min_fraction.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frac_row.add_child(_at_min_fraction)
+	var btn_row := HBoxContainer.new()
+	box.add_child(btn_row)
+	var save := Button.new()
+	save.text = "Save rule"
+	save.pressed.connect(_on_tag_rule_save)
+	btn_row.add_child(save)
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.pressed.connect(_on_tag_rule_cancel)
+	btn_row.add_child(cancel)
+	var note := Label.new()
+	note.text = ("A part gets the tag when at least the coverage fraction of its " \
+		+ "non-transparent pixels sit within tolerance (per channel) of ANY " \
+		+ "target color. Transparent pixels are ignored entirely. " \
+		+ "Use Apply all rules to (re-)tag; Strip removes the tag everywhere.")
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(note)
+	return box
+
+
+func _reset_color_buttons(n: int) -> void:
+	while _at_color_buttons.size() > n:
+		var b: ColorPickerButton = _at_color_buttons.pop_back()
+		_at_colors_box.remove_child(b)
+		b.queue_free()
+	while _at_color_buttons.size() < n:
+		_on_add_color_pressed()
+
+
+func _on_add_color_pressed() -> void:
+	if _at_color_buttons.size() >= 8:
+		return
+	var b := ColorPickerButton.new()
+	b.custom_minimum_size = Vector2(36.0, 28.0)
+	b.color = Color.WHITE
+	_at_color_buttons.append(b)
+	_at_colors_box.add_child(b)
+
+
+func _on_remove_color_pressed() -> void:
+	if _at_color_buttons.is_empty():
+		return
+	var b: ColorPickerButton = _at_color_buttons.pop_back()
+	_at_colors_box.remove_child(b)
+	b.queue_free()
+
+
 func _mk_label(text: String) -> Label:
 	var l := Label.new()
 	l.text = text
@@ -177,6 +332,104 @@ func _mk_cmp_preview() -> TextureRect:
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	return t
+
+
+func _build_palette_popup() -> PopupPanel:
+	var popup := PopupPanel.new()
+	var box := VBoxContainer.new()
+	popup.add_child(box)
+	var head := HBoxContainer.new()
+	box.add_child(head)
+	head.add_child(_mk_label("Source"))
+	_palette_source = OptionButton.new()
+	_palette_source.add_item("Selected tile")
+	_palette_source.add_item("All tiles")
+	_palette_source.item_selected.connect(func(_i: int) -> void: _populate_palette())
+	head.add_child(_palette_source)
+	_palette_status = Label.new()
+	_palette_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_palette_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_palette_status)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(320.0, 320.0)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	_palette_grid = GridContainer.new()
+	_palette_grid.columns = 8
+	_palette_grid.add_theme_constant_override("h_separation", 3)
+	_palette_grid.add_theme_constant_override("v_separation", 3)
+	scroll.add_child(_palette_grid)
+	var hint := Label.new()
+	hint.text = "Click swatches to add them to the rule; close when done."
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(hint)
+	return popup
+
+
+func _open_palette_popup() -> void:
+	_palette_source.select(0 if _selected != null else 1)
+	_populate_palette()
+	_palette_popup.popup_centered(Vector2i(360, 440))
+
+
+func _populate_palette() -> void:
+	for child in _palette_grid.get_children():
+		child.free()
+	var images: Array[Image] = []
+	if _palette_source.selected == 0:
+		if _selected == null or _selected.pixel_data == null:
+			_palette_status.text = "No tile selected."
+			return
+		images.append(_selected.pixel_data)
+	else:
+		for p: Part in AppData.get_part_list():
+			if p.pixel_data != null:
+				images.append(p.pixel_data)
+	if images.is_empty():
+		_palette_status.text = "No tiles to sample."
+		return
+	var result: Dictionary
+	if _palette_source.selected == 0:
+		result = PaletteExtractor.palette_of_images(images, 4, 64)
+	else:
+		if not _all_palette_valid:
+			_all_palette_cache = PaletteExtractor.palette_of_images(images, 4, 64)
+			_all_palette_valid = true
+		result = _all_palette_cache
+	var entries: Array = result["entries"]
+	var total := int(result["total"])
+	if entries.is_empty():
+		_palette_status.text = "No opaque pixels found."
+		return
+	if total <= entries.size():
+		_palette_status.text = "%d color(s)" % total
+	else:
+		_palette_status.text = "%d distinct colors — showing top %d by frequency" % [
+			total, entries.size()]
+	for e: Dictionary in entries:
+		var swatch := Button.new()
+		swatch.custom_minimum_size = Vector2(30.0, 30.0)
+		swatch.focus_mode = Control.FOCUS_NONE
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = e["color"]
+		swatch.add_theme_stylebox_override("normal", sb)
+		swatch.add_theme_stylebox_override("hover", sb)
+		swatch.add_theme_stylebox_override("pressed", sb)
+		swatch.tooltip_text = "#%s  — %s px" % [e["hex"], e["count"]]
+		swatch.pressed.connect(_on_swatch_pressed.bind(String(e["hex"])))
+		_palette_grid.add_child(swatch)
+
+
+func _on_swatch_pressed(hex: String) -> void:
+	if _at_color_buttons.size() >= 8:
+		_palette_status.text = "Rule color limit (8) reached — remove one first."
+		return
+	var b := ColorPickerButton.new()
+	b.custom_minimum_size = Vector2(36.0, 28.0)
+	b.color = Color(hex)
+	_at_color_buttons.append(b)
+	_at_colors_box.add_child(b)
 
 
 # --- Grid ----------------------------------------------------------------------
@@ -193,12 +446,26 @@ func _rebuild() -> void:
 	_occurrence_data = []
 
 	var parts := AppData.get_part_list()
+	_refresh_tag_filter()
+	var tag_filter := _selected_tag_filter()
+	var total_parts := parts.size()
+	if tag_filter != "":
+		var filtered: Array[Part] = []
+		for p: Part in parts:
+			if AppData.get_tags(p.id).has(tag_filter):
+				filtered.append(p)
+		parts = filtered
+
 	if parts.is_empty():
 		_selected = null
 		_pinned = AppData.parts.get(pinned_id)
-		_grid_status.text = "No parts. Run a decomposition first."
+		if tag_filter != "":
+			_grid_status.text = "No parts tagged \"%s\"." % tag_filter
+		else:
+			_grid_status.text = "No parts. Run a decomposition first."
 		_preview.texture = null
 		_info.text = "Nothing selected"
+		_refresh_tags()
 		_update_pin_button()
 		_refresh_compare()
 		_refresh_neighbors()
@@ -210,6 +477,9 @@ func _rebuild() -> void:
 	var stats: Dictionary = AppData.last_run_stats
 	_grid_status.text = "%s parts (%s tiles extracted, %s ms)" % [
 		parts.size(), stats.get("total_tiles", 0), stats.get("elapsed_ms", 0)]
+	if tag_filter != "":
+		_grid_status.text += "  — %s of %s tagged \"%s\"" % [
+			parts.size(), total_parts, tag_filter]
 
 	for i in mini(parts.size(), MAX_SHOWN):
 		_add_part_button(parts[i])
@@ -223,6 +493,7 @@ func _rebuild() -> void:
 		_selected = null
 		_preview.texture = null
 		_info.text = "Nothing selected"
+		_refresh_tags()
 	_update_pin_button()
 	_refresh_compare()
 	_refresh_neighbors()
@@ -233,13 +504,26 @@ func _add_part_button(part: Part) -> void:
 	button.custom_minimum_size = THUMB
 	button.icon = part.get_texture()
 	button.expand_icon = true
-	button.tooltip_text = "%s\n%s occurrence(s)%s" % [
-		"%s (%s)" % [part.id, _transform_label(part.transform_key)], part.occurrence_count(),
-		"" if part.enabled else "\n[disabled]"]
+	var tags := AppData.get_tags(part.id)
+	var tag_line := "" if tags.is_empty() else "\ntags: %s" % ", ".join(tags)
+	button.tooltip_text = "%s\n%s occurrence(s)%s%s" % [
+		"%s (%s)" % [part.id, _transform_label(part.transform_key)],
+		part.occurrence_count(),
+		"" if part.enabled else "\n[disabled]",
+		tag_line]
 	if not part.enabled:
 		button.modulate = Color(1.0, 1.0, 1.0, 0.35)
 	button.pressed.connect(_show_part.bind(part))
 	_grid.add_child(button)
+
+
+func _part_info_text(part: Part) -> String:
+	var tags := AppData.get_tags(part.id)
+	var tag_line := "" if tags.is_empty() else "  |  tags: %s" % ", ".join(tags)
+	return "%s\n%s  |  %s × %s  |  occurrences: %s  |  weight: %s%s%s" % [
+		part.id, _transform_label(part.transform_key), part.size.x, part.size.y,
+		part.occurrence_count(), part.get_effective_weight(),
+		"" if part.enabled else "  [disabled]", tag_line]
 
 
 # --- Inspector -------------------------------------------------------------------
@@ -261,13 +545,7 @@ func _show_part(part: Part) -> void:
 			AppData.image_name(occ["image_id"]), pos.x, pos.y])
 	_refresh_compare()
 	_refresh_neighbors()
-
-
-func _part_info_text(part: Part) -> String:
-	return "%s\n%s  |  %s × %s  |  occurrences: %s  |  weight: %s%s" % [
-		part.id, _transform_label(part.transform_key), part.size.x, part.size.y, part.occurrence_count(),
-		part.get_effective_weight(),
-		"" if part.enabled else "  [disabled]"]
+	_refresh_tags()
 
 
 func _transform_label(key: String) -> String:
@@ -330,6 +608,187 @@ func _on_weight_changed(value: float) -> void:
 	if _selected == null or not _override_check.button_pressed:
 		return
 	AppData.edit_part(_selected.id, "weight_override", value)
+
+
+func _refresh_tags() -> void:
+	for child in _tags_box.get_children():
+		child.free()
+	_tag_input.editable = _selected != null
+	if _selected == null:
+		return
+	var tags := AppData.get_tags(_selected.id)
+	if tags.is_empty():
+		var none := Label.new()
+		none.text = "(none)"
+		_tags_box.add_child(none)
+	for tag: String in tags:
+		var row := HBoxContainer.new()
+		_tags_box.add_child(row)
+		var label := Label.new()
+		label.text = tag
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var remove := Button.new()
+		remove.text = "×"
+		remove.focus_mode = Control.FOCUS_NONE
+		# Bind the id, not the Part: rows can outlive a re-materialization.
+		remove.pressed.connect(_on_tag_remove.bind(_selected.id, tag))
+		row.add_child(remove)
+
+
+func _refresh_tag_rules() -> void:
+	for child in _auto_tag_box.get_children():
+		child.free()
+	var all_rules := AppData.get_tagging_rules()
+	if all_rules.is_empty():
+		_auto_tag_status.text = "No auto-tag rules."
+	else:
+		_auto_tag_status.text = "%d auto-tag rule(s)." % all_rules.size()
+	for r: Dictionary in all_rules:
+		var id := String(r.get("id", ""))
+		var row := HBoxContainer.new()
+		_auto_tag_box.add_child(row)
+		var check := CheckButton.new()
+		check.set_pressed_no_signal(bool(r.get("enabled", true)))
+		check.toggled.connect(_on_tag_rule_enabled.bind(id))
+		row.add_child(check)
+		var label := Label.new()
+		label.text = _tag_rule_summary(r)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(label)
+		var edit := Button.new()
+		edit.text = "Edit"
+		edit.pressed.connect(_on_edit_tag_rule_pressed.bind(id))
+		row.add_child(edit)
+		var strip := Button.new()
+		strip.text = "Strip"
+		strip.tooltip_text = "Remove this tag from every part."
+		strip.pressed.connect(_on_strip_tag.bind(String(r.get("tag", ""))))
+		row.add_child(strip)
+		var del := Button.new()
+		del.text = "×"
+		del.pressed.connect(_on_tag_rule_delete.bind(id))
+		row.add_child(del)
+
+
+func _tag_rule_summary(r: Dictionary) -> String:
+	var colors: Array = r.get("colors", [])
+	var swatches: Array[String] = []
+	for c: Variant in colors:
+		swatches.append(String(c))
+	return "\"%s\" ← [%s], tol %d, ≥ %.1f%%" % [
+		String(r.get("tag", "")), ", ".join(swatches),
+		int(r.get("tolerance", 16)), float(r.get("min_fraction", 0.1)) * 100.0]
+
+
+func _on_tag_rule_enabled(pressed: bool, id: String) -> void:
+	AppData.update_tagging_rule(id, {"enabled": pressed})
+
+
+func _on_tag_rule_delete(id: String) -> void:
+	if _editing_tag_rule_id == id:
+		_on_tag_rule_cancel()
+	AppData.remove_tagging_rule(id)
+
+
+func _on_strip_tag(tag: String) -> void:
+	AppData.strip_tag_everywhere(tag)
+
+
+func _on_apply_tagging_rules() -> void:
+	var report := AppData.apply_tagging_rules()
+	_auto_tag_status.text = "Applied: %d part(s) newly tagged." % int(report.get("tagged_parts", 0))
+
+
+func _on_tag_submitted(text: String) -> void:
+	if _selected == null:
+		return
+	AppData.add_part_tag(_selected.id, text)
+	_tag_input.clear()
+	_refresh_tags()   # immediate feedback; debounced _rebuild reconciles the grid
+
+
+func _on_tag_remove(part_id: String, tag: String) -> void:
+	AppData.remove_part_tag(part_id, tag)
+
+
+func _refresh_tag_filter() -> void:
+	var prev := _selected_tag_filter()
+	_tag_filter.clear()
+	_tag_filter.add_item("All parts")
+	_tag_filter.set_item_metadata(0, "")
+	for tag: String in AppData.get_all_tags():
+		_tag_filter.add_item(tag)
+		_tag_filter.set_item_metadata(_tag_filter.item_count - 1, tag)
+	for i in _tag_filter.item_count:
+		if _tag_filter.get_item_metadata(i) == prev:
+			_tag_filter.select(i)
+			return
+	_tag_filter.select(0)
+
+
+func _selected_tag_filter() -> String:
+	var meta: Variant = _tag_filter.get_selected_metadata()
+	return meta if meta is String else ""
+
+
+func _on_add_tag_rule_pressed() -> void:
+	_editing_tag_rule_id = ""
+	_at_tag_input.text = ""
+	_reset_color_buttons(1)
+	_at_tolerance.set_value_no_signal(16)
+	_at_min_fraction.set_value_no_signal(10.0)
+	_auto_editor.visible = true
+
+
+func _on_edit_tag_rule_pressed(id: String) -> void:
+	for r: Dictionary in AppData.get_tagging_rules():
+		if String(r.get("id", "")) != id:
+			continue
+		_editing_tag_rule_id = id
+		_at_tag_input.text = String(r.get("tag", ""))
+		var colors: Array = r.get("colors", [])
+		_reset_color_buttons(clampi(colors.size(), 1, 8))
+		for i in mini(colors.size(), _at_color_buttons.size()):
+			var s := String(colors[i])
+			if not s.begins_with("#"):
+				s = "#" + s
+			if Color.html_is_valid(s):
+				_at_color_buttons[i].color = Color(s)
+		_at_tolerance.set_value_no_signal(float(r.get("tolerance", 16)))
+		_at_min_fraction.set_value_no_signal(float(r.get("min_fraction", 0.1)) * 100.0)
+		_auto_editor.visible = true
+		return
+
+
+func _on_tag_rule_save() -> void:
+	var tag := _at_tag_input.text.strip_edges()
+	if tag.is_empty():
+		_auto_tag_status.text = "Enter a tag name."
+		return
+	var colors: Array = []
+	for b: ColorPickerButton in _at_color_buttons:
+		colors.append(b.color.to_html(false))
+	if colors.is_empty():
+		_auto_tag_status.text = "Add at least one target color."
+		return
+	var fields := {
+		"tag": tag,
+		"colors": colors,
+		"tolerance": int(_at_tolerance.value),
+		"min_fraction": _at_min_fraction.value / 100.0,
+	}
+	if _editing_tag_rule_id.is_empty():
+		AppData.add_tagging_rule(fields)
+	else:
+		AppData.update_tagging_rule(_editing_tag_rule_id, fields)
+	_auto_editor.visible = false
+
+
+func _on_tag_rule_cancel() -> void:
+	_auto_editor.visible = false
+	_editing_tag_rule_id = ""
 
 
 # --- Pin / compare / merge ---------------------------------------------------------

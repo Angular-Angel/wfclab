@@ -15,6 +15,10 @@ static func load_from_path(path: String) -> ImageAssetData:
 	var image := Image.load_from_file(path)
 	if image == null or image.is_empty():
 		return null
+	# Normalize at the boundary: tile regions, transforms, hashes, strip
+	# extraction, and palettes then all see one uniform byte layout.
+	if image.get_format() != Image.FORMAT_RGBA8:
+		image.convert(Image.FORMAT_RGBA8)
 	return from_image(image, path.get_file(), path)
 
 

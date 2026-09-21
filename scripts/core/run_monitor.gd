@@ -62,12 +62,18 @@ func make_recorder(run_id: int, stage_key: String) -> Callable:
 
 # --- Thread-safe mutators (defer to main thread) --------------------------------
 
-func begin_stage(run_id: int, stage_key: String, label: String) -> void:
-	_begin_stage.call_deferred(run_id, stage_key, label)
+func begin_stage(run_id: int, stage_key: String, label: String,
+		started_ms: int = -1) -> void:
+	## started_ms: explicit timestamp for synchronous stages whose deferred
+	## begin would otherwise execute after the work it brackets. -1 = now.
+	_begin_stage.call_deferred(run_id, stage_key, label, started_ms)
 
 
-func end_stage(run_id: int, stage_key: String, note: String) -> void:
-	_end_stage.call_deferred(run_id, stage_key, note)
+func end_stage(run_id: int, stage_key: String, note: String,
+		ended_ms: int = -1) -> void:
+	## ended_ms: explicit timestamp, matching begin_stage's started_ms
+	## convention. -1 = now.
+	_end_stage.call_deferred(run_id, stage_key, note, ended_ms)
 
 
 func finish_run(run_id: int, stats: Dictionary, summary: String) -> void:
@@ -111,13 +117,14 @@ func get_run(id: int) -> Dictionary:
 
 # --- Deferred implementations ------------------------------------------------------
 
-func _begin_stage(run_id: int, stage_key: String, label: String) -> void:
+func _begin_stage(run_id: int, stage_key: String, label: String,
+		started_ms: int) -> void:
 	var r := _record(run_id)
 	if r.is_empty():
 		return
 	var s := _find_or_create_stage(r, stage_key, label)
 	s["status"] = "running"
-	s["started_ms"] = Time.get_ticks_msec()
+	s["started_ms"] = started_ms if started_ms >= 0 else Time.get_ticks_msec()
 	s["fraction"] = 0.0
 	s["note"] = ""
 	r["current_stage"] = stage_key
@@ -137,14 +144,15 @@ func _report_fraction(run_id: int, stage_key: String, fraction: float) -> void:
 	_touch(r)
 
 
-func _end_stage(run_id: int, stage_key: String, note: String) -> void:
+func _end_stage(run_id: int, stage_key: String, note: String,
+		ended_ms: int) -> void:
 	var r := _record(run_id)
 	if r.is_empty():
 		return
 	var s := _find_or_create_stage(r, stage_key, stage_key)
 	if String(s["status"]) == "running":
 		s["status"] = "done"
-		s["ended_ms"] = Time.get_ticks_msec()
+		s["ended_ms"] = ended_ms if ended_ms >= 0 else Time.get_ticks_msec()
 	if not note.is_empty():
 		s["note"] = note
 	if String(r["current_stage"]) == stage_key:

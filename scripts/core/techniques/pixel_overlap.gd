@@ -19,8 +19,10 @@ class_name PixelOverlap extends ConstraintTechnique
 ## deterministic, so the rigid exact fast path in _match still applies.
 func get_id() -> StringName:
     return &"pixel_overlap"
+
 func get_display_name() -> String:
     return "Pixel Overlap"
+
 func get_parameter_specs() -> Array[Dictionary]:
     return [
     {"key": "overlap_layers", "label": "Overlap Layers", "type": "int",
@@ -32,8 +34,9 @@ func get_parameter_specs() -> Array[Dictionary]:
     {"key": "flex", "label": "Flex", "type": "int",
     "default": 0, "min": 0, "max": 64},
     ]
+
 func extract(parts: Array[Part], images: Array[ImageAssetData],
-    params: Dictionary, report_progress: Callable) -> Array[Constraint]:
+        params: Dictionary, report_progress: Callable) -> Array[Constraint]:
     var result: Array[Constraint] = []
     if parts.size() < 2:
         return result
@@ -45,32 +48,46 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
     var ordered: Array[Part] = []
     ordered.assign(parts)
     ordered.sort_custom(func(a: Part, b: Part) -> bool: return a.id < b.id)
+
     # Strips indexed FROM THE SEAM: u = 0 touches the neighbor, u = depth-1
     # is deepest. v runs along the seam. Pixel (u, v) = bytes at
     # (v * depth + u) * 4. Both sides of a pair therefore align seam-to-seam.
     var strips: Dictionary = {}   # part_id -> {side: PackedByteArray}
+    # --- strip extraction: O(parts) image work; fixed 20% slice ------------
+    # Pair matching below is O(parts²) and dominates runtime, so extraction
+    # gets a modest share — but nonzero, so the stage moves immediately.
+    var strips_share := 0.2
+    var total := maxi(ordered.size(), 1)
+    var done := 0
     for p: Part in ordered:
-        if p.size.x < depth or p.size.y < depth:
-            continue
-        var img := p.pixel_data.duplicate() as Image
-        if img.is_compressed():
-            img.decompress()
-        img.convert(Image.FORMAT_RGBA8)
-        if not groups.is_empty():
-            TerrainMapper.apply(img, groups)   # disposable copy; in place
-        strips[p.id] = {
-            "right": _strip(img, depth, Vector2i(p.size.x - 1, 0),
-                Vector2i(0, 1), Vector2i(-1, 0), p.size.y),
-            "left": _strip(img, depth, Vector2i(0, 0),
-                Vector2i(0, 1), Vector2i(1, 0), p.size.y),
-            "bottom": _strip(img, depth, Vector2i(0, p.size.y - 1),
-                Vector2i(1, 0), Vector2i(0, -1), p.size.x),
-            "top": _strip(img, depth, Vector2i(0, 0),
-                Vector2i(1, 0), Vector2i(0, 1), p.size.x),
-        }
+        if p.size.x >= depth and p.size.y >= depth:
+            var img := p.pixel_data.duplicate() as Image
+            if img.is_compressed():
+                img.decompress()
+            img.convert(Image.FORMAT_RGBA8)
+            if not groups.is_empty():
+                TerrainMapper.apply(img, groups)   # disposable copy; in place
+            strips[p.id] = {
+                "right": _strip(img, depth, Vector2i(p.size.x - 1, 0),
+                    Vector2i(0, 1), Vector2i(-1, 0), p.size.y),
+                "left": _strip(img, depth, Vector2i(0, 0),
+                    Vector2i(0, 1), Vector2i(1, 0), p.size.y),
+                "bottom": _strip(img, depth, Vector2i(0, p.size.y - 1),
+                    Vector2i(1, 0), Vector2i(0, -1), p.size.x),
+                "top": _strip(img, depth, Vector2i(0, 0),
+                    Vector2i(1, 0), Vector2i(0, 1), p.size.x),
+            }
+        done += 1
+        report_progress.call(strips_share * float(done) / float(total))
     var aggregate: Dictionary = {}
     var n := ordered.size()
+    var match_span := 1.0 - strips_share
     for i in n:
+        # Report at the top: the `continue` paths below can't skip ticks,
+        # and i == n - 1 lands exactly on 1.0 even when n < 16.
+        if i % 16 == 15 or i == n - 1:
+            report_progress.call(strips_share
+                    + match_span * float(i + 1) / float(maxi(n, 1)))
         var a := ordered[i]
         var sa: Dictionary = strips.get(a.id, {})
         if sa.is_empty():
@@ -88,13 +105,12 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
             if _match(sa["bottom"], sb["top"], depth, a.size.x,
                     tolerance, flex, omissions):
                 _record(aggregate, a, b, Vector2i(0, a.size.y))
-        if i % 16 == 15:
-            report_progress.call(float(i + 1) / n)
     var list: Array = aggregate.values()
     list.sort_custom(func(x: Constraint, y: Constraint) -> bool:
         return x.id < y.id)
     result.assign(list)
     return result
+
 func _strip(img: Image, depth: int, start: Vector2i, along: Vector2i,
         inward: Vector2i, span: int) -> PackedByteArray:
     ## Copies depth × span pixels from `start` (a point on the seam),
@@ -116,6 +132,7 @@ func _strip(img: Image, depth: int, start: Vector2i, along: Vector2i,
             out[k + 3] = bytes[o + 3]
             k += 4
     return out
+
 func _match(sa: PackedByteArray, sb: PackedByteArray, depth: int, span: int,
         tolerance: int, flex: int, omissions: int) -> bool:
     ## True when at most `omissions` pixels of `sa` lack a satisfying
@@ -131,6 +148,7 @@ func _match(sa: PackedByteArray, sb: PackedByteArray, depth: int, span: int,
             if failures > omissions:
                 return false
     return true
+
 func _satisfied(sa: PackedByteArray, sb: PackedByteArray, u: int, v: int,
         depth: int, span: int, tolerance: int, flex: int) -> bool:
     var ao := (v * depth + u) * 4
@@ -145,6 +163,7 @@ func _satisfied(sa: PackedByteArray, sb: PackedByteArray, u: int, v: int,
                 and absi(sa[ao + 3] - sb[bo + 3]) <= tolerance:
             return true
     return false
+
 func _record(aggregate: Dictionary, a: Part, b: Part, offset: Vector2i) -> void:
     var key := "ov|%s>%s|%d,%d" % [a.id, b.id, offset.x, offset.y]
     if aggregate.has(key):

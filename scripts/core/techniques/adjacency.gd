@@ -93,6 +93,14 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 			var hi := (r.position + r.size - Vector2i.ONE).max(tc)
 			grid_rect[img_id] = Rect2i(lo, hi - lo + Vector2i.ONE)
 
+	# Progress: every recorded tile position participates in pair extraction,
+	# so one global counter over positions gives a smooth 0→1 fraction even
+	# for single-image runs.
+	var positions_total := 0
+	for grid_map: Dictionary in by_image.values():
+		positions_total += grid_map.size()
+	var positions_done := 0
+
 	# Positive-x offsets only: each adjacent pair is visited exactly once
 	# with a canonical direction, so no double counting.
 	var offsets: Array[Vector2i] = [
@@ -177,7 +185,9 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 					_record_outside_transforms(aggregate, variants, a_id, edge_offset,
 							img_id, pos, edge_pos)
 
-		report_progress.call(float(img_index + 1) / image_ids.size())
+			positions_done += 1
+			report_progress.call(float(positions_done)
+					/ float(maxi(positions_total, 1)))
 
 	var list: Array = aggregate.values()
 	list.sort_custom(func(a: Constraint, b: Constraint) -> bool:

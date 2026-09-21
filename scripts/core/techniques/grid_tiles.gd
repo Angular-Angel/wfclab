@@ -61,6 +61,17 @@ func decompose(images: Array[ImageAssetData], params: Dictionary,
 	var total_tiles := 0
 	var time_start := Time.get_ticks_msec()
 
+	# Progress: one counter per scanline across all participating images, so
+	# single-image runs still produce a smooth fraction. Images too small to
+	# contribute are excluded from the denominator, keeping the end at 1.0.
+	var rows_total := 0
+	for asset: ImageAssetData in ordered:
+		if asset.image.get_width() >= tile_size.x \
+				and asset.image.get_height() >= tile_size.y:
+			rows_total += ceili(float(asset.image.get_height())
+					/ float(stride.y))
+	var rows_done := 0
+
 	for i in ordered.size():
 		var asset: ImageAssetData = ordered[i]
 		var img := asset.image
@@ -94,9 +105,11 @@ func decompose(images: Array[ImageAssetData], params: Dictionary,
 				total_tiles += 1
 
 				x += stride.x
-			y += stride.y
 
-		report_progress.call(float(i + 1) / maxi(1, ordered.size()))
+			y += stride.y
+			rows_done += 1
+			report_progress.call(float(rows_done)
+					/ float(maxi(rows_total, 1)))
 
 	# Keep canonical source parts. AppData materializes selected transform
 	# variants later so individual sources can opt in without re-extraction.

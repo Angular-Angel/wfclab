@@ -250,10 +250,11 @@ func _on_run_pressed() -> void:
 	WorkerThreadPool.add_task(func() -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed
-		RunMonitor.begin_stage(run_id, "synthesize", "Synthesize")
+		RunMonitor.begin_stage(run_id, "synthesize", "Synthesize",
+				Time.get_ticks_msec())
 		var result: Dictionary = synth.synthesize(index, params, rng,
 				RunMonitor.make_recorder(run_id, "synthesize"))
-		RunMonitor.end_stage(run_id, "synthesize", "")
+		RunMonitor.end_stage(run_id, "synthesize", "", Time.get_ticks_msec())
 		_publish.call_deferred(result, synth, params, seed, run_id)
 	)
 
@@ -270,15 +271,16 @@ func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
 		_status.text = "Synthesis failed (see console)."
 		RunMonitor.fail_run(run_id, "synthesize() returned no result.")
 		return
-	RunMonitor.begin_stage(run_id, "publish", "Publish")
 	var t0 := Time.get_ticks_msec()
+	RunMonitor.begin_stage(run_id, "publish", "Publish", t0)
 	AppData.set_synthesis(result["image"], result["stats"], {
 		"synthesizer_id": String(synth.get_id()),
 		"params": params,
 		"seed": seed,
 	})
+	var t_end := Time.get_ticks_msec()
 	RunMonitor.end_stage(run_id, "publish",
-			"ingested in %d ms" % (Time.get_ticks_msec() - t0))
+			"set_synthesis %d ms" % (t_end - t0), t_end)
 	RunMonitor.finish_run(run_id, result["stats"],
 			"Done (%d restarts)" % int(result["stats"].get("restarts", 0)))
 	var stats: Dictionary = result["stats"]

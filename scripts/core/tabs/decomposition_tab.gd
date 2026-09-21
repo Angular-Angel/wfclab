@@ -260,19 +260,49 @@ func _run_with(config: Dictionary) -> void:
 	var params: Dictionary = (config.get("params", {}) as Dictionary).duplicate(true)
 	var snapshot: Dictionary = config.duplicate(true)
 
+	# --- Monitor bookkeeping (main thread) ---
+	var constraints_planned: bool = config.get("constraints_ran", true)
+	var stage_plan: Array = [{"key": "decompose", "label": "Decompose"}]
+	if constraints_planned:
+		for job: Dictionary in ct_jobs:
+			var ct: ConstraintTechnique = job["technique"]
+			stage_plan.append({
+				"key": "ct_%s" % String(ct.get_id()),
+				"label": ct.get_display_name(),
+			})
+	stage_plan.append({"key": "publish", "label": "Publish"})
+	var input_names: Array = []
+	for asset: ImageAssetData in run_images:
+		input_names.append(asset.name)
+	var run_id := RunMonitor.begin_run("decomposition",
+			"%s — decomposition" % technique.get_display_name(),
+			String(technique.get_id()), params, input_names, "worker",
+			stage_plan)
+	var decompose_rec := RunMonitor.make_recorder(run_id, "decompose")
+
 	_run_button.disabled = true
 	_status.text = "Running..."
 
 	WorkerThreadPool.add_task(func() -> void:
-		var no_progress := func(_fraction: float) -> void: pass
-		var result: Dictionary = technique.decompose(run_images, params, no_progress)
+		RunMonitor.begin_stage(run_id, "decompose", "Decompose")
+		var result: Dictionary = technique.decompose(run_images, params, decompose_rec)
+		if result.is_empty():
+			_publish_result.call_deferred(result, [], snapshot, run_id)
+			return
+		RunMonitor.end_stage(run_id, "decompose",
+				"%d parts" % (result["parts"] as Array).size())
 		var all_constraints: Array[Constraint] = []
-		if config.get("constraints_ran", true):
+		if constraints_planned:
 			for job: Dictionary in ct_jobs:
-				var cs: Array[Constraint] = (job["technique"] as ConstraintTechnique).extract(
-					result["parts"], run_images, job["params"], no_progress)
+				var ct: ConstraintTechnique = job["technique"]
+				var key := "ct_%s" % String(ct.get_id())
+				RunMonitor.begin_stage(run_id, key, ct.get_display_name())
+				var cs: Array[Constraint] = ct.extract(
+					result["parts"], run_images, job["params"],
+					RunMonitor.make_recorder(run_id, key))
+				RunMonitor.end_stage(run_id, key, "%d constraints" % cs.size())
 				all_constraints.append_array(cs)
-		_publish_result.call_deferred(result, all_constraints, snapshot)
+		_publish_result.call_deferred(result, all_constraints, snapshot, run_id)
 	)
 
 
@@ -292,16 +322,25 @@ func _update_find_button() -> void:
 
 
 func _publish_result(result: Dictionary, all_constraints: Array[Constraint],
-		config: Dictionary) -> void:
+		config: Dictionary, run_id: int) -> void:
 	_run_button.disabled = false
 	if result.is_empty():
 		_status.text = "Run failed (see console)."
+		RunMonitor.fail_run(run_id, "decompose() returned no result.")
 		return
+	RunMonitor.begin_stage(run_id, "publish", "Publish")
+	var t0 := Time.get_ticks_msec()
 	var stats: Dictionary = result["stats"]
 	AppData.last_run_config = config
 	AppData.set_parts(result["parts"], stats)
 	if not all_constraints.is_empty():
 		AppData.set_constraints(all_constraints)
+	RunMonitor.end_stage(run_id, "publish",
+			"materialized in %d ms" % (Time.get_ticks_msec() - t0))
+	RunMonitor.finish_run(run_id, stats,
+			"Done: %d tiles → %d parts, %d constraints" % [
+				stats["total_tiles"], stats["part_count"],
+				all_constraints.size()])
 	_status.text = "Done: %d tiles → %d parts, %d constraints (%d ms)" % [
 		stats["total_tiles"], stats["part_count"],
 		all_constraints.size(), stats["elapsed_ms"]]
@@ -309,7 +348,7 @@ func _publish_result(result: Dictionary, all_constraints: Array[Constraint],
 	var tabs := get_parent() as TabContainer
 	if tabs != null:
 		var target
-		
+
 		if not all_constraints.is_empty():
 			target = tabs.get_node_or_null("Constraints")
 		else:
@@ -348,21 +387,51 @@ func _on_find_constraints_pressed() -> void:
 	if not AppData.last_run_config.is_empty():
 		AppData.last_run_config["constraint_jobs"] = jobs
 		AppData.last_run_config["constraints_ran"] = true
+
+	# --- Monitor bookkeeping (main thread) ---
+	var input_names: Array = []
+	for asset: ImageAssetData in run_images:
+		input_names.append(asset.name)
+	var job_names: Array = []
+	var stage_plan: Array = []
+	for job: Dictionary in resolved:
+		var ct: ConstraintTechnique = job["technique"]
+		job_names.append(ct.get_display_name())
+		stage_plan.append({
+			"key": "find_%s" % String(ct.get_id()),
+			"label": ct.get_display_name(),
+		})
+	stage_plan.append({"key": "publish", "label": "Publish"})
+	var run_id := RunMonitor.begin_run("constraints",
+			"Constraint extraction — %s" % ", ".join(PackedStringArray(job_names)),
+			String((resolved[0]["technique"] as ConstraintTechnique).get_id()),
+			{}, input_names, "worker", stage_plan)
+
 	_find_button.disabled = true
 	_ct_status.text = "Extracting..."
 	WorkerThreadPool.add_task(func() -> void:
-		var no_progress := func(_fraction: float) -> void: pass
 		var all_constraints: Array[Constraint] = []
-		for job in resolved:
-			all_constraints.append_array((job["technique"] as ConstraintTechnique).extract(
-				parts, run_images, job["params"], no_progress))
-		_publish_constraints.call_deferred(all_constraints)
+		for job: Dictionary in resolved:
+			var ct: ConstraintTechnique = job["technique"]
+			var key := "find_%s" % String(ct.get_id())
+			RunMonitor.begin_stage(run_id, key, ct.get_display_name())
+			all_constraints.append_array(ct.extract(
+				parts, run_images, job["params"],
+				RunMonitor.make_recorder(run_id, key)))
+			RunMonitor.end_stage(run_id, key, "")
+		_publish_constraints.call_deferred(all_constraints, run_id)
 	)
 
 
-func _publish_constraints(all_constraints: Array[Constraint]) -> void:
+func _publish_constraints(all_constraints: Array[Constraint], run_id: int) -> void:
 	_update_find_button()
+	RunMonitor.begin_stage(run_id, "publish", "Publish")
+	var t0 := Time.get_ticks_msec()
 	AppData.set_constraints(all_constraints)
+	RunMonitor.end_stage(run_id, "publish",
+			"materialized in %d ms" % (Time.get_ticks_msec() - t0))
+	RunMonitor.finish_run(run_id, {"constraint_count": all_constraints.size()},
+			"Found %d constraints." % all_constraints.size())
 	_ct_status.text = "Found %d constraints." % all_constraints.size()
 	var tabs := get_parent() as TabContainer
 	if tabs != null:

@@ -32,6 +32,10 @@ var _playing := false
 var _accum := 0.0
 var _cursor_slot := -1
 
+var _monitor_run_id := -1
+var _steps := 0
+var _last_monitor_push := 0
+
 
 func _ready() -> void:
 	var split := HSplitContainer.new()
@@ -235,29 +239,48 @@ func _on_run_pressed() -> void:
 	var params := _param_values.duplicate(true)
 	var seed := int(_seed_spin.value)
 
+	var run_id := RunMonitor.begin_run("synthesis",
+			"%s — batch (seed %d)" % [synth.get_display_name(), seed],
+			String(synth.get_id()), params, _synth_inputs(index), "worker",
+			[{"key": "synthesize", "label": "Synthesize"},
+			 {"key": "publish", "label": "Publish"}])
 	_run_button.disabled = true
 	_status.text = "Synthesizing..."
 
 	WorkerThreadPool.add_task(func() -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed
-		var no_progress := func(_f: float) -> void: pass
-		var result: Dictionary = synth.synthesize(index, params, rng, no_progress)
-		_publish.call_deferred(result, synth, params, seed)
+		RunMonitor.begin_stage(run_id, "synthesize", "Synthesize")
+		var result: Dictionary = synth.synthesize(index, params, rng,
+				RunMonitor.make_recorder(run_id, "synthesize"))
+		RunMonitor.end_stage(run_id, "synthesize", "")
+		_publish.call_deferred(result, synth, params, seed, run_id)
 	)
 
 
+func _synth_inputs(index: ConstraintIndex) -> Array:
+	return ["%d parts · %d offsets" % [index.get_part_ids().size(),
+			index.get_offsets().size()]]
+
+
 func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
-		seed: int) -> void:
+		seed: int, run_id: int) -> void:
 	_run_button.disabled = false
 	if result.is_empty():
 		_status.text = "Synthesis failed (see console)."
+		RunMonitor.fail_run(run_id, "synthesize() returned no result.")
 		return
+	RunMonitor.begin_stage(run_id, "publish", "Publish")
+	var t0 := Time.get_ticks_msec()
 	AppData.set_synthesis(result["image"], result["stats"], {
 		"synthesizer_id": String(synth.get_id()),
 		"params": params,
 		"seed": seed,
 	})
+	RunMonitor.end_stage(run_id, "publish",
+			"ingested in %d ms" % (Time.get_ticks_msec() - t0))
+	RunMonitor.finish_run(run_id, result["stats"],
+			"Done (%d restarts)" % int(result["stats"].get("restarts", 0)))
 	var stats: Dictionary = result["stats"]
 	_status.text = "Done (%d restarts, %d ms)" % [
 		stats.get("restarts", 0), stats.get("elapsed_ms", 0)]
@@ -288,10 +311,22 @@ func _start_session() -> void:
 	_play_button.text = "Play"
 	_playing = false
 	_accum = 0.0
+	_steps = 0
+	_last_monitor_push = 0
+	_monitor_run_id = RunMonitor.begin_run("session",
+			"%s — interactive (seed %d)" % [_current.get_display_name(),
+			int(_seed_spin.value)], String(_current.get_id()),
+			_param_values.duplicate(true),
+			_synth_inputs(_session.get_source_index()), "main")
 	_update_session_ui()
 
 
 func _stop_session() -> void:
+	if _monitor_run_id != -1:
+		var rec := RunMonitor.get_run(_monitor_run_id)
+		if not rec.is_empty() and String(rec.get("status", "")) == "running":
+			RunMonitor.cancel_run(_monitor_run_id)
+		_monitor_run_id = -1
 	_picker.hide()
 	_session = null
 	_playing = false
@@ -333,6 +368,7 @@ func _on_step_pressed() -> void:
 
 
 func _do_step() -> void:
+	_steps += 1
 	if _micro_check.button_pressed:
 		_session.micro_step()
 	else:
@@ -352,6 +388,13 @@ func _finish_session() -> void:
 	_play_button.text = "Play"
 	_update_session_ui()   # final render; also disables step/play
 	var result := _session.get_result()
+	if _monitor_run_id != -1:
+		if result.is_empty():
+			RunMonitor.fail_run(_monitor_run_id, _session.get_status())
+		else:
+			RunMonitor.finish_run(_monitor_run_id, result["stats"],
+					_session.get_status())
+		_monitor_run_id = -1
 	if result.is_empty():
 		_status.text = _session.get_status()
 		return
@@ -384,6 +427,11 @@ func _update_session_ui() -> void:
 		_dims.text = ""
 	_status.text = _session.get_status()
 	_overlay.queue_redraw()
+	if _monitor_run_id != -1 \
+			and Time.get_ticks_msec() - _last_monitor_push >= 100:
+		_last_monitor_push = Time.get_ticks_msec()
+		RunMonitor.update_session(_monitor_run_id, _session.get_status(),
+				_session.get_progress(), _steps)
 
 
 func _apply_view_mode() -> void:

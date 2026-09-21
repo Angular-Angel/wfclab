@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 AppData="*uid://bnx3djqrhs6bi"
 TechniqueRegistry="*uid://cuubma4fnea1b"
+RunMonitor="*uid://cedyjg1all76"
 
 [display]
 

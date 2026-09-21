@@ -13,6 +13,7 @@ const TAB_NAMES: Array[String] = [
 	"Terrain Keys",
 	"Synthesizers",
 	"Outputs",
+	"Monitor",
 ]
 
 const MENU_SAVE := 100
@@ -59,6 +60,8 @@ func _ready() -> void:
 				page = SynthesizersTab.new()
 			"Outputs":
 				page = OutputsTab.new()
+			"Monitor":
+				page = MonitorTab.new()
 			_:
 				page = _make_placeholder(tab_name)
 		page.name = tab_name

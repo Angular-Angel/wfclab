@@ -674,11 +674,17 @@ func load_project(path: String) -> Dictionary:
 			push_warning("Project image missing, skipped: %s" % rec["path"])
 			continue
 		images[asset.id] = asset
+	# Load replaces several state arrays wholesale, and each has a change
+	# signal that some tab rebuilds from — emit them all. tagging_rules_changed
+	# was missing here, so the auto-tag rule list stayed stale after loading
+	# (it is only rebuilt on that signal, plus once at _ready, pre-load).
 	images_changed.emit()
 	outputs_changed.emit()
 	parts_changed.emit()
 	constraints_changed.emit()
 	rules_changed.emit()
+	tagging_rules_changed.emit()
+	edits_changed.emit()
 	terrain_key_changed.emit()
 	return data
 

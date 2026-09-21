@@ -2,9 +2,22 @@ class_name MonitorTab extends Control
 ## Inspector for technique runs: live progress for active runs and a
 ## permanent record of finished ones. Polls RunMonitor ~10x per second;
 ## the detail pane rebuilds only when the selected run's record changes.
+##
+## Copying: the report pane is a selectable RichTextLabel, with explicit
+## copy buttons alongside. The buttons exist because Ctrl+C from a
+## RichTextLabel is not dependable across Godot versions, and clicking
+## any button would normally drop the selection before the pressed
+## handler runs (see deselect_on_focus_loss_enabled below).
+
+const POLL_SECONDS := 0.1
+const HEADING_COLOR := "#8fa8bf"
 
 var _list: ItemList
-var _detail_box: VBoxContainer
+var _detail_title: Label
+var _detail_text: RichTextLabel
+var _copy_report_button: Button
+var _copy_selection_button: Button
+var _copy_all_button: Button
 var _row_ids: Array[int] = []
 var _selected_id := -1
 var _user_selected := false
@@ -26,27 +39,63 @@ func _ready() -> void:
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.item_selected.connect(_on_item_selected.bind(true))
 	left.add_child(_list)
-	var clear_button := Button.new()
-	clear_button.text = "Clear Finished"
-	clear_button.pressed.connect(func() -> void: RunMonitor.clear_finished())
-	left.add_child(clear_button)
+	var button_row := HBoxContainer.new()
+	left.add_child(button_row)
+	_copy_all_button = _mk_button("Copy All",
+			"Copy a one-line summary of every run to the clipboard.",
+			_copy_all_pressed)
+	_copy_all_button.disabled = true
+	button_row.add_child(_copy_all_button)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button_row.add_child(spacer)
+	button_row.add_child(_mk_button("Clear Finished", "",
+			func() -> void: RunMonitor.clear_finished()))
 
-	var right_scroll := ScrollContainer.new()
-	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	split.add_child(right_scroll)
-	_detail_box = VBoxContainer.new()
-	_detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_detail_box.add_theme_constant_override("separation", 4)
-	right_scroll.add_child(_detail_box)
-	_rebuild_detail()
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.add_child(right)
+	var header := HBoxContainer.new()
+	right.add_child(header)
+	_detail_title = Label.new()
+	_detail_title.text = "No run selected."
+	_detail_title.add_theme_font_size_override("font_size", 17)
+	_detail_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_title.clip_text = true
+	header.add_child(_detail_title)
+	_copy_report_button = _mk_button("Copy Report",
+			"Copy the full report of the selected run to the clipboard.",
+			_copy_report_pressed)
+	_copy_report_button.disabled = true
+	header.add_child(_copy_report_button)
+	_copy_selection_button = _mk_button("Copy Selection",
+			"Copy the text currently selected in the report below.",
+			_copy_selection_pressed)
+	_copy_selection_button.disabled = true
+	header.add_child(_copy_selection_button)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	right.add_child(scroll)
+	_detail_text = RichTextLabel.new()
+	_detail_text.bbcode_enabled = true
+	_detail_text.selection_enabled = true
+	# Clicking a Copy button moves focus off the label; without this the
+	# selection is dropped before the button's pressed handler can read it.
+	_detail_text.deselect_on_focus_loss_enabled = false
+	_detail_text.fit_content = true
+	_detail_text.scroll_active = false   # outer ScrollContainer scrolls
+	_detail_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_text.custom_minimum_size = Vector2(0.0, 40.0)
+	scroll.add_child(_detail_text)
 
 
 func _process(delta: float) -> void:
 	_accum += delta
-	if _accum < 0.1:
+	if _accum < POLL_SECONDS:
 		return
 	_accum = 0.0
 	if RunMonitor.revision == _last_revision:
@@ -76,6 +125,7 @@ func _rebuild_list() -> void:
 		_row_ids.append(int(r["id"]))
 		if int(r["id"]) == keep:
 			_list.select(index)
+	_copy_all_button.disabled = _row_ids.is_empty()
 
 
 func _row_text(r: Dictionary) -> String:
@@ -101,62 +151,142 @@ func _rebuild_detail_if_changed() -> void:
 
 
 func _rebuild_detail() -> void:
-	for child in _detail_box.get_children():
-		child.free()
 	var r := RunMonitor.get_run(_selected_id)
 	if r.is_empty():
 		_detail_rev = 0
-		_detail_box.add_child(_mk_label("No run selected."))
+		_detail_title.text = "No run selected."
+		_detail_text.text = ""
+		_copy_report_button.disabled = true
+		_copy_selection_button.disabled = true
 		return
 	_detail_rev = int(r["rev"])
+	_detail_title.text = "%s — #%d" % [r["title"], r["id"]]
+	_copy_report_button.disabled = false
+	_copy_selection_button.disabled = false
+	_detail_text.text = _report_bbcode(r)
 
-	var header := _mk_label("%s — #%d" % [r["title"], r["id"]])
-	header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	header.add_theme_font_size_override("font_size", 17)
-	_detail_box.add_child(header)
-	_add_kv("Kind", String(r["kind"]))
-	_add_kv("Technique", String(r["technique_id"]))
-	_add_kv("Thread", "worker thread" if r["thread"] == "worker"
-			else "main thread")
+
+# --- Clipboard -------------------------------------------------------------------
+
+func _copy_report_pressed() -> void:
+	var r := RunMonitor.get_run(_selected_id)
+	if r.is_empty():
+		_flash(_copy_report_button, "No run selected")
+		return
+	DisplayServer.clipboard_set(_plain_report(r))
+	_flash(_copy_report_button, "Copied ✓")
+
+
+func _copy_selection_pressed() -> void:
+	var selection := _detail_text.get_selected_text()
+	if selection.is_empty():
+		_flash(_copy_selection_button, "Nothing selected")
+		return
+	DisplayServer.clipboard_set(selection)
+	_flash(_copy_selection_button, "Copied ✓")
+
+
+func _copy_all_pressed() -> void:
+	var parts := PackedStringArray()
+	var runs := RunMonitor.get_run_list()
+	parts.append("WFCLab runs (%d, newest first)" % runs.size())
+	for r: Dictionary in runs:
+		parts.append(_row_text(r))
+	DisplayServer.clipboard_set("\n".join(parts))
+	_flash(_copy_all_button, "Copied ✓")
+
+
+func _flash(button: Button, feedback: String) -> void:
+	## Swap in feedback text briefly, then restore the canonical label.
+	button.text = feedback
+	await get_tree().create_timer(1.2).timeout
+	if is_instance_valid(button):
+		button.text = String(button.get_meta("label"))
+
+
+# --- Report building ---------------------------------------------------------------
+## One builder feeds both outputs: the clipboard gets the raw plain text,
+## and the detail pane escapes it into BBCode (monospace + heading colors).
+
+func _plain_report(r: Dictionary) -> String:
+	var parts := PackedStringArray()
+	parts.append("%s — #%d" % [r["title"], r["id"]])
+	for line: Array in _build_report(r):
+		parts.append(String(line[0]))
+	return "\n".join(parts)
+
+
+func _report_bbcode(r: Dictionary) -> String:
+	var parts := PackedStringArray()
+	for line: Array in _build_report(r):
+		var text := _esc(String(line[0]))
+		if bool(line[1]):
+			text = "[color=%s]%s[/color]" % [HEADING_COLOR, text]
+		parts.append(text)
+	return "[code]%s[/code]" % "\n".join(parts)
+
+
+func _build_report(r: Dictionary) -> Array:
+	## One run as [line, is_heading] pairs.
+	var lines: Array = []
 	var status_line := String(r["status"])
 	if not String(r["error"]).is_empty():
 		status_line += " — " + String(r["error"])
-	_add_kv("Status", status_line)
-	_add_kv("Progress", "%d%%" % int(round(float(r["progress"]) * 100.0)))
-	_add_kv("Elapsed", _fmt_ms(_elapsed_ms(r)))
+	_kv(lines, "Kind", String(r["kind"]))
+	_kv(lines, "Technique", String(r["technique_id"]))
+	_kv(lines, "Thread", "worker thread" if r["thread"] == "worker"
+			else "main thread")
+	_kv(lines, "Status", status_line)
+	_kv(lines, "Progress", "%d%%" % int(round(float(r["progress"]) * 100.0)))
+	_kv(lines, "Elapsed", _fmt_ms(_elapsed_ms(r)))
 
-	_mk_heading("Inputs")
+	_section(lines, "Inputs")
 	var inputs: Array = r["inputs"]
 	if inputs.is_empty():
-		_detail_box.add_child(_mk_label("  (none recorded)"))
+		lines.append(["  (none recorded)", false])
 	for item: Variant in inputs:
-		_detail_box.add_child(_mk_label("  · %s" % str(item)))
+		lines.append(["  · %s" % str(item), false])
 
-	_mk_heading("Parameters")
+	_section(lines, "Parameters")
 	var params: Dictionary = r["params"]
 	if params.is_empty():
-		_detail_box.add_child(_mk_label("  (none)"))
+		lines.append(["  (none)", false])
 	for key: String in params:
-		_detail_box.add_child(_mk_label(
-				"  %s = %s" % [key, _fmt_value(params[key])]))
+		lines.append(["  %s = %s" % [key, _fmt_value(params[key])], false])
 
 	if String(r["kind"]) == "session":
-		_mk_heading("Live State")
-		_add_kv("Status", String(r["live_status"]))
-		_add_kv("Steps", str(r["steps"]))
+		_section(lines, "Live State")
+		_kv(lines, "Status", String(r["live_status"]))
+		_kv(lines, "Steps", str(r["steps"]))
 	else:
-		_mk_heading("Stages")
+		_section(lines, "Stages")
 		for s: Dictionary in r["stages"]:
-			_detail_box.add_child(_mk_label("  " + _stage_text(s)))
+			lines.append(["  " + _stage_text(s), false])
 
-	_mk_heading("Result")
+	_section(lines, "Result")
 	if not String(r["summary"]).is_empty():
-		_detail_box.add_child(_mk_label("  " + String(r["summary"])))
+		lines.append(["  " + String(r["summary"]), false])
 	var stats: Dictionary = r["stats"]
 	for key: String in stats:
-		_detail_box.add_child(_mk_label(
-				"  %s: %s" % [key, _fmt_stat(stats[key])]))
+		lines.append(["  %s: %s" % [key, _fmt_stat(stats[key])], false])
+	return lines
 
+
+func _kv(lines: Array, key: String, value: String) -> void:
+	lines.append([(key + ":").rpad(14) + value, false])
+
+
+func _section(lines: Array, title: String) -> void:
+	lines.append(["", false])
+	lines.append([title, true])
+
+
+func _esc(s: String) -> String:
+	## Escape BBCode delimiters; [lb]/[rb] render as literal brackets.
+	return s.replace("[", "[lb]").replace("]", "[rb]")
+
+
+# --- Formatting helpers -------------------------------------------------------------
 
 func _stage_text(s: Dictionary) -> String:
 	var label := String(s["label"])
@@ -224,29 +354,17 @@ func _fmt_stat(v: Variant) -> String:
 	return text
 
 
-func _add_kv(key: String, value: String) -> void:
-	var row := HBoxContainer.new()
-	var k := _mk_label(key)
-	k.custom_minimum_size = Vector2(110.0, 0.0)
-	k.modulate = Color(1.0, 1.0, 1.0, 0.6)
-	row.add_child(k)
-	var v := _mk_label(value)
-	v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(v)
-	_detail_box.add_child(row)
-
-
-func _mk_heading(text: String) -> void:
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0.0, 6.0)
-	_detail_box.add_child(spacer)
-	var l := _mk_label(text)
-	l.modulate = Color(1.0, 1.0, 1.0, 0.75)
-	_detail_box.add_child(l)
-
-
 func _mk_label(text: String) -> Label:
 	var l := Label.new()
 	l.text = text
 	return l
+
+
+func _mk_button(label: String, tooltip: String, handler: Callable) -> Button:
+	var b := Button.new()
+	b.text = label
+	b.set_meta("label", label)
+	if not tooltip.is_empty():
+		b.tooltip_text = tooltip
+	b.pressed.connect(handler)
+	return b

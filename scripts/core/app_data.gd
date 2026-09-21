@@ -129,8 +129,13 @@ func set_parts(raw_parts: Array[Part], stats: Dictionary) -> void:
 
 
 func set_constraints(raw_constraints: Array[Constraint]) -> void:
+	## Ingest freshly extracted raw constraints and materialize them as-is.
+	## Re-extraction is NOT done here: it belongs to the edit paths
+	## (set_transform_enabled, merge_parts, set_terrain_key), which call
+	## _regenerate_constraints() explicitly. Callers must therefore extract
+	## against the part set they intend the constraints to describe.
 	_raw_constraints = raw_constraints
-	_regenerate_constraints()
+	_materialize_constraints()
 
 
 func get_part_list() -> Array[Part]:

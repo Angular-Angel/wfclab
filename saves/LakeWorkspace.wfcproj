@@ -92,8 +92,8 @@
 			"rotation_90": true,
 			"stride": {
 				"__v2i": [
-					4,
-					4
+					2,
+					2
 				]
 			},
 			"tile_size": {
@@ -8619,6 +8619,45 @@
 			"min_fraction": 0.01,
 			"tag": "Open",
 			"tolerance": 8
+		}
+	],
+	"terrain_key": [
+		{
+			"colors": [
+				"00a2e8"
+			],
+			"min_fraction": 0.01,
+			"name": "Water",
+			"tag": "Water",
+			"tolerance": 0
+		},
+		{
+			"colors": [
+				"2ec27e",
+				"008000"
+			],
+			"min_fraction": 0.01,
+			"name": "Shrooms",
+			"tag": "Shrooms",
+			"tolerance": 0
+		},
+		{
+			"colors": [
+				"ed1c24"
+			],
+			"min_fraction": 0.11,
+			"name": "Lava",
+			"tag": "Lava",
+			"tolerance": 0
+		},
+		{
+			"colors": [
+				"ffffff"
+			],
+			"min_fraction": 0.01,
+			"name": "Open",
+			"tag": "Open",
+			"tolerance": 0
 		}
 	],
 	"transform_edits": {},

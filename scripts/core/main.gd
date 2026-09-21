@@ -10,6 +10,7 @@ const TAB_NAMES: Array[String] = [
 	"Decomposition",
 	"Parts",
 	"Constraints",
+	"Terrain Keys",
 	"Synthesizers",
 	"Outputs",
 ]
@@ -52,6 +53,8 @@ func _ready() -> void:
 				page = PartsTab.new()
 			"Constraints":
 				page = ConstraintsTab.new()
+			"Terrain Keys":
+				page = TerrainKeysTab.new()
 			"Synthesizers":
 				page = SynthesizersTab.new()
 			"Outputs":

@@ -9,27 +9,31 @@ class_name PixelOverlap extends ConstraintTechnique
 ##   flex — a pixel may be satisfied by a counterpart displaced up to this
 ##     many pixels along the seam (above/below for horizontal adjacency),
 ##     same depth index, within tolerance.
-
+##
+## Terrain key: when AppData's terrain key defines enabled classes, strips
+## are classified through TerrainMapper before extraction — a pixel
+## matching a class compares as that class's representative color, so
+## different colors of the same terrain are interchangeable. `tolerance`
+## then only meaningfully applies to unclassed pixels (and to distances
+## between representatives — keep them well apart). Classification is
+## deterministic, so the rigid exact fast path in _match still applies.
 func get_id() -> StringName:
     return &"pixel_overlap"
-
 func get_display_name() -> String:
     return "Pixel Overlap"
-
 func get_parameter_specs() -> Array[Dictionary]:
     return [
-        {"key": "overlap_layers", "label": "Overlap Layers", "type": "int",
-            "default": 2, "min": 1, "max": 64},
-        {"key": "tolerance", "label": "Tolerance", "type": "int",
-            "default": 0, "min": 0, "max": 256},
-        {"key": "allowed_omissions", "label": "Allowed Omissions",
-            "type": "int", "default": 0, "min": 0, "max": 256},
-        {"key": "flex", "label": "Flex", "type": "int",
-            "default": 0, "min": 0, "max": 64},
+    {"key": "overlap_layers", "label": "Overlap Layers", "type": "int",
+    "default": 2, "min": 1, "max": 64},
+    {"key": "tolerance", "label": "Tolerance", "type": "int",
+    "default": 0, "min": 0, "max": 256},
+    {"key": "allowed_omissions", "label": "Allowed Omissions",
+    "type": "int", "default": 0, "min": 0, "max": 256},
+    {"key": "flex", "label": "Flex", "type": "int",
+    "default": 0, "min": 0, "max": 64},
     ]
-
 func extract(parts: Array[Part], images: Array[ImageAssetData],
-        params: Dictionary, report_progress: Callable) -> Array[Constraint]:
+    params: Dictionary, report_progress: Callable) -> Array[Constraint]:
     var result: Array[Constraint] = []
     if parts.size() < 2:
         return result
@@ -37,11 +41,10 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
     var tolerance := maxi(0, int(params.get("tolerance", 0)))
     var omissions := maxi(0, int(params.get("allowed_omissions", 0)))
     var flex := maxi(0, int(params.get("flex", 0)))
-
+    var groups: Array = AppData.active_terrain_classes()
     var ordered: Array[Part] = []
     ordered.assign(parts)
     ordered.sort_custom(func(a: Part, b: Part) -> bool: return a.id < b.id)
-
     # Strips indexed FROM THE SEAM: u = 0 touches the neighbor, u = depth-1
     # is deepest. v runs along the seam. Pixel (u, v) = bytes at
     # (v * depth + u) * 4. Both sides of a pair therefore align seam-to-seam.
@@ -53,6 +56,8 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
         if img.is_compressed():
             img.decompress()
         img.convert(Image.FORMAT_RGBA8)
+        if not groups.is_empty():
+            TerrainMapper.apply(img, groups)   # disposable copy; in place
         strips[p.id] = {
             "right": _strip(img, depth, Vector2i(p.size.x - 1, 0),
                 Vector2i(0, 1), Vector2i(-1, 0), p.size.y),
@@ -63,7 +68,6 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
             "top": _strip(img, depth, Vector2i(0, 0),
                 Vector2i(1, 0), Vector2i(0, 1), p.size.x),
         }
-
     var aggregate: Dictionary = {}
     var n := ordered.size()
     for i in n:
@@ -86,12 +90,11 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
                 _record(aggregate, a, b, Vector2i(0, a.size.y))
         if i % 16 == 15:
             report_progress.call(float(i + 1) / n)
-
     var list: Array = aggregate.values()
-    list.sort_custom(func(x: Constraint, y: Constraint) -> bool: return x.id < y.id)
+    list.sort_custom(func(x: Constraint, y: Constraint) -> bool:
+        return x.id < y.id)
     result.assign(list)
     return result
-
 func _strip(img: Image, depth: int, start: Vector2i, along: Vector2i,
         inward: Vector2i, span: int) -> PackedByteArray:
     ## Copies depth × span pixels from `start` (a point on the seam),
@@ -113,7 +116,6 @@ func _strip(img: Image, depth: int, start: Vector2i, along: Vector2i,
             out[k + 3] = bytes[o + 3]
             k += 4
     return out
-
 func _match(sa: PackedByteArray, sb: PackedByteArray, depth: int, span: int,
         tolerance: int, flex: int, omissions: int) -> bool:
     ## True when at most `omissions` pixels of `sa` lack a satisfying
@@ -129,7 +131,6 @@ func _match(sa: PackedByteArray, sb: PackedByteArray, depth: int, span: int,
             if failures > omissions:
                 return false
     return true
-
 func _satisfied(sa: PackedByteArray, sb: PackedByteArray, u: int, v: int,
         depth: int, span: int, tolerance: int, flex: int) -> bool:
     var ao := (v * depth + u) * 4
@@ -144,7 +145,6 @@ func _satisfied(sa: PackedByteArray, sb: PackedByteArray, u: int, v: int,
                 and absi(sa[ao + 3] - sb[bo + 3]) <= tolerance:
             return true
     return false
-
 func _record(aggregate: Dictionary, a: Part, b: Part, offset: Vector2i) -> void:
     var key := "ov|%s>%s|%d,%d" % [a.id, b.id, offset.x, offset.y]
     if aggregate.has(key):

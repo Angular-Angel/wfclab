@@ -399,6 +399,68 @@ func strip_tag_everywhere(tag: String) -> int:
 	return removed
 
 
+# --- Terrain key (single, global) -------------------------------------------
+## One ordered set of color-equivalence classes shared by every consumer
+## (currently PixelOverlap). A class is {name, colors: [hex], tolerance,
+## enabled, tag, min_fraction}: pixels matching any listed color within
+## tolerance compare as that class's first color; first matching class
+## wins; alpha untouched. enabled=false classes are skipped by extraction
+## and tagging — toggle them to experiment without deleting. tag and
+## min_fraction drive apply_terrain_key_tags() and are ignored by
+## extraction. Unlike tagging rules, the key is consulted DURING
+## constraint extraction, so every save regenerates constraints.
+signal terrain_key_changed
+var terrain_key_classes: Array = []
+func get_terrain_key() -> Array:
+	return terrain_key_classes
+func set_terrain_key(classes: Array) -> void:
+	terrain_key_classes = classes.duplicate(true)
+	terrain_key_changed.emit()
+	_regenerate_constraints()
+func has_terrain_key() -> bool:
+	return not terrain_key_classes.is_empty()
+## Enabled classes only — the extraction/tagging view of the key.
+func active_terrain_classes() -> Array:
+	var out: Array = []
+	for cls: Variant in terrain_key_classes:
+		if cls is Dictionary \
+				and bool((cls as Dictionary).get("enabled", true)):
+			out.append(cls)
+	return out
+## Explicit, like apply_tagging_rules: a part gets a class's tag when at
+## least min_fraction of its non-transparent pixels fall within the class
+## (per-channel tolerance of any listed color). Uses the same coverage
+## math as tagging rules (TagMatcher.coverage_fraction), writes through
+## the normal tag_edits layer, and is additive/idempotent — manually
+## removed tags are never resurrected. Emits edits_changed at most once.
+## Returns {"tagged_parts": int, "per_class": {class_name: int}}.
+func apply_terrain_key_tags() -> Dictionary:
+	var report := {"tagged_parts": 0, "per_class": {}}
+	for cls: Dictionary in active_terrain_classes():
+		var tag := String(cls.get("tag", "")).strip_edges()
+		if tag.is_empty():
+			continue   # class defines no tag; skip silently
+		var colors: Array = cls.get("colors", [])
+		if colors.is_empty():
+			continue
+		var tol := int(cls.get("tolerance", 0))
+		var minf := float(cls.get("min_fraction", 0.1))
+		var count := 0
+		for id: String in parts:
+			var p: Part = parts[id]
+			if p == null or p.pixel_data == null:
+				continue
+			if TagMatcher.coverage_fraction(p.pixel_data, colors, tol) \
+					>= minf:
+				if _add_tag_silent(id, tag):
+					count += 1
+		report["per_class"][String(cls.get("name", "?"))] = count
+		report["tagged_parts"] = int(report["tagged_parts"]) + count
+	if int(report["tagged_parts"]) > 0:
+		edits_changed.emit()
+	return report
+
+
 # --- Materialization ------------------------------------------------------------
 
 func _materialize_parts() -> void:
@@ -546,6 +608,7 @@ func save_project(path: String) -> bool:
 		"tag_edits": tag_edits,
 		"rules": rules,
 		"tagging_rules": tagging_rules,
+		"terrain_key": terrain_key_classes,
 	}
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
@@ -553,8 +616,6 @@ func save_project(path: String) -> bool:
 		return false
 	f.store_string(JSON.stringify(JsonCodec.encode(data), "\t"))
 	return true
-
-
 ## Loads images and edit tables, returns the decoded project Dictionary
 ## (its "run" entry drives the auto re-run; empty Dictionary on failure).
 func load_project(path: String) -> Dictionary:
@@ -567,7 +628,6 @@ func load_project(path: String) -> Dictionary:
 		push_error("Invalid project file: %s" % path)
 		return {}
 	var data: Dictionary = JsonCodec.decode(parsed)
-
 	# Reset state.
 	images = {}
 	outputs = {}
@@ -586,31 +646,40 @@ func load_project(path: String) -> Dictionary:
 	alias_records = []
 	alias_records.assign(data.get("alias_records", []))
 	tag_edits = _decode_tag_edits(data.get("tag_edits", {}))
-	
 	rules = []
 	var loaded_rules: Variant = data.get("rules", [])
 	if loaded_rules is Array:
 		rules.assign(loaded_rules)
 	_next_rule_number = _max_rule_number() + 1
-	
 	tagging_rules = []
 	var loaded_tag_rules: Variant = data.get("tagging_rules", [])
 	if loaded_tag_rules is Array:
 		tagging_rules.assign(loaded_tag_rules)
 	_next_tag_rule_number = _max_tag_rule_number() + 1
-
+	terrain_key_classes = []
+	var loaded_key: Variant = data.get("terrain_key", null)
+	if loaded_key is Array:
+		terrain_key_classes.assign(loaded_key)
+	else:
+		# Legacy multi-key projects: adopt the first enabled key's classes.
+		for k: Variant in data.get("terrain_keys", []):
+			if k is Dictionary and bool((k as Dictionary).get("enabled", true)):
+				var classes: Variant = (k as Dictionary).get("classes", [])
+				if classes is Array:
+					terrain_key_classes.assign(classes)
+					break
 	for rec: Dictionary in data.get("images", []):
 		var asset := ImageAssetData.load_from_path(rec["path"])
 		if asset == null:
 			push_warning("Project image missing, skipped: %s" % rec["path"])
 			continue
 		images[asset.id] = asset
-
 	images_changed.emit()
 	outputs_changed.emit()
 	parts_changed.emit()
 	constraints_changed.emit()
 	rules_changed.emit()
+	terrain_key_changed.emit()
 	return data
 
 

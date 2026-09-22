@@ -7,6 +7,11 @@ class_name TileCollapse extends Synthesizer
 ##
 ## Batch synthesize() runs a Session to completion, so a given seed yields
 ## identical output whether run in batch or stepped interactively.
+##
+## The solver operates on FAMILY ints (see ConstraintIndex): parts with
+## identical post-rule behavior are merged, and each observation resolves
+## its family to a concrete member part, occurrence-weighted, so variety
+## and source frequencies are preserved in the output.
 
 
 func get_id() -> StringName:
@@ -90,6 +95,8 @@ static func _derive_deltas(index: ConstraintIndex, step: Vector2i) -> Array[Vect
 @warning_ignore("integer_division")
 static func _render(index: ConstraintIndex, assigned: Array[String],
 		out_w: int, out_h: int, step: Vector2i) -> Image:
+	## assigned holds concrete member part ids, so rendering is unchanged
+	## by family compression.
 	var ts := index.tile_size
 	var width := maxi(1, (out_w - 1) * step.x + ts.x)
 	var height := maxi(1, (out_h - 1) * step.y + ts.y)
@@ -191,8 +198,12 @@ static func mask_iter(m: PackedInt64Array) -> Array[int]:
 
 class Session extends SynthesisSession:
 	## One resumable TileCollapse run. Batch synthesize() drives this class,
-	## so RNG consumption (one _weighted_pick per observation) is identical
-	## in both modes and a seed reproduces the same output either way.
+	## so RNG consumption (one _weighted_pick + one _pick_member per
+	## observation) is identical in both modes and a seed reproduces the
+	## same output either way.
+	##
+	## dom masks, buckets, and all propagation tables are FAMILY-indexed;
+	## assigned[] stores concrete member part ids for rendering and pins.
 
 	var _index: ConstraintIndex
 	var _rng: RandomNumberGenerator
@@ -213,12 +224,12 @@ class Session extends SynthesisSession:
 	var _in_queue: PackedByteArray = PackedByteArray()
 	var _trail: Array = []                     # {slot: int, removed: PackedInt64Array}
 	var _trail_marks: Array[int] = []          # (kept for pins/parity; decisions live in _decisions)
-	var nparts := 0
-	var nwords := 0
+	var nparts := 0                            # FAMILY count (not part count)
+	var nwords := 0                            # 64-bit words per family mask
 
 	var assigned: Array[String] = []
 	var _decisions: Array[Dictionary] = []
-	var _pinned: Dictionary = {} # slot -> part id; persists across restarts
+	var _pinned: Dictionary = {} # slot -> member part id; persists across restarts
 	var last_slot := -1
 	var recovery_attempts := 0
 	var contradictions := 0
@@ -246,9 +257,9 @@ class Session extends SynthesisSession:
 			return
 		_cell = TileCollapse._derive_step(_index)
 		_deltas = TileCollapse._derive_deltas(_index, _cell)
-		_index.prepare(_deltas, _cell)          # NEW
-		nparts = _index.part_ids.size()          # NEW
-		nwords = _index.nwords                   # NEW
+		_index.prepare(_deltas, _cell)   # also builds the family layer
+		nparts = _index.family_count
+		nwords = _index.family_nwords
 		_bordered = _index.has_outside()
 		if _deltas.is_empty():
 			push_warning("TileCollapse: no usable offsets; output is unconstrained.")
@@ -256,8 +267,8 @@ class Session extends SynthesisSession:
 
 
 	func _reset_attempt() -> bool:
-		nparts = _index.part_ids.size()
-		nwords = _index.nwords
+		nparts = _index.family_count
+		nwords = _index.family_nwords
 		var full := TileCollapse.mask_full(nwords, nparts)
 		dom.clear(); assigned.clear()
 		dom.resize(_out_w * _out_h)
@@ -276,10 +287,15 @@ class Session extends SynthesisSession:
 		_trail.clear(); _trail_marks.clear()
 		last_slot = -1
 		_collapsed = 0
-		for slot in _pinned:
+		for slot: int in _pinned.keys():
 			var pid: String = _pinned[slot]
+			var fi := _index.family_of_part_id(pid)
+			if fi < 0:
+				push_warning("TileCollapse: pinned part %s left the index; pin dropped." % pid)
+				_pinned.erase(slot)
+				continue
 			var m := TileCollapse.mask_empty(nwords)
-			TileCollapse.mask_set(m, _index.int_of(pid))
+			TileCollapse.mask_set(m, fi)
 			assigned[slot] = pid
 			_collapsed += 1
 			_set_dom(slot, m)               # bucket 0 (assigned)
@@ -326,16 +342,21 @@ class Session extends SynthesisSession:
 			if slot == -1:
 				phase = Phase.DONE
 				return false
-			var picked := _weighted_pick(dom[slot])
-			var pi := _index.int_of(picked)
+			var fi := _weighted_pick(dom[slot])
+			var mi := _pick_member(fi)
 			var removed := dom[slot].duplicate()
-			TileCollapse.mask_clear(removed, pi)
-			_decisions.append(_snapshot_decision(slot, picked))  # reads _trail.size() BEFORE the collapse entry
+			TileCollapse.mask_clear(removed, fi)
+			_decisions.append({
+				"slot": slot,
+				"rejected_fi": fi,
+				"trail_len": _trail.size(),   # everything above this is undone on backtrack
+				"collapsed": _collapsed,      # pre-decision counter
+			})
 			_trail.append({"slot": slot, "removed": removed})
 			var m := dom[slot]
-			TileCollapse.mask_only(m, pi)
+			TileCollapse.mask_only(m, fi)
 			_set_dom(slot, m)
-			assigned[slot] = picked
+			assigned[slot] = _index.part_ids[mi]
 			last_slot = slot
 			_collapsed += 1
 			_queue_append(slot)
@@ -351,14 +372,6 @@ class Session extends SynthesisSession:
 			return true
 		return true
 
-
-	func _snapshot_decision(slot: int, picked: String) -> Dictionary:
-		return {
-			"slot": slot,
-			"rejected": picked,
-			"trail_len": _trail.size(),      # everything above this is undone on backtrack
-			"collapsed": _collapsed,         # pre-decision counter
-		}
 
 	func _recover_from_contradiction() -> void:
 		contradictions += 1
@@ -384,7 +397,7 @@ class Session extends SynthesisSession:
 			var slot: int = d["slot"]
 			assigned[slot] = ""
 			var m := dom[slot]               # now the restored pre-decision domain
-			TileCollapse.mask_clear(m, _index.int_of(d["rejected"]))
+			TileCollapse.mask_clear(m, int(d["rejected_fi"]))
 			_set_dom(slot, m)
 			_collapsed = int(d["collapsed"])
 			_queue_clear_all()               # drop stale entries from the failed cascade
@@ -423,6 +436,9 @@ class Session extends SynthesisSession:
 				"output_slots": Vector2i(_out_w, _out_h),
 				"step": _cell,
 				"steps": steps_taken,
+				"parts": _index.part_ids.size(),
+				"families": _index.family_count,
+				"largest_family": _index.largest_family_size,
 			},
 		}
 
@@ -461,18 +477,23 @@ class Session extends SynthesisSession:
 	@warning_ignore("integer_division")
 	func get_entropy_image() -> Image:
 		## Slot-space map: white = collapsed, warm = few candidates,
-		## cool = many. Dims are output_slots, not pixels.
+		## cool = many. Dims are output_slots, not pixels. Domain sizes are
+		## in FAMILY units now, so the color scale adapts to family count.
 		var img := Image.create_empty(
 				_out_w, _out_h, false, Image.FORMAT_RGBA8)
+		var scale := maxf(8.0, float(_index.family_count) / 16.0)
 		for i in dom.size():
 			var col: Color
 			if assigned[i] != "":
 				col = Color(0.95, 0.95, 0.95)
 			else:
-				var t := clampf(_size[i] / 8.0, 0.0, 1.0)
+				var t := clampf(float(_size[i]) / scale, 0.0, 1.0)
 				col = Color(1.0, 0.3, 0.2).lerp(Color(0.15, 0.25, 0.7), t)
 			img.set_pixel(i % _out_w, i / _out_w, col)
-		return img    # --- Manual editing & inspection -----------------------------------------
+		return img
+
+
+	# --- Manual editing & inspection -----------------------------------------
 
 	func get_source_index() -> ConstraintIndex:
 		return _index
@@ -516,16 +537,16 @@ class Session extends SynthesisSession:
 		return Rect2i(Vector2i(
 				(slot % _out_w) * _cell.x,
 				(slot / _out_w) * _cell.y), _index.tile_size)
-	
-	
+
+
 	@warning_ignore("integer_division")
 	func _propagate(trace: Array, single: bool = false) -> bool:
-		## AC-3 over all deltas. Rule deltas (di >= evidence count) carry
-		## a precomputed complement of their union source-tag mask: if
-		## dom[s] holds ANY candidate outside that union, the arc's allowed
-		## set is full and cannot prune — skip in a couple of word ops.
-		## All-rule-relevant slots revise eagerly, which is what keeps
-		## self-exclusion rules from clumping into late contradictions.
+		## AC-3 over all deltas, on FAMILY masks. Rule deltas (di >= evidence
+		## count) carry a precomputed family-int complement of their union
+		## source-tag mask: if dom[s] holds ANY family outside that union,
+		## the arc's allowed set is full and cannot prune — skip in a couple
+		## of word ops. All-rule-relevant slots revise eagerly, which is what
+		## keeps self-exclusion rules from clumping into late contradictions.
 		var ne := _index.evidence_delta_count
 		var total := _index.delta_list.size()
 		while not _queue_empty():
@@ -534,7 +555,7 @@ class Session extends SynthesisSession:
 			var sy := s / _out_w
 			for di in total:
 				if di >= ne:
-					var inv: PackedInt64Array = _index.rule_src_not[di]
+					var inv: PackedInt64Array = _index.f_rule_src_not[di]
 					var all_src := true
 					for w in nwords:
 						if dom[s][w] & inv[w] != 0:
@@ -560,20 +581,20 @@ class Session extends SynthesisSession:
 			if single:
 				return true
 		return true
-	
-	
+
+
 	func _revise(s: int, q: int, di: int, trace: Array) -> bool:
 		var sdom := dom[s]                       # read-only; no write-back needed
 		var allowed := PackedInt64Array()
 		allowed.resize(nwords)
 		var unconstrained := false
 		if _size[s] == 1:
-			# singleton fast path — mirrors old candidates[s].size() == 1 branch
-			var pi := TileCollapse.mask_first(sdom)
-			var nb: PackedInt64Array = _index.nb_mask[pi][di]
+			# singleton fast path
+			var sfi := TileCollapse.mask_first(sdom)
+			var snb: PackedInt64Array = _index.f_nb_mask[sfi][di]
 			for w in nwords:
-				allowed[w] = nb[w]
-			if _index.nb_empty[pi][di]:
+				allowed[w] = snb[w]
+			if _index.f_nb_empty[sfi][di]:
 				unconstrained = _unknown_free
 		else:
 			for w in nwords:
@@ -583,13 +604,13 @@ class Session extends SynthesisSession:
 				while v != 0:
 					var low := v & -v
 					v ^= low
-					var pi := (w << 6) + TileCollapse._ctz(low)
-					if _index.nb_empty[pi][di]:
+					var fi := (w << 6) + TileCollapse._ctz(low)
+					if _index.f_nb_empty[fi][di]:
 						if _unknown_free:
 							unconstrained = true
-							break               # this value supports anything
-						continue                # contributes nothing (old behavior)
-					var nb: PackedInt64Array = _index.nb_mask[pi][di]
+							break               # this family supports anything
+						continue                # contributes nothing
+					var nb: PackedInt64Array = _index.f_nb_mask[fi][di]
 					for k in nwords:
 						allowed[k] = allowed[k] | nb[k]
 				if unconstrained:
@@ -635,8 +656,8 @@ class Session extends SynthesisSession:
 			while m != 0:
 				var low := m & -m
 				m ^= low
-				var pi := (w << 6) + TileCollapse._ctz(low)
-				if not _index.border_ok[pi][di]:
+				var fi := (w << 6) + TileCollapse._ctz(low)
+				if not _index.f_border_ok[fi][di]:
 					keep &= ~low
 			if keep != v:
 				changed = true
@@ -659,12 +680,15 @@ class Session extends SynthesisSession:
 
 
 	func get_slot_domain(slot: int) -> Dictionary:
+		## Unassigned slots list family REPRESENTATIVE ids (one entry per
+		## candidate family). Assigned slots list reps compatible with the
+		## neighborhood plus the currently assigned member.
 		if is_finished() or slot < 0 or slot >= dom.size():
 			return {}
 		if assigned[slot] == "":
 			var out := {}
-			for pi in TileCollapse.mask_iter(dom[slot]):
-				out[_index.part_ids[pi]] = true
+			for fi in TileCollapse.mask_iter(dom[slot]):
+				out[_index.family_ids[fi]] = true
 			return out
 		var d := _domain_excluding_self(slot)
 		d[assigned[slot]] = true
@@ -672,7 +696,13 @@ class Session extends SynthesisSession:
 
 
 	func try_assign(slot: int, part_id: String) -> bool:
-		if not get_slot_domain(slot).has(part_id):
+		## Pin a part into a slot and propagate. Accepts ANY family member
+		## id (the family bit is the real gate), not just representatives.
+		if slot < 0 or slot >= dom.size():
+			last_rejection = "slot out of range"
+			return false
+		var fi := _index.family_of_part_id(part_id)
+		if fi < 0 or not TileCollapse.mask_has(dom[slot], fi):
 			last_rejection = describe_pin(slot, part_id)
 			return false
 		var trail_mark := _trail.size()
@@ -682,11 +712,11 @@ class Session extends SynthesisSession:
 		var was_pinned := old_assigned != ""
 
 		var removed := dom[slot].duplicate()
-		TileCollapse.mask_clear(removed, _index.int_of(part_id))
+		TileCollapse.mask_clear(removed, fi)
 		_trail.append({"slot": slot, "removed": removed})
 
 		var m := dom[slot]
-		TileCollapse.mask_only(m, _index.int_of(part_id))
+		TileCollapse.mask_only(m, fi)
 		_set_dom(slot, m)
 		assigned[slot] = part_id
 		if not was_pinned:
@@ -795,13 +825,15 @@ class Session extends SynthesisSession:
 		dom.clear()
 		dom.resize(_out_w * _out_h)
 		_size.resize(_out_w * _out_h)
-		_size.fill(0)                        # see bug B3 — required
+		_size.fill(0)
 		_collapsed = 0
 		for i in dom.size():
 			var m: PackedInt64Array
 			if assigned[i] != "":
 				m = TileCollapse.mask_empty(nwords)
-				TileCollapse.mask_set(m, _index.int_of(assigned[i]))
+				var afi := _index.family_of_part_id(assigned[i])
+				if afi >= 0:
+					TileCollapse.mask_set(m, afi)
 				_collapsed += 1
 				_queue_append(i)
 			else:
@@ -815,32 +847,57 @@ class Session extends SynthesisSession:
 				last_wipe = _describe_wipe(trace[0])
 			return false
 		return true
-	
-	
-	func _weighted_pick(m: PackedInt64Array) -> String:
+
+
+	func _weighted_pick(m: PackedInt64Array) -> int:
+		## Weighted choice over FAMILY ints. Family weight is the sum of its
+		## members' effective weights, so family-then-member sampling has the
+		## same outcome distribution as the old per-part pick.
 		var total := 0.0
 		for w in nwords:
 			var v: int = m[w]
 			while v != 0:
 				var low := v & -v
 				v ^= low
-				total += _index.part_weights[(w << 6) + TileCollapse._ctz(low)]
+				total += _index.family_weights[(w << 6) + TileCollapse._ctz(low)]
 		if total <= 0.0:
 			var k := _rng.randi_range(0, TileCollapse.mask_count(m) - 1)
-			return _index.part_ids[TileCollapse._kth_set_bit(m, k)]
+			return TileCollapse._kth_set_bit(m, k)
 		var r := _rng.randf() * total
 		for w in nwords:
 			var v: int = m[w]
 			while v != 0:
 				var low := v & -v
 				v ^= low
-				var pi := (w << 6) + TileCollapse._ctz(low)
-				r -= _index.part_weights[pi]
+				var fi := (w << 6) + TileCollapse._ctz(low)
+				r -= _index.family_weights[fi]
 				if r <= 0.0:
-					return _index.part_ids[pi]
-		return _index.part_ids[TileCollapse._kth_set_bit(m, TileCollapse.mask_count(m) - 1)]
-	
-	
+					return fi
+		return TileCollapse._kth_set_bit(m, TileCollapse.mask_count(m) - 1)
+
+
+	func _pick_member(fi: int) -> int:
+		## Resolve a family to a concrete part int, occurrence-weighted, so
+		## every variant still appears and source frequencies carry through.
+		## Called only from the observation path (pins bypass it), so batch
+		## and stepped runs consume rng identically. Singleton families
+		## consume no rng.
+		var members: PackedInt32Array = _index.family_members[fi]
+		if members.size() == 1:
+			return members[0]
+		var total := 0.0
+		for mi in members:
+			total += _index.part_weights[mi]
+		if total <= 0.0:
+			return members[_rng.randi_range(0, members.size() - 1)]
+		var r := _rng.randf() * total
+		for mi in members:
+			r -= _index.part_weights[mi]
+			if r <= 0.0:
+				return mi
+		return members[members.size() - 1]
+
+
 	func _pick_slot() -> int:
 		while _min_bucket < _buckets.size():
 			var b: Dictionary = _buckets[_min_bucket]
@@ -859,12 +916,13 @@ class Session extends SynthesisSession:
 
 	@warning_ignore("integer_division")
 	func _domain_excluding_self(slot: int) -> Dictionary:
-		## Parts compatible with every pinned (or collapsed-to-one) neighbor
-		## of slot, ignoring slot's own pin. Falls back to the full set when
-		## the neighborhood is over-constrained (rare path inconsistency).
+		## Families compatible with every pinned (or collapsed-to-one)
+		## neighbor of slot, ignoring slot's own pin. Returns representative
+		## ids. Falls back to the full family set when the neighborhood is
+		## over-constrained (rare path inconsistency).
 		var full := {}
-		for pi in nparts:
-			full[_index.part_ids[pi]] = true
+		for fi in _index.family_count:
+			full[_index.family_ids[fi]] = true
 		var pos := Vector2i(slot % _out_w, slot / _out_w)
 		var out := full.duplicate()
 		for di in _index.delta_list.size():
@@ -877,20 +935,19 @@ class Session extends SynthesisSession:
 				var q := npos.y * _out_w + npos.x
 				if q == slot:
 					continue
-				var value := ""
+				var value_fi := -1
 				if assigned[q] != "":
-					value = assigned[q]
+					value_fi = _index.family_of_part_id(assigned[q])
 				elif _size[q] == 1:
-					value = _index.part_ids[TileCollapse.mask_first(dom[q])]
-				if value == "":
+					value_fi = TileCollapse.mask_first(dom[q])
+				if value_fi < 0:
 					continue   # multi-candidate neighbor: no hard constraint
-				var nb: PackedInt64Array = _index.mask_neighbors(
-						_index.int_of(value), pix * -sgn)
+				var nb: PackedInt64Array = _index.f_mask_neighbors(value_fi, pix * -sgn)
 				var keep := {}
-				for pi in TileCollapse.mask_iter(nb):
-					var pid: String = _index.part_ids[pi]
-					if out.has(pid):
-						keep[pid] = true
+				for fi in TileCollapse.mask_iter(nb):
+					var fid: String = _index.family_ids[fi]
+					if out.has(fid):
+						keep[fid] = true
 				out = keep
 				if out.is_empty():
 					return full
@@ -904,27 +961,32 @@ class Session extends SynthesisSession:
 					continue
 				var edge_keep := {}
 				for pid: String in out.keys():
-					if _index.border_ok[_index.int_of(pid)][di]:
+					var efi := _index.family_of_part_id(pid)
+					if efi >= 0 and _index.f_border_ok[efi][di]:
 						edge_keep[pid] = true
 				out = edge_keep
 		return out
-	
-	
+
+
 	@warning_ignore("integer_division")
 	func describe_pin(slot: int, part_id: String) -> String:
 		## "" if the immediate neighborhood permits the pin; else why not.
+		## Accepts any family member id, not just representatives.
 		if slot < 0 or slot >= dom.size():
 			return "slot out of range"
+		var fi := _index.family_of_part_id(part_id)
+		if fi < 0:
+			return "unknown or disabled part"
 		if assigned[slot] == part_id:
 			return ""
-		if not get_slot_domain(slot).has(part_id):
+		if not TileCollapse.mask_has(dom[slot], fi):
 			return "not in the slot's current domain"
 		var pos := Vector2i(slot % _out_w, slot / _out_w)
 		for d: Vector2i in _deltas:
 			var n := pos + d
 			if n.x < 0 or n.x >= _out_w or n.y < 0 or n.y >= _out_h:
 				continue
-			if TileCollapse.mask_is_empty(_index.mask_neighbors(_index.int_of(part_id), d * _cell)):
+			if TileCollapse.mask_is_empty(_index.f_mask_neighbors(fi, d * _cell)):
 				return "no observed neighbor at offset %s" % [d * _cell]
 		return ""
 
@@ -941,16 +1003,17 @@ class Session extends SynthesisSession:
 				at % _out_w, at / _out_w, off.x, off.y,
 				from % _out_w, from / _out_w,
 				_short(w["allowed"]), _short(w["domain"])] + (" [authored rule]" if w.get("rule", false) else "")
-	
-	
+
+
 	func _ids_of(m: PackedInt64Array, cap := 12) -> Array:
+		## Masks are family-indexed; diagnostics list representative ids.
 		var out: Array = []
 		var total := TileCollapse.mask_count(m)
-		for pi in TileCollapse.mask_iter(m):
+		for fi in TileCollapse.mask_iter(m):
 			if out.size() >= cap:
 				out.append("…+%d more" % (total - cap))
 				break
-			out.append(_index.part_ids[pi])
+			out.append(_index.family_ids[fi])
 		return out
 
 
@@ -962,15 +1025,15 @@ class Session extends SynthesisSession:
 			"domain": _ids_of(dom[q]) if not pre else _ids_of(pre),
 			"rule": di >= _index.evidence_delta_count,
 		})
-	
+
 
 	func _short(ids: Array) -> String:
 		var parts: Array[String] = []
 		for id: String in ids:
 			parts.append(id.substr(2, 4) + "…" + id.right(4))
 		return "[" + ", ".join(parts) + "]"
-	
-	
+
+
 	func _queue_append(s: int) -> void:
 		if _in_queue[s] == 1:
 			return
@@ -1007,8 +1070,8 @@ class Session extends SynthesisSession:
 		_queue_head = int(mk["head"])
 		for i in range(_queue_head, _queue.size()):
 			_in_queue[_queue[i]] = 1
-	
-	
+
+
 	func _set_dom(slot: int, m: PackedInt64Array) -> void:
 		var old_size := _size[slot]
 		var new_size := TileCollapse.mask_count(m)

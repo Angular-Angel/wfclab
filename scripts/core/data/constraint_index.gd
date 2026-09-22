@@ -4,10 +4,22 @@ class_name ConstraintIndex extends RefCounted
 ## sees the same edited world. Built as an immutable snapshot: safe to read
 ## from a worker thread even if the UI keeps editing.
 ##
-## Authored content (tags + rules) is compiled in prepare(): rules append
-## slot-unit deltas and prune neighbor masks but NEVER touch _offsets, so
-## get_offsets() — and therefore TileCollapse._derive_step/_derive_deltas and
-## the Parts-tab neighbor view — stays evidence-only.
+## FAMILY LAYER: the solver operates entirely on family ints. Parts whose
+## RAW evidence behavior is identical — same neighbor-id set per offset,
+## same OUTSIDE evidence, same tags — share a family. Grouping on raw dicts
+## + tags is exact: rule application is a pure function of (evidence rows,
+## tag bits), so equal inputs imply equal post-rule rows. Arc weights are
+## excluded from the signature because they never enter the neighbor masks;
+## placement weights are preserved via family_weights and member-resolved
+## picks. Family rows are built directly from the representative's raw
+## neighbor dicts (sparse iteration), so prepare() never scans dense masks
+## bit-by-bit.
+## NOTE: part-level per-delta tables no longer exist; all per-delta queries
+## are family-indexed (f_nb_mask / f_nb_empty / f_border_ok / f_rule_src).
+## Authored rules append slot-unit deltas and prune family masks but NEVER
+## touch _offsets, so get_offsets() — and therefore TileCollapse
+## _derive_step/_derive_deltas and the Parts-tab neighbor view — stays
+## evidence-only.
 ## NOTE: prepare() mutates the derived tables. Safe under the current
 ## one-session-per-index UI; revisit if two sessions ever share an index.
 
@@ -20,29 +32,48 @@ var _weights: Dictionary = {}     # part_id -> effective weight
 var tile_size := Vector2i(1, 1)
 var _has_outside := false
 
-# --- integer-id layer -------------------------------------------------------
+# --- integer-id layer (per-PART; member resolution and weights) --------------
 var part_ids: Array[String] = []          # int -> id, in _parts.keys() order
 var _int_of: Dictionary = {}              # id -> int
-var part_weights := PackedFloat64Array()  # effective weight per int
-var nwords := 0                           # 64-bit words per domain mask
+var part_weights := PackedFloat64Array()  # effective weight per part int
+var nwords := 0                           # 64-bit words per part-level mask
 
 # --- authored layer (stored at build, compiled in prepare) -------------------
 var authored_tags: Dictionary = {}        # part_id -> Array[String]
 var authored_rules: Array = []            # rule Dictionaries in AppData format
 var _tag_bits: Dictionary = {}            # tag -> PackedInt64Array over part ints
+var _fam_tag_bits: Dictionary = {}        # tag -> PackedInt64Array over family ints
 
-# --- per-delta tables (filled by prepare()) ---------------------------------
+# --- per-delta tables (FAMILY-indexed; filled by prepare()) ------------------
 var delta_list: Array[Vector2i] = []      # slot-unit deltas
 var delta_pixel: Array[Vector2i] = []     # delta * step
-var delta_has_outside: Array[bool] = []   # replaces _has_outside_evidence()
-var nb_mask: Array = []                   # [part_int][delta_int] -> PackedInt64Array
-var nb_empty: Array = []                  # [part_int][delta_int] -> bool (no evidence)
-var border_ok: Array = []                 # [part_int][delta_int] -> bool (has OUTSIDE)
+var delta_has_outside: Array[bool] = []
+var nb_mask: Array = []                   # [family][di] -> PackedInt64Array
+var nb_empty: Array = []                  # [family][di] -> bool (no evidence)
+var border_ok: Array = []                 # [family][di] -> bool (has OUTSIDE)
 var _pixel_to_di: Dictionary = {}         # Vector2i -> delta index
 var evidence_delta_count := 0             # pure rule deltas live at di >= this
-var rule_src: Array = []                  # [di] -> union src-tag mask (rule deltas only; null for evidence)
-var rule_src_not: Array = []              # [di] -> complement of rule_src; the solver's skip test
+var f_rule_src: Array = []                # [di] -> family src-tag mask (rule deltas; null for evidence)
+var f_rule_src_not: Array = []            # [di] -> complement; the solver's skip test
 var _prepared_key := ""
+
+# --- family aggregates ---------------------------------------------------------
+var family_count := 0
+var family_nwords := 0
+var family_of_part := PackedInt32Array()   # part int -> family int
+var family_ids: Array[String] = []         # family int -> representative part id
+var family_weights := PackedFloat64Array() # family int -> summed effective weight
+var family_members: Array = []             # family int -> PackedInt32Array of part ints
+var largest_family_size := 0
+
+# --- solver-facing aliases ----------------------------------------------------
+# The TileCollapse solver consumes the family tables under these names. They
+# are the SAME Array objects as nb_mask / nb_empty / border_ok (assigned at
+# the end of _build_families), so element writes through either name —
+# including _exclude_at and _append_delta — are visible through both.
+var f_nb_mask: Array = []
+var f_nb_empty: Array = []
+var f_border_ok: Array = []
 
 
 func has_outside() -> bool:
@@ -86,10 +117,11 @@ static func build(parts: Array[Part], constraints: Array[Constraint],
 	return idx
 
 
-## Called once per session with the evidence-derived deltas; compiles tags,
-## builds the per-delta tables, then compiles authored rules on top. Rule
-## deltas may exceed the passed deltas — TileCollapse consumes
-## _index.delta_list, so exclusions propagate without solver changes.
+## Called once per session with the evidence-derived deltas; groups parts
+## into families, builds family-indexed per-delta rows, then compiles
+## authored rules on top. Rule deltas may exceed the passed deltas —
+## TileCollapse consumes _index.delta_list, so exclusions propagate
+## without solver changes.
 func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
 	# Sessions re-call prepare() with identical inputs (Restart, recovery
 	# attempts); skip the full rebuild in that case. Authored content cannot
@@ -108,37 +140,9 @@ func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
 	for d: Vector2i in deltas:
 		_pixel_to_di[d] = delta_pixel.size()
 		delta_pixel.append(Vector2i(d.x * step.x, d.y * step.y))
-	var np := part_ids.size()
-	nb_mask.clear(); nb_empty.clear(); border_ok.clear()
-	delta_has_outside.clear()
-	delta_has_outside.resize(delta_list.size())
-	delta_has_outside.fill(false)
-	for pi in np:
-		var by_offset: Dictionary = _neighbors.get(part_ids[pi], {})
-		var mrow: Array = []; var erow: Array = []; var brow: Array = []
-		mrow.resize(delta_list.size()); erow.resize(delta_list.size())
-		brow.resize(delta_list.size())
-		for di in delta_list.size():
-			var off: Vector2i = delta_pixel[di]
-			var nb: Dictionary = by_offset.get("%d,%d" % [off.x, off.y], {})
-			var m := PackedInt64Array(); m.resize(nwords)
-			var has_out := false
-			for nid: String in nb.keys():
-				if nid == OUTSIDE:
-					has_out = true
-					continue
-				if not _int_of.has(nid):
-					continue            # defensive; build() filters disabled parts
-				m[_int_of[nid] >> 6] |= 1 << (_int_of[nid] & 63)
-			mrow[di] = m
-			erow[di] = nb.is_empty()    # raw-dict empty: OUTSIDE-only evidence is NOT empty
-			brow[di] = has_out
-			if has_out:
-				delta_has_outside[di] = true
-		nb_mask.append(mrow); nb_empty.append(erow); border_ok.append(brow)
+	_build_families()
 	evidence_delta_count = delta_list.size()
-	evidence_delta_count = delta_list.size()
-	rule_src.resize(evidence_delta_count)   # evidence slots stay null
+	f_rule_src.resize(evidence_delta_count)   # evidence region stays null
 	_compile_rules(step)
 	_build_rule_skip_tables()
 
@@ -151,7 +155,7 @@ func _assign_ints() -> void:
 	nwords = (part_ids.size() + 63) >> 6
 
 
-# --- tag compilation ----------------------------------------------------------
+# --- tag compilation (part ints; also drives family tag masks) ------------------
 
 func _compile_tags() -> void:
 	_tag_bits.clear()
@@ -176,7 +180,142 @@ func tag_mask(tag: String) -> PackedInt64Array:
 	return _tag_bits.get(tag, PackedInt64Array())
 
 
-# --- rule compilation -----------------------------------------------------------
+# --- family construction ---------------------------------------------------------
+
+func _build_families() -> void:
+	## 1) Group parts by canonical behavior key over the RAW neighbor dicts
+	##    (id sets per offset, OUTSIDE included, weights ignored) plus tags.
+	## 2) Build family aggregates.
+	## 3) Build family rows directly from each representative's raw dicts —
+	##    sparse per-entry iteration, no dense-mask bit scans.
+	var np := part_ids.size()
+	family_of_part = PackedInt32Array()
+	family_of_part.resize(np)
+	family_of_part.fill(-1)
+	var fam_rep := PackedInt32Array()   # family int -> representative part int
+	var by_key: Dictionary = {}         # behavior key -> family int
+	for pi in np:
+		var k := _behavior_key(pi)
+		var fam: int = by_key.get(k, -1)
+		if fam == -1:
+			fam = fam_rep.size()
+			fam_rep.append(pi)
+			by_key[k] = fam
+		family_of_part[pi] = fam
+
+	family_count = fam_rep.size()
+	family_nwords = (family_count + 63) >> 6
+	family_ids.clear()
+	family_ids.resize(family_count)
+	family_weights = PackedFloat64Array()
+	family_weights.resize(family_count)
+	var member_lists: Array = []
+	member_lists.resize(family_count)
+	for fi in family_count:
+		member_lists[fi] = PackedInt32Array()
+		family_ids[fi] = part_ids[fam_rep[fi]]
+	for pi in np:
+		var fi := family_of_part[pi]
+		family_weights[fi] += part_weights[pi]
+		var lst: PackedInt32Array = member_lists[fi]
+		lst.append(pi)
+		member_lists[fi] = lst   # packed arrays are COW: write back required
+	largest_family_size = 0
+	for fi in family_count:
+		largest_family_size = maxi(largest_family_size,
+				(member_lists[fi] as PackedInt32Array).size())
+	family_members = member_lists
+
+	# Family rows from the representative's raw dicts. Members share the
+	# rep's behavior by construction, so the rep's rows are the family's.
+	nb_mask.clear(); nb_empty.clear(); border_ok.clear()
+	nb_mask.resize(family_count); nb_empty.resize(family_count)
+	border_ok.resize(family_count)
+	delta_has_outside.clear()
+	delta_has_outside.resize(delta_list.size())
+	delta_has_outside.fill(false)
+	for fi in family_count:
+		var by_offset: Dictionary = _neighbors.get(family_ids[fi], {})
+		var mrow: Array = []; mrow.resize(delta_list.size())
+		var erow: Array = []; erow.resize(delta_list.size())
+		var brow: Array = []; brow.resize(delta_list.size())
+		for di in delta_list.size():
+			var pix: Vector2i = delta_pixel[di]
+			var nb: Dictionary = by_offset.get("%d,%d" % [pix.x, pix.y], {})
+			var m := PackedInt64Array()
+			m.resize(family_nwords)
+			var has_out := false
+			for nid: Variant in nb.keys():
+				if nid == OUTSIDE:
+					has_out = true
+					continue
+				var npi: int = _int_of.get(String(nid), -1)
+				if npi == -1:
+					continue   # defensive; build() filters disabled parts
+				var nfi := family_of_part[npi]
+				m[nfi >> 6] |= 1 << (nfi & 63)
+			mrow[di] = m
+			erow[di] = nb.is_empty()   # OUTSIDE-only evidence is NOT empty
+			brow[di] = has_out
+			if has_out:
+				delta_has_outside[di] = true
+		nb_mask[fi] = mrow; nb_empty[fi] = erow; border_ok[fi] = brow
+	# Bind the solver-facing aliases to the canonical arrays (same objects,
+	# not copies — see the declaration comment above).
+	f_nb_mask = nb_mask
+	f_nb_empty = nb_empty
+	f_border_ok = border_ok
+
+	_compile_family_tags()
+	
+
+
+func _behavior_key(pi: int) -> String:
+	## Canonical dump of one part's raw evidence behavior + tags. Equal keys
+	## ⟺ equal neighbor-ID SETS at every offset (weights ignored — they do
+	## not enter the masks) + equal tag sets, which is exactly the condition
+	## for equal post-rule solver rows. Deterministic: sorted offsets, sorted
+	## neighbor ids, sorted tags.
+	var a: Dictionary = _neighbors.get(part_ids[pi], {})
+	var keys: Array = a.keys()
+	keys.sort()
+	var sections := PackedStringArray()
+	for k: String in keys:
+		var ids: Array = (a[k] as Dictionary).keys()
+		ids.sort()
+		sections.append("%s=%s" % [k, ",".join(PackedStringArray(ids))])
+	var tags: Array = (authored_tags.get(part_ids[pi], []) as Array).duplicate()
+	tags.sort()
+	sections.append("tags=%s" % ",".join(PackedStringArray(tags)))
+	return "|".join(sections)
+
+
+func _compile_family_tags() -> void:
+	## Family-int tag masks, derived from the sparse part-int ones. Tag
+	## memberships are small, so per-bit iteration here is cheap.
+	_fam_tag_bits.clear()
+	if family_nwords == 0:
+		return
+	for tag: String in _tag_bits:
+		var pm: PackedInt64Array = _tag_bits[tag]
+		var m := PackedInt64Array()
+		m.resize(family_nwords)
+		for w in pm.size():
+			var v: int = pm[w]
+			while v != 0:
+				var low := v & -v
+				v ^= low
+				var pi := (w << 6) + TileCollapse._ctz(low)
+				var fi := family_of_part[pi]
+				m[fi >> 6] |= 1 << (fi & 63)
+		_fam_tag_bits[tag] = m
+
+
+func _fam_tag_mask(tag: String) -> PackedInt64Array:
+	return _fam_tag_bits.get(tag, PackedInt64Array())
+
+
+# --- rule compilation (family space) ---------------------------------------------
 
 func _compile_rules(step: Vector2i) -> void:
 	for rule: Dictionary in authored_rules:
@@ -190,19 +329,19 @@ func _compile_rules(step: Vector2i) -> void:
 						% String(rule.get("type", "")))
 
 
-## A rule arc from slot s can prune only if EVERY candidate in dom[s]
-## sources some rule at that delta. dom[s] & rule_src_not[di] != 0 proves
-## otherwise in O(nwords) — usually one word — replacing a full revise.
+## A rule arc from slot s can prune only if EVERY candidate family in dom[s]
+## sources some rule at that delta. dom[s] & f_rule_src_not[di] != 0 proves
+## otherwise in O(family words) — usually one word — replacing a full revise.
 func _build_rule_skip_tables() -> void:
-	rule_src_not.clear()
-	rule_src_not.resize(delta_list.size())
+	f_rule_src_not.clear()
+	f_rule_src_not.resize(delta_list.size())
 	for di in range(evidence_delta_count, delta_list.size()):
-		var src: PackedInt64Array = rule_src[di]
+		var src: PackedInt64Array = f_rule_src[di]
 		var inv := PackedInt64Array()
-		inv.resize(nwords)
-		for w in nwords:
+		inv.resize(family_nwords)
+		for w in family_nwords:
 			inv[w] = ~src[w]
-		rule_src_not[di] = inv
+		f_rule_src_not[di] = inv
 
 
 ## "No part of tag_a within distance (slot units) of a part of tag_b."
@@ -215,7 +354,7 @@ func _apply_exclusion(rule: Dictionary, step: Vector2i) -> void:
 	var metric := String(rule.get("metric", "chebyshev"))
 	if tag_a.is_empty() or tag_b.is_empty():
 		return
-	if not _tag_bits.has(tag_a) or not _tag_bits.has(tag_b):
+	if not _fam_tag_bits.has(tag_a) or not _fam_tag_bits.has(tag_b):
 		push_warning("ConstraintIndex: exclusion rule references unknown tag(s) '%s'/'%s'; inert."
 				% [tag_a, tag_b])
 		return
@@ -249,7 +388,7 @@ func _offsets_within(dist: int, metric: String) -> Array[Vector2i]:
 	return out
 
 
-## Append a rule-only delta column: every part starts fully allowed (no
+## Append a rule-only delta column: every family starts fully allowed (no
 ## evidence at this offset, but "unobserved" must not mean "free" for an
 ## authored rule), nb_empty=false, no OUTSIDE evidence.
 func _append_delta(o: Vector2i, pix: Vector2i) -> int:
@@ -258,46 +397,46 @@ func _append_delta(o: Vector2i, pix: Vector2i) -> int:
 	delta_pixel.append(pix)
 	_pixel_to_di[pix] = di
 	delta_has_outside.append(false)
-	var full := TileCollapse.mask_full(nwords, part_ids.size())
-	for pi in part_ids.size():
-		nb_mask[pi].append(full)   # COW-shared; exclusion writes copy lazily
-		nb_empty[pi].append(false)
-		border_ok[pi].append(false)
+	var full := TileCollapse.mask_full(family_nwords, family_count)
+	for fi in family_count:
+		nb_mask[fi].append(full)   # COW-shared; exclusion writes copy lazily
+		nb_empty[fi].append(false)
+		border_ok[fi].append(false)
 	var zero := PackedInt64Array()
-	zero.resize(nwords)
-	rule_src.append(zero)
+	zero.resize(family_nwords)
+	f_rule_src.append(zero)
 	return di
 
 
-## Remove every dst-tag bit from src-tag parts' neighbor masks at delta di.
-## If a src part had no evidence at this offset, start from the full mask —
-## otherwise unknown_free would silently void the exclusion.
+## Remove every dst-tag family bit from src-tag families' neighbor masks at
+## delta di. If a src family had no evidence at this offset, start from the
+## full mask — otherwise unknown_free would silently void the exclusion.
 func _exclude_at(di: int, src_tag: String, dst_tag: String) -> void:
-	var dst := tag_mask(dst_tag)
-	var src := tag_mask(src_tag)
+	var dst := _fam_tag_mask(dst_tag)
+	var src := _fam_tag_mask(src_tag)
 	if di >= evidence_delta_count:
-		var u: PackedInt64Array = rule_src[di]
+		var u: PackedInt64Array = f_rule_src[di]
 		for k in src.size():
 			u[k] = u[k] | src[k]
-		rule_src[di] = u                # COW write-back — required
+		f_rule_src[di] = u                # COW write-back — required
 	for w in src.size():
 		var v: int = src[w]
 		while v != 0:
 			var low := v & -v
 			v ^= low
-			var pi := (w << 6) + TileCollapse._ctz(low)
+			var fi := (w << 6) + TileCollapse._ctz(low)
 			var m: PackedInt64Array
-			if nb_empty[pi][di]:
-				m = TileCollapse.mask_full(nwords, part_ids.size())
+			if nb_empty[fi][di]:
+				m = TileCollapse.mask_full(family_nwords, family_count)
 			else:
-				m = (nb_mask[pi][di] as PackedInt64Array).duplicate()
+				m = (nb_mask[fi][di] as PackedInt64Array).duplicate()
 			for k in m.size():
 				m[k] = m[k] & ~dst[k]
-			nb_mask[pi][di] = m
-			nb_empty[pi][di] = false
+			nb_mask[fi][di] = m
+			nb_empty[fi][di] = false
 
 
-# --- evidence query layer (unchanged) -------------------------------------------
+# --- evidence query layer ---------------------------------------------------------
 
 func _add(a: String, offset: Vector2i, b: String, w: float) -> void:
 	if not _neighbors.has(a):
@@ -341,6 +480,15 @@ func int_of(part_id: String) -> int:
 	return _int_of.get(part_id, -1)
 
 
-func mask_neighbors(pi: int, pixel_off: Vector2i) -> PackedInt64Array:
+func f_mask_neighbors(fi: int, pixel_off: Vector2i) -> PackedInt64Array:
+	## Family-int neighbor mask at a pixel offset. Bits are FAMILY ints.
 	var di: int = _pixel_to_di.get(pixel_off, -1)
-	return PackedInt64Array() if di == -1 else nb_mask[pi][di]
+	return PackedInt64Array() if di == -1 else nb_mask[fi][di]
+
+
+func family_of_part_id(part_id: String) -> int:
+	## Family int for any member part id, or -1 if the part is not in the
+	## index (disabled or unknown). Pins and slot queries resolve through
+	## this, so any variant can be pinned, not just representatives.
+	var pi: int = _int_of.get(part_id, -1)
+	return -1 if pi < 0 else family_of_part[pi]

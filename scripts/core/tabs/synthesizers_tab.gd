@@ -260,8 +260,12 @@ func _on_run_pressed() -> void:
 
 
 func _synth_inputs(index: ConstraintIndex) -> Array:
-	return ["%d parts · %d offsets" % [index.get_part_ids().size(),
-			index.get_offsets().size()]]
+	var parts := index.get_part_ids().size()
+	var text := "%d parts · %d offsets" % [parts, index.get_offsets().size()]
+	if index.family_count > 0 and index.family_count < parts:
+		text = "%d parts → %d families · %d offsets" % [
+				parts, index.family_count, index.get_offsets().size()]
+	return [text]
 
 
 func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
@@ -678,7 +682,14 @@ class SlotPicker extends PopupPanel:
 	func _tile_button(id: String, index: ConstraintIndex) -> Button:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(72, 72)
-		b.tooltip_text = "%s\nweight: %.2f" % [id, index.get_weight(id)]
+		var fi := index.family_of_part_id(id)
+		var fsize := 0 if fi < 0 \
+				else (index.family_members[fi] as PackedInt32Array).size()
+		if fsize > 1:
+			b.tooltip_text = "%s\nfamily of %d · weight %.2f" % [
+					id, fsize, index.family_weights[fi]]
+		else:
+			b.tooltip_text = "%s\nweight: %.2f" % [id, index.get_weight(id)]
 		var img := index.get_part(id).pixel_data
 		if img.get_format() != Image.FORMAT_RGBA8:
 			img = img.duplicate()

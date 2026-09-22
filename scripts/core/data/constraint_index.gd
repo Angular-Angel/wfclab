@@ -141,6 +141,14 @@ func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
 		_pixel_to_di[d] = delta_pixel.size()
 		delta_pixel.append(Vector2i(d.x * step.x, d.y * step.y))
 	_build_families()
+	# Bind the solver-facing aliases to the canonical arrays (same objects,
+	# not copies). Deliberately HERE rather than inside _build_families: the
+	# tables are rebuilt in place across re-prepares, so one binding per
+	# full prepare suffices, and rewriting _build_families can no longer
+	# drop it.
+	f_nb_mask = nb_mask
+	f_nb_empty = nb_empty
+	f_border_ok = border_ok
 	evidence_delta_count = delta_list.size()
 	f_rule_src.resize(evidence_delta_count)   # evidence region stays null
 	_compile_rules(step)
@@ -183,25 +191,109 @@ func tag_mask(tag: String) -> PackedInt64Array:
 # --- family construction ---------------------------------------------------------
 
 func _build_families() -> void:
-	## 1) Group parts by canonical behavior key over the RAW neighbor dicts
-	##    (id sets per offset, OUTSIDE included, weights ignored) plus tags.
-	## 2) Build family aggregates.
-	## 3) Build family rows directly from each representative's raw dicts —
-	##    sparse per-entry iteration, no dense-mask bit scans.
+	## Iterative coarsening to a STABLE partition.
+	##
+	## Round 0: every part is its own family. Each round gives every part a
+	## signature — its tag set plus, per evidence offset, the sorted
+	## MULTISET of family ids of its allowed neighbors — and merges parts
+	## with identical signatures. Families never split, so the family count
+	## strictly decreases and the loop terminates; the fixpoint is stable:
+	## every member of every family shares the same family-level neighbor
+	## blocks at every offset.
+	##
+	## Soundness: build() adds both directions of every constraint, so
+	## _neighbors is symmetric-closed. Under symmetric closure, stability
+	## implies block-uniformity between families (complete-or-empty
+	## bipartite arcs): x∈F arcing to y∈G puts the reverse arc in y's
+	## outgoing set, stability copies it to every G member, and the reverse
+	## generation copies it back to every F member. Complete bipartite
+	## blocks are exactly what makes independent occurrence-weighted member
+	## picks (Session._pick_member) reproduce the part-level model exactly.
+	## The same closure rules out partial touches of a family, so multiset
+	## (not set) comparison in the signature is exact.
+	##
+	## Mutual pairs — A and B each appearing in the other's neighbor sets —
+	## are the canonical catch: their raw sets differ only by swapping
+	## A↔B, which the family-level view of round 2 erases.
 	var np := part_ids.size()
 	family_of_part = PackedInt32Array()
 	family_of_part.resize(np)
 	family_of_part.fill(-1)
-	var fam_rep := PackedInt32Array()   # family int -> representative part int
-	var by_key: Dictionary = {}         # behavior key -> family int
+
+	# Pre-extract evidence once as int structures: per part, per sorted
+	# offset key, the sorted neighbor part ints (OUTSIDE -> -1). Rounds
+	# then only touch ints and family assignments.
+	var per_part: Array = []          # pi -> Dictionary(offsetkey -> PackedInt32Array)
+	per_part.resize(np)
 	for pi in np:
-		var k := _behavior_key(pi)
-		var fam: int = by_key.get(k, -1)
-		if fam == -1:
-			fam = fam_rep.size()
+		var by_offset: Dictionary = _neighbors.get(part_ids[pi], {})
+		var keys: Array = by_offset.keys()
+		keys.sort()
+		var blocks: Dictionary = {}
+		for k: String in keys:
+			var src: Dictionary = by_offset[k]
+			var ids := PackedInt32Array()
+			ids.resize(src.size())
+			var w := 0
+			for nid: Variant in src.keys():
+				ids[w] = -1 if nid == OUTSIDE else _int_of.get(String(nid), -1)
+				w += 1
+			ids.sort()
+			blocks[k] = ids
+		per_part[pi] = blocks
+
+	# Sorted tags per part: parts with different tags never merge, keeping
+	# authored-rule behavior per-member exact.
+	var tags_of: Array = []
+	tags_of.resize(np)
+	for pi in np:
+		var t: Array = (authored_tags.get(part_ids[pi], []) as Array).duplicate()
+		t.sort()
+		tags_of[pi] = t
+
+	# --- coarsening rounds ---
+	var fam := PackedInt32Array()     # part int -> current family rep part int
+	fam.resize(np)
+	for pi in np:
+		fam[pi] = pi
+	while true:
+		var groups: Dictionary = {}   # signature -> first (lowest-index) member
+		var assign := PackedInt32Array()
+		assign.resize(np)
+		for pi in np:
+			var sig := _stability_signature(pi, fam, per_part, tags_of)
+			var lead: int = groups.get(sig, -1)
+			if lead == -1:
+				groups[sig] = pi
+				assign[pi] = pi
+			else:
+				assign[pi] = lead
+		var old_count := 0
+		var seen := {}
+		for pi in np:
+			if not seen.has(fam[pi]):
+				seen[fam[pi]] = true
+				old_count += 1
+		if groups.size() >= old_count:
+			break   # fixpoint: stable partition, sound by construction
+		fam = assign
+
+	# --- family aggregates (unchanged from here down) ---
+	var fam_rep := PackedInt32Array()
+	var rep_seen := {}
+	for pi in np:
+		if not rep_seen.has(fam[pi]):
+			rep_seen[fam[pi]] = true
 			fam_rep.append(pi)
-			by_key[k] = fam
-		family_of_part[pi] = fam
+	
+	# Remap coarsening labels (representative part ints) to dense family
+	# indices in first-occurrence order — family_of_part must be 0..count-1,
+	# everything downstream (weights, tag bits, neighbor masks) indexes by it.
+	var fam_index := {}
+	for fi in fam_rep.size():
+		fam_index[fam_rep[fi]] = fi
+	for pi in np:
+		family_of_part[pi] = fam_index[fam[pi]]
 
 	family_count = fam_rep.size()
 	family_nwords = (family_count + 63) >> 6
@@ -227,7 +319,8 @@ func _build_families() -> void:
 	family_members = member_lists
 
 	# Family rows from the representative's raw dicts. Members share the
-	# rep's behavior by construction, so the rep's rows are the family's.
+	# rep's behavior: stable partition ⟹ identical family-level blocks, and
+	# (by the closure argument above) identical raw partner sets.
 	nb_mask.clear(); nb_empty.clear(); border_ok.clear()
 	nb_mask.resize(family_count); nb_empty.resize(family_count)
 	border_ok.resize(family_count)
@@ -260,34 +353,35 @@ func _build_families() -> void:
 			if has_out:
 				delta_has_outside[di] = true
 		nb_mask[fi] = mrow; nb_empty[fi] = erow; border_ok[fi] = brow
-	# Bind the solver-facing aliases to the canonical arrays (same objects,
-	# not copies — see the declaration comment above).
-	f_nb_mask = nb_mask
-	f_nb_empty = nb_empty
-	f_border_ok = border_ok
 
 	_compile_family_tags()
-	
 
 
-func _behavior_key(pi: int) -> String:
-	## Canonical dump of one part's raw evidence behavior + tags. Equal keys
-	## ⟺ equal neighbor-ID SETS at every offset (weights ignored — they do
-	## not enter the masks) + equal tag sets, which is exactly the condition
-	## for equal post-rule solver rows. Deterministic: sorted offsets, sorted
-	## neighbor ids, sorted tags.
-	var a: Dictionary = _neighbors.get(part_ids[pi], {})
-	var keys: Array = a.keys()
-	keys.sort()
-	var sections := PackedStringArray()
-	for k: String in keys:
-		var ids: Array = (a[k] as Dictionary).keys()
-		ids.sort()
-		sections.append("%s=%s" % [k, ",".join(PackedStringArray(ids))])
-	var tags: Array = (authored_tags.get(part_ids[pi], []) as Array).duplicate()
-	tags.sort()
-	sections.append("tags=%s" % ",".join(PackedStringArray(tags)))
-	return "|".join(sections)
+func _stability_signature(pi: int, fam: PackedInt32Array, per_part: Array,
+		tags_of: Array) -> String:
+	## Tag set + per-offset sorted family-id MULTISETS, as one string.
+	## Multiset (with repeats) rather than set: two parts touching different
+	## counts of the same family must not merge; symmetric closure makes
+	## partial touches impossible for well-formed models, so equal
+	## multisets here ⟺ interchangeable behavior.
+	var parts := PackedStringArray()
+	for t: Variant in tags_of[pi]:
+		parts.append(str(t))
+	var blocks: Dictionary = per_part[pi]
+	for k: String in blocks.keys():   # keys were sorted at extraction
+		var ids: PackedInt32Array = blocks[k]
+		var fams := PackedInt32Array()
+		fams.resize(ids.size())
+		for i in ids.size():
+			fams[i] = -1 if ids[i] < 0 else fam[ids[i]]
+		fams.sort()
+		var enc := PackedStringArray()
+		enc.append(k)
+		enc.append(str(fams.size()))
+		for f in fams:
+			enc.append(str(f))
+		parts.append("|".join(enc))
+	return "§".join(parts)
 
 
 func _compile_family_tags() -> void:

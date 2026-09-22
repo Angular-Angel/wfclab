@@ -3,41 +3,44 @@ class_name PixelOverlap extends ConstraintTechnique
 ## strips match within tolerance. Comparative only — no occurrence data —
 ## so pairs never seen together in the sources may still be declared legal.
 ##
-## Relaxations (both default 0 = strict):
-##   allowed_omissions — pass when at most this many pixels of the facing
-##     strip have no satisfying counterpart.
-##   flex — a pixel may be satisfied by a counterpart displaced up to this
-##     many pixels along the seam (above/below for horizontal adjacency),
-##     same depth index, within tolerance.
+## Relaxations (all default 0 = strict):
+##   allowed_omissions — pass when at most this many pixels of EACH facing
+##     strip have no satisfying counterpart (two-sided: per direction).
+##   flex — global positional flex: a pixel may be satisfied by a
+##     counterpart displaced up to this many pixels along the seam.
+##   per-class flex (terrain key) — a classed pixel's flex comes from its
+##     class's "flex" field, overriding the global value for that pixel;
+##     unclassed pixels use the global flex. Flex loosens POSITION only:
+##     cross-class color identity is still enforced by tolerance.
 ##
-## Terrain key: when AppData's terrain key defines enabled classes, strips
-## are classified through TerrainMapper before extraction — a pixel
-## matching a class compares as that class's representative color, so
-## different colors of the same terrain are interchangeable. `tolerance`
-## then only meaningfully applies to unclassed pixels (and to distances
-## between representatives — keep them well apart). Classification is
-## deterministic, so the rigid exact fast path in _match still applies.
+## Two-sided matching: a pair is legal only when every pixel of EACH side
+## finds a counterpart on the other (a-pixels budgeted by a-side flex,
+## b-pixels by b-side flex). With zero total flex capability this reduces
+## exactly to the old one-sided aligned comparison, so strict models are
+## unchanged.
+##
+## Acceleration: a relation whose two strips contain NO flex-capable pixel
+## is deterministic-aligned — byte equality (tolerance 0, omissions 0) via
+## the hash join, else the aligned counter + byte-sum window prune. Loose
+## relations use distinct-strip grouping + the two-way matcher (the sum
+## prune does not hold there: flex can reuse one counterpart twice).
+## Terrain key: strips are classified through TerrainMapper before
+## extraction; classification and byte rewrite share one pass.
 func get_id() -> StringName:
 	return &"pixel_overlap"
-
-
 func get_display_name() -> String:
 	return "Pixel Overlap"
-
-
 func get_parameter_specs() -> Array[Dictionary]:
 	return [
-		{"key": "overlap_layers", "label": "Overlap Layers", "type": "int",
-		"default": 2, "min": 1, "max": 64},
-		{"key": "tolerance", "label": "Tolerance", "type": "int",
-		"default": 0, "min": 0, "max": 256},
-		{"key": "allowed_omissions", "label": "Allowed Omissions",
-		"type": "int", "default": 0, "min": 0, "max": 256},
-		{"key": "flex", "label": "Flex", "type": "int",
-		"default": 0, "min": 0, "max": 64},
+	{"key": "overlap_layers", "label": "Overlap Layers", "type": "int",
+	"default": 2, "min": 1, "max": 64},
+	{"key": "tolerance", "label": "Tolerance", "type": "int",
+	"default": 0, "min": 0, "max": 256},
+	{"key": "allowed_omissions", "label": "Allowed Omissions",
+	"type": "int", "default": 0, "min": 0, "max": 256},
+	{"key": "flex", "label": "Flex", "type": "int",
+	"default": 0, "min": 0, "max": 64},
 	]
-
-
 func extract(parts: Array[Part], images: Array[ImageAssetData],
 		params: Dictionary, report_progress: Callable) -> Array[Constraint]:
 	var result: Array[Constraint] = []
@@ -48,14 +51,20 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 	var omissions := maxi(0, int(params.get("allowed_omissions", 0)))
 	var flex := maxi(0, int(params.get("flex", 0)))
 	var groups: Array = AppData.active_terrain_classes()
+	var decoded: Array = TerrainMapper.prepare(groups)
+	var class_flex := PackedInt32Array()
+	class_flex.resize(decoded.size())
+	for ci in decoded.size():
+		class_flex[ci] = int(decoded[ci]["flex"])
 	var ordered: Array[Part] = []
 	ordered.assign(parts)
 	ordered.sort_custom(func(a: Part, b: Part) -> bool: return a.id < b.id)
 
 	# Strips indexed FROM THE SEAM: u = 0 touches the neighbor, u = depth-1
-	# is deepest. v runs along the seam. Pixel (u, v) = bytes at
-	# (v * depth + u) * 4. Both sides of a pair therefore align seam-to-seam.
-	var strips: Dictionary = {}   # part_id -> {side: PackedByteArray}
+	# is deepest. v runs along the seam. Byte (u, v) at (v*depth+u)*4; the
+	# class strip records each pixel's decoded-class id (-1 unclassed), in
+	# the same order.
+	var strips: Dictionary = {}   # part_id -> per-side bytes/cls/loose
 	# --- strip extraction: O(parts) image work; fixed 20% slice ------------
 	var strips_share := 0.2
 	var total := maxi(ordered.size(), 1)
@@ -66,8 +75,20 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 			if img.is_compressed():
 				img.decompress()
 			img.convert(Image.FORMAT_RGBA8)
-			if not groups.is_empty():
-				TerrainMapper.apply(img, groups)   # disposable copy; in place
+			var cls_map := PackedInt32Array()
+			if not decoded.is_empty():
+				cls_map = TerrainMapper.apply_mapped(img, decoded)
+			var w := img.get_width()
+			var rc := _strip_classes(cls_map, w, depth,
+					Vector2i(p.size.x - 1, 0), Vector2i(0, 1),
+					Vector2i(-1, 0), p.size.y)
+			var lc := _strip_classes(cls_map, w, depth,
+					Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 0), p.size.y)
+			var bc := _strip_classes(cls_map, w, depth,
+					Vector2i(0, p.size.y - 1), Vector2i(1, 0),
+					Vector2i(0, -1), p.size.x)
+			var tc := _strip_classes(cls_map, w, depth,
+					Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), p.size.x)
 			strips[p.id] = {
 				"right": _strip(img, depth, Vector2i(p.size.x - 1, 0),
 					Vector2i(0, 1), Vector2i(-1, 0), p.size.y),
@@ -77,58 +98,27 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 					Vector2i(1, 0), Vector2i(0, -1), p.size.x),
 				"top": _strip(img, depth, Vector2i(0, 0),
 					Vector2i(1, 0), Vector2i(0, 1), p.size.x),
+				"right_cls": rc, "left_cls": lc,
+				"bottom_cls": bc, "top_cls": tc,
+				"right_loose": _strip_loose(rc, class_flex, flex),
+				"left_loose": _strip_loose(lc, class_flex, flex),
+				"bottom_loose": _strip_loose(bc, class_flex, flex),
+				"top_loose": _strip_loose(tc, class_flex, flex),
 			}
 		done += 1
 		report_progress.call(strips_share * float(done) / float(total))
 
 	var aggregate: Dictionary = {}
 	var match_span := 1.0 - strips_share
-	if tolerance == 0 and flex == 0 and omissions == 0:
-		# --- strict path: hash join (byte equality => bucket lookup) --------
-		var left_buckets: Dictionary = {}   # key -> Array[Part]
-		var top_buckets: Dictionary = {}
-		for b: Part in ordered:
-			var sb: Dictionary = strips.get(b.id, {})
-			if sb.is_empty():
-				continue
-			var lk := _bucket_key(b.size, sb["left"])
-			if not left_buckets.has(lk):
-				left_buckets[lk] = []
-			(left_buckets[lk] as Array).append(b)
-			var tk := _bucket_key(b.size, sb["top"])
-			if not top_buckets.has(tk):
-				top_buckets[tk] = []
-			(top_buckets[tk] as Array).append(b)
-		var n := ordered.size()
-		for i in n:
-			if i % 64 == 63 or i == n - 1:
-				report_progress.call(strips_share
-						+ match_span * float(i + 1) / float(maxi(n, 1)))
-			var a: Part = ordered[i]
-			var sa: Dictionary = strips.get(a.id, {})
-			if sa.is_empty():
-				continue
-			var right: PackedByteArray = sa["right"]
-			for b: Part in left_buckets.get(_bucket_key(a.size, right), []):
-				if right == (strips[b.id]["left"] as PackedByteArray):
-					_record(aggregate, a, b, Vector2i(a.size.x, 0))
-			var bottom: PackedByteArray = sa["bottom"]
-			for b: Part in top_buckets.get(_bucket_key(a.size, bottom), []):
-				if bottom == (strips[b.id]["top"] as PackedByteArray):
-					_record(aggregate, a, b, Vector2i(0, a.size.y))
-	else:
-		# --- fuzzy path: distinct-strip matching with sum-window pruning ----
-		# Each relation gets half the remaining progress slice.
-		var half := match_span * 0.5
-		_match_sides(aggregate, strips, ordered, "right", "left", true,
-				depth, tolerance, omissions, flex,
-				strips_share, half, report_progress)
-		_match_sides(aggregate, strips, ordered, "bottom", "top", false,
-				depth, tolerance, omissions, flex,
-				strips_share + half, half, report_progress)
+	var half := match_span * 0.5
+	_match_sides(aggregate, strips, ordered, "right", "left", true,
+			depth, tolerance, omissions, flex, class_flex,
+			strips_share, half, report_progress)
+	_match_sides(aggregate, strips, ordered, "bottom", "top", false,
+			depth, tolerance, omissions, flex, class_flex,
+			strips_share + half, half, report_progress)
 
-	# Deterministic output without a per-object comparator: sorting the key
-	# strings natively is far cheaper than sort_custom over Constraint objects.
+	# Deterministic output via native key-string sort.
 	var keys: Array = aggregate.keys()
 	keys.sort()
 	var list: Array = []
@@ -139,53 +129,52 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 	return result
 
 
+# --- matching ---------------------------------------------------------------------
+
 func _match_sides(aggregate: Dictionary, strips: Dictionary,
 		ordered: Array[Part], a_side: String, b_side: String,
 		horizontal: bool, depth: int, tolerance: int, omissions: int,
-		flex: int, base: float, span: float, report_progress: Callable) -> void:
-	## One fuzzy relation (e.g. a.right ~ b.left) over DISTINCT strip groups.
-	## Parts sharing a byte-identical strip match identically against any
-	## candidate, so they are matched once per group and the hit expands to
-	## every part pair. With flex == 0, candidate groups are pre-pruned by a
-	## provable byte-sum bound; with flex > 0 the bound does not hold and all
-	## same-size groups are compared.
-	# 1) Group parts by (size, strip bytes). hex_encode() keys are exact, so
-	#    there is no collision handling at all.
+		global_flex: int, class_flex: PackedInt32Array,
+		base: float, span: float, report_progress: Callable) -> void:
+	## One relation (a.side ~ b.side) over DISTINCT strip groups. See the
+	## candidate-selection summary in the class comment.
+	# 1) distinct groups keyed by (size, bytes, class ids)
 	var a_groups: Dictionary = {}
 	var b_groups: Dictionary = {}
 	for p: Part in ordered:
 		var s: Dictionary = strips.get(p.id, {})
 		if s.is_empty():
 			continue
-		_group_strip(a_groups, p, s[a_side])
-		_group_strip(b_groups, p, s[b_side])
+		_group_strip(a_groups, p, s[a_side], s[a_side + "_cls"],
+				s[a_side + "_loose"])
+		_group_strip(b_groups, p, s[b_side], s[b_side + "_cls"],
+				s[b_side + "_loose"])
 
-	# 2) Bucket b groups by tile size (preserves the uniform-grid size guard);
-	#    when pruning, sort each bucket by byte-sum for window queries.
-	var by_size: Dictionary = {}   # "w,h" -> {groups: Array, sums: Array}
+	# 2) per-size b index: strict groups (bucketed / sum-sorted) + loose
+	var use_bucket := tolerance == 0 and omissions == 0
+	var by_size: Dictionary = {}
 	for key: String in b_groups:
 		var g: Dictionary = b_groups[key]
-		var sk := "%d,%d" % [(g["size"] as Vector2i).x, (g["size"] as Vector2i).y]
-		if not by_size.has(sk):
-			by_size[sk] = {"groups": [], "sums": []}
-		((by_size[sk] as Dictionary)["groups"] as Array).append(g)
-	var prune := flex == 0
-	if prune:
-		for sk: String in by_size:
-			var entry: Dictionary = by_size[sk]
-			var gs: Array = entry["groups"]
-			# Tie-break on key so equal sums stay deterministic.
-			gs.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
-				if int(x["sum"]) != int(y["sum"]):
-					return int(x["sum"]) < int(y["sum"])
-				return String(x["key"]) < String(y["key"]))
-			var sums: Array = []
-			sums.resize(gs.size())
-			for i in gs.size():
-				sums[i] = int((gs[i] as Dictionary)["sum"])
-			entry["sums"] = sums
+		var sz: Vector2i = g["size"]
+		var sk := "%d,%d" % [sz.x, sz.y]
+		var entry: Dictionary = by_size.get(sk, {})
+		if entry.is_empty():
+			entry = {"strict": [], "loose": [], "sorted": false,
+					"sums": [], "bucket": {}}
+			by_size[sk] = entry
+		if bool(g["loose"]):
+			(entry["loose"] as Array).append(g)
+		else:
+			(entry["strict"] as Array).append(g)
+			if use_bucket:
+				var bk: String = (g["bytes"] as PackedByteArray).hex_encode()
+				var bucket: Dictionary = entry["bucket"]
+				if not bucket.has(bk):
+					bucket[bk] = []
+				for pb: Part in (g["parts"] as Array):
+					(bucket[bk] as Array).append(pb)
 
-	# 3) Match each distinct a group against its candidate b groups.
+	# 3) match each distinct a group against its candidates
 	var a_keys: Array = a_groups.keys()
 	a_keys.sort()
 	var processed := 0
@@ -195,43 +184,69 @@ func _match_sides(aggregate: Dictionary, strips: Dictionary,
 		var sk := "%d,%d" % [size.x, size.y]
 		var entry: Dictionary = by_size.get(sk, {})
 		if not entry.is_empty():
-			var cands: Array = entry["groups"]
-			if prune:
-				cands = _window(entry["sums"], cands, int(ga["sum"]),
-						_sum_window(size, depth, tolerance, omissions,
-						horizontal))
-			var offset := Vector2i(size.x, 0) if horizontal \
-					else Vector2i(0, size.y)
-			var span_px := size.y if horizontal else size.x
 			var a_bytes: PackedByteArray = ga["bytes"]
 			var a_parts: Array = ga["parts"]
-			for gb: Dictionary in cands:
-				var hit := false
-				if prune:
-					hit = _match_aligned(a_bytes, gb["bytes"], tolerance,
-							omissions)
-				else:
-					hit = _match(a_bytes, gb["bytes"], depth, span_px,
-							tolerance, flex, omissions)
-				if hit:
+			var seam := size.y if horizontal else size.x
+			var a_loose := bool(ga["loose"])
+			if not a_loose and use_bucket:
+				# strict a: byte equality against all strict b (hex keys are
+				# exact, no re-verification needed)...
+				var hit: Array = (entry["bucket"] as Dictionary).get(
+						(a_bytes as PackedByteArray).hex_encode(), [])
+				for pb: Part in hit:
 					for pa: Part in a_parts:
-						for pb: Part in gb["parts"]:
-							_record(aggregate, pa, pb, offset)
+						_record(aggregate, pa, pb, Vector2i(size.x, 0)
+								if horizontal else Vector2i(0, size.y))
+			elif not a_loose:
+				# strict a, tolerant/omitting: window prune + aligned counter
+				var strict_list: Array = entry["strict"]
+				if not strict_list.is_empty():
+					if not bool(entry["sorted"]):
+						strict_list.sort_custom(
+								func(x: Dictionary, y: Dictionary) -> bool:
+							if int(x["sum"]) != int(y["sum"]):
+								return int(x["sum"]) < int(y["sum"])
+							return String(x["key"]) < String(y["key"]))
+						var sums: Array = []
+						sums.resize(strict_list.size())
+						for i in strict_list.size():
+							sums[i] = int((strict_list[i] as Dictionary)["sum"])
+						entry["sums"] = sums
+						entry["sorted"] = true
+					var window := _sum_window(size, depth, tolerance,
+							omissions, horizontal)
+					for gb: Dictionary in _window(entry["sums"], strict_list,
+							int(ga["sum"]), window):
+						if _match_aligned(a_bytes, gb["bytes"],
+								tolerance, omissions):
+							_record_pairs(aggregate, a_parts, gb["parts"],
+									size, horizontal)
+			else:
+				# loose a: two-way matcher against every same-size b group
+				for gb: Dictionary in entry["strict"]:
+					if _match_two_way(a_bytes, ga["cls"], gb["bytes"],
+							gb["cls"], depth, seam, tolerance, class_flex,
+							global_flex, omissions):
+						_record_pairs(aggregate, a_parts, gb["parts"],
+								size, horizontal)
+				for gb: Dictionary in entry["loose"]:
+					if _match_two_way(a_bytes, ga["cls"], gb["bytes"],
+							gb["cls"], depth, seam, tolerance, class_flex,
+							global_flex, omissions):
+						_record_pairs(aggregate, a_parts, gb["parts"],
+								size, horizontal)
+			if not a_loose:
+				# ...and the loose b groups, which byte equality cannot
+				# cover (a loose match need not be byte-equal).
+				for gb: Dictionary in entry["loose"]:
+					if _match_two_way(a_bytes, ga["cls"], gb["bytes"],
+							gb["cls"], depth, seam, tolerance, class_flex,
+							global_flex, omissions):
+						_record_pairs(aggregate, a_parts, gb["parts"],
+								size, horizontal)
 		processed += 1
 		report_progress.call(base + span * float(processed)
 				/ float(maxi(a_keys.size(), 1)))
-
-
-func _group_strip(groups: Dictionary, p: Part, strip: PackedByteArray) -> void:
-	var key := "%d,%d|%s" % [p.size.x, p.size.y, strip.hex_encode()]
-	if groups.has(key):
-		((groups[key] as Dictionary)["parts"] as Array).append(p)
-		return
-	var sum := 0
-	for b in strip:
-		sum += b
-	groups[key] = {"key": key, "size": p.size, "bytes": strip,
-			"sum": sum, "parts": [p]}
 
 
 func _window(sums: Array, groups: Array, target: int, window: int) -> Array:
@@ -301,6 +316,7 @@ func _strip(img: Image, depth: int, start: Vector2i, along: Vector2i,
 			k += 4
 	return out
 
+
 func _match(sa: PackedByteArray, sb: PackedByteArray, depth: int, span: int,
 		tolerance: int, flex: int, omissions: int) -> bool:
 	## True when at most `omissions` pixels of `sa` lack a satisfying
@@ -317,6 +333,7 @@ func _match(sa: PackedByteArray, sb: PackedByteArray, depth: int, span: int,
 				return false
 	return true
 
+
 func _satisfied(sa: PackedByteArray, sb: PackedByteArray, u: int, v: int,
 		depth: int, span: int, tolerance: int, flex: int) -> bool:
 	var ao := (v * depth + u) * 4
@@ -331,6 +348,7 @@ func _satisfied(sa: PackedByteArray, sb: PackedByteArray, u: int, v: int,
 				and absi(sa[ao + 3] - sb[bo + 3]) <= tolerance:
 			return true
 	return false
+
 
 func _record(aggregate: Dictionary, a: Part, b: Part, offset: Vector2i) -> void:
 	var key := "ov|%s>%s|%d,%d" % [a.id, b.id, offset.x, offset.y]
@@ -347,3 +365,132 @@ func _record(aggregate: Dictionary, a: Part, b: Part, offset: Vector2i) -> void:
 		a.id.substr(2, 6), b.id.substr(2, 6), offset.x, offset.y]
 	c.evidence.append({"image_id": "overlap", "positions": []})  # weight = 1
 	aggregate[key] = c
+
+
+func _record_pairs(aggregate: Dictionary, a_parts: Array, b_parts: Array,
+		size: Vector2i, horizontal: bool) -> void:
+	var offset := Vector2i(size.x, 0) if horizontal else Vector2i(0, size.y)
+	for pa: Part in a_parts:
+		for pb: Part in b_parts:
+			_record(aggregate, pa, pb, offset)
+
+
+func _strip_classes(cls_map: PackedInt32Array, img_w: int, depth: int,
+		start: Vector2i, along: Vector2i, inward: Vector2i,
+		span: int) -> PackedInt32Array:
+	## Class id per strip pixel, identical iteration order to _strip().
+	## Empty class map (no terrain key) yields an empty array, which the
+	## matcher treats as "every pixel unclassed".
+	if cls_map.is_empty():
+		return PackedInt32Array()
+	var out := PackedInt32Array()
+	out.resize(depth * span)
+	var k := 0
+	for s in span:
+		var base := start + along * s
+		for u in depth:
+			var p := base + inward * u
+			out[k] = cls_map[p.y * img_w + p.x]
+			k += 1
+	return out
+
+
+func _strip_loose(cls_arr: PackedInt32Array, class_flex: PackedInt32Array,
+		global_flex: int) -> bool:
+	## True when any pixel of the strip can use flex > 0.
+	if global_flex > 0:
+		return true
+	if cls_arr.is_empty():
+		return false
+	for c in cls_arr:
+		if c >= 0 and class_flex[c] > 0:
+			return true
+	return false
+
+
+func _group_strip(groups: Dictionary, p: Part, strip: PackedByteArray,
+		cls: PackedInt32Array, loose: bool) -> void:
+	## Distinct-strip groups: identical bytes AND identical class ids share
+	# a group (byte-equal strips with different classifications are kept
+	# apart so the matcher's flex decisions stay group-uniform).
+	var cls_key := ""
+	if not cls.is_empty():
+		var sa := PackedStringArray()
+		for c in cls:
+			sa.append(str(c))
+		cls_key = ",".join(sa)
+	var key := "%d,%d|%s|%s" % [p.size.x, p.size.y, strip.hex_encode(), cls_key]
+	if groups.has(key):
+		((groups[key] as Dictionary)["parts"] as Array).append(p)
+		return
+	var sum := 0
+	for b in strip:
+		sum += b
+	groups[key] = {"key": key, "size": p.size, "bytes": strip, "cls": cls,
+			"loose": loose, "sum": sum, "parts": [p]}
+
+
+func _match_two_way(sa: PackedByteArray, ca: PackedInt32Array,
+		sb: PackedByteArray, cb: PackedInt32Array, depth: int, span: int,
+		tolerance: int, class_flex: PackedInt32Array, global_flex: int,
+		omissions: int) -> bool:
+	## Two-sided matcher: each direction gets its own omissions budget.
+	## A counterpart may be reused within a direction (no consumption), so
+	## the byte-sum prune is invalid here — by design, this path never uses
+	## it.
+	return _one_way(sa, ca, sb, cb, depth, span, tolerance, class_flex,
+			global_flex, omissions) \
+			and _one_way(sb, cb, sa, ca, depth, span, tolerance, class_flex,
+			global_flex, omissions)
+
+
+func _one_way(sa: PackedByteArray, ca: PackedInt32Array,
+		sb: PackedByteArray, cb: PackedInt32Array, depth: int, span: int,
+		tolerance: int, class_flex: PackedInt32Array, global_flex: int,
+		omissions: int) -> bool:
+	var failures := 0
+	for v in span:
+		for u in depth:
+			var k := v * depth + u
+			var f := global_flex
+			if not ca.is_empty():
+				var c := ca[k]
+				if c >= 0:
+					f = class_flex[c]
+			var ao := k * 4
+			var ok := false
+			if f == 0:
+				ok = _px_match(sa, ao, sb, ao, tolerance)
+			else:
+				# dv = 0 first, then ±1, ±2...: identical-byte neighbors
+				# (the common case) resolve on the first compare.
+				if _px_match(sa, ao, sb, ao, tolerance):
+					ok = true
+				else:
+					for d in range(1, f + 1):
+						var vv := v + d
+						if vv < span and _px_match(sa, ao, sb,
+								(vv * depth + u) * 4, tolerance):
+							ok = true
+							break
+						vv = v - d
+						if vv >= 0 and _px_match(sa, ao, sb,
+								(vv * depth + u) * 4, tolerance):
+							ok = true
+							break
+			if not ok:
+				failures += 1
+				if failures > omissions:
+					return false
+	return true
+
+
+func _px_match(sa: PackedByteArray, ao: int, sb: PackedByteArray, bo: int,
+		tolerance: int) -> bool:
+	if tolerance == 0:
+		return sa[ao] == sb[bo] and sa[ao + 1] == sb[bo + 1] \
+				and sa[ao + 2] == sb[bo + 2] and sa[ao + 3] == sb[bo + 3]
+	return absi(sa[ao] - sb[bo]) <= tolerance \
+			and absi(sa[ao + 1] - sb[bo + 1]) <= tolerance \
+			and absi(sa[ao + 2] - sb[bo + 2]) <= tolerance \
+			and absi(sa[ao + 3] - sb[bo + 3]) <= tolerance

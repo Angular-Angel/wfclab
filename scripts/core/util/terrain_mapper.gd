@@ -11,40 +11,20 @@ class_name TerrainMapper extends RefCounted
 ## RGB; colors arrive as hex strings ("rrggbb" or "#rrggbb") because rule
 ## dictionaries are JSON-persisted; a class with no valid colors is inert.
 ##
+## Per-class "flex" (positional slack along the seam, consumed by
+## PixelOverlap) rides on the class dictionary: 0 = strict. apply_mapped()
+## records each pixel's class id in the SAME pass as the rewrite, so a
+## consumer's per-pixel classification can never diverge from the bytes it
+## compares.
+##
 ## Callers must pass a disposable copy (PixelOverlap duplicates before
 ## converting). Keep representative colors well separated from each other:
 ## with strip tolerance > 0, two classes whose representatives are close can
 ## still cross-match.
 
-static func apply(img: Image, classes: Array) -> void:
-    if img == null or classes.is_empty():
-        return
-    if img.get_format() != Image.FORMAT_RGBA8:
-        img.convert(Image.FORMAT_RGBA8)
-    var decoded := _decode_classes(classes)
-    if decoded.is_empty():
-        return
-    var w := img.get_width()
-    var h := img.get_height()
-    var data := img.get_data()   # copy; written back once below
-    data.resize(w * h * 4)       # drop any mipmap tail; comparison copy only
-    for i in range(0, data.size(), 4):
-        if data[i + 3] == 0:
-            continue   # transparent: never reclassified (see class comment)
-        var r: int = data[i]
-        var g: int = data[i + 1]
-        var b: int = data[i + 2]
-        for c: Dictionary in decoded:
-            if _matches(r, g, b, c):
-                var rep: PackedInt32Array = c["rep"]
-                data[i] = rep[0]
-                data[i + 1] = rep[1]
-                data[i + 2] = rep[2]
-                break
-    img.set_data(w, h, false, Image.FORMAT_RGBA8, data)
-
-## classes: [{name: String, colors: Array[String], tolerance: int}]
-static func _decode_classes(classes: Array) -> Array:
+## Decoded, ordered class list. The returned array's indices ARE the class
+## ids recorded by apply_mapped(): index 0..n-1, -1 = unclassed/transparent.
+static func prepare(classes: Array) -> Array:
     var out: Array = []
     for c: Variant in classes:
         if not (c is Dictionary):
@@ -59,7 +39,50 @@ static func _decode_classes(classes: Array) -> Array:
             "colors": colors,
             "tolerance": clampi(int((c as Dictionary).get("tolerance", 0)),
                 0, 255),
+            "flex": clampi(int((c as Dictionary).get("flex", 0)), 0, 64),
         })
+    return out
+
+## Backward-compatible wrapper: rewrite only, no class map returned.
+static func apply(img: Image, classes: Array) -> void:
+    if img == null:
+        return
+    var decoded := prepare(classes)
+    if decoded.is_empty():
+        return
+    apply_mapped(img, decoded)
+
+## Rewrites in place (apply() semantics) and returns a w*h class-id array:
+## decoded-list index for classed pixels, -1 for unclassed and fully
+## transparent ones. Classification and rewrite share one pass and one
+## first-match decision.
+static func apply_mapped(img: Image, decoded: Array) -> PackedInt32Array:
+    var out := PackedInt32Array()
+    if img == null or decoded.is_empty():
+        return out
+    if img.get_format() != Image.FORMAT_RGBA8:
+        img.convert(Image.FORMAT_RGBA8)
+    var w := img.get_width()
+    var h := img.get_height()
+    var data := img.get_data()   # copy; written back once below
+    data.resize(w * h * 4)       # drop any mipmap tail; comparison copy only
+    out.resize(w * h)
+    out.fill(-1)
+    for i in range(0, data.size(), 4):
+        if data[i + 3] == 0:
+            continue   # transparent: never reclassified (see class comment)
+        var r: int = data[i]
+        var g: int = data[i + 1]
+        var b: int = data[i + 2]
+        for ci in decoded.size():
+            if _matches(r, g, b, decoded[ci]):
+                var rep: PackedInt32Array = decoded[ci]["rep"]
+                data[i] = rep[0]
+                data[i + 1] = rep[1]
+                data[i + 2] = rep[2]
+                out[i >> 2] = ci
+                break
+    img.set_data(w, h, false, Image.FORMAT_RGBA8, data)
     return out
 
 static func _decode_hex(hex_colors: Array) -> Array[PackedInt32Array]:

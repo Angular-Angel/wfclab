@@ -50,18 +50,25 @@ func _to_hex(c: Color) -> String:
 func _from_hex(s: String) -> Color:
 	var t := s if s.begins_with("#") else "#" + s
 	return Color(t) if Color.html_is_valid(t) else Color.WHITE
+
+
 # --- Refresh -----------------------------------------------------------------
+
 func _refresh() -> void:
 	_draft = AppData.get_terrain_key().duplicate(true)
 	_rebuild_editor()
 	_update_status()
+
 func _update_status() -> void:
 	var active := 0
 	for cls: Variant in _draft:
 		if cls is Dictionary and bool((cls as Dictionary).get("enabled", true)):
 			active += 1
 	_status.text = "%d class(es), %d active" % [_draft.size(), active]
+
+
 # --- Editor ----------------------------------------------------------------------
+
 func _rebuild_editor() -> void:
 	for child in _editor_box.get_children():
 		child.queue_free()
@@ -104,11 +111,15 @@ func _rebuild_editor() -> void:
 		+ "Min % of their non-transparent pixels fall within the class.")
 	_editor_box.add_child(note)
 	_update_status()
+
+
 func _rebuild_classes() -> void:
 	for child in _classes_box.get_children():
 		child.queue_free()
 	for ci in _draft.size():
 		_classes_box.add_child(_build_class_editor(ci, _draft[ci]))
+
+		
 func _build_class_editor(ci: int, cls: Dictionary) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	var head := HBoxContainer.new()
@@ -131,6 +142,16 @@ func _build_class_editor(ci: int, cls: Dictionary) -> VBoxContainer:
 	tol.value = int(cls.get("tolerance", 0))
 	tol.value_changed.connect(_on_class_tolerance_changed.bind(ci))
 	head.add_child(tol)
+	head.add_child(_mk_label("Flex"))
+	var flex := SpinBox.new()
+	flex.min_value = 0
+	flex.max_value = 64
+	flex.value = int(cls.get("flex", 0))
+	flex.tooltip_text = "Pixel Overlap: a class pixel may be satisfied by a " \
+		+ "counterpart up to this many pixels off along the seam. " \
+		+ "0 = strict 1:1 alignment."
+	flex.value_changed.connect(_on_class_flex_changed.bind(ci))
+	head.add_child(flex)
 	var del_class := Button.new()
 	del_class.text = "− class"
 	del_class.pressed.connect(_on_remove_class_pressed.bind(ci))
@@ -175,28 +196,48 @@ func _build_class_editor(ci: int, cls: Dictionary) -> VBoxContainer:
 	minf.value_changed.connect(_on_class_min_fraction_changed.bind(ci))
 	tag_row.add_child(minf)
 	return box
+
+
+func _on_class_flex_changed(value: float, ci: int) -> void:
+	if ci < _draft.size():
+		(_draft[ci] as Dictionary)["flex"] = int(value)
+
+
 # --- Draft mutators (no AppData traffic until Save) ----------------------------
+
 func _on_class_enabled_toggled(on: bool, ci: int) -> void:
 	if ci < _draft.size():
 		(_draft[ci] as Dictionary)["enabled"] = on
+
+
 func _on_class_name_changed(text: String, ci: int) -> void:
 	if ci < _draft.size():
 		(_draft[ci] as Dictionary)["name"] = text
+
+
 func _on_class_tolerance_changed(value: float, ci: int) -> void:
 	if ci < _draft.size():
 		(_draft[ci] as Dictionary)["tolerance"] = int(value)
+
+
 func _on_class_color_changed(color: Color, ci: int, j: int) -> void:
 	if ci >= _draft.size():
 		return
 	var colors: Array = (_draft[ci] as Dictionary).get("colors", [])
 	if j < colors.size():
 		colors[j] = _to_hex(color)
+
+
 func _on_class_tag_changed(text: String, ci: int) -> void:
 	if ci < _draft.size():
 		(_draft[ci] as Dictionary)["tag"] = text
+
+
 func _on_class_min_fraction_changed(value: float, ci: int) -> void:
 	if ci < _draft.size():
 		(_draft[ci] as Dictionary)["min_fraction"] = value / 100.0
+
+
 func _on_add_color_pressed(ci: int) -> void:
 	if ci >= _draft.size():
 		return
@@ -207,6 +248,8 @@ func _on_add_color_pressed(ci: int) -> void:
 	colors.append("#ffffff")
 	cls["colors"] = colors
 	_rebuild_classes()
+
+
 func _on_remove_color_pressed(ci: int) -> void:
 	if ci >= _draft.size():
 		return
@@ -216,17 +259,25 @@ func _on_remove_color_pressed(ci: int) -> void:
 		colors.pop_back()
 		cls["colors"] = colors
 		_rebuild_classes()
+
+
 func _on_add_class_pressed() -> void:
 	_draft.append({"name": "class %d" % (_draft.size() + 1),
 		"colors": ["#ffffff"], "tolerance": 0, "enabled": true,
-		"tag": "", "min_fraction": 0.1})
+		"tag": "", "min_fraction": 0.1, "flex": 0})
 	_rebuild_classes()
+
+
 func _on_remove_class_pressed(ci: int) -> void:
 	if ci < _draft.size():
 		_draft.remove_at(ci)
 		_rebuild_classes()
+
+
 func _on_save_pressed() -> void:
 	AppData.set_terrain_key(_draft)
+
+
 func _on_apply_tags_pressed() -> void:
 	var report: Dictionary = AppData.apply_terrain_key_tags()
 	if (report["per_class"] as Dictionary).is_empty():
@@ -234,7 +285,10 @@ func _on_apply_tags_pressed() -> void:
 		return
 	_status.text = "Tagged %d part(s)  %s" % [
 		report["tagged_parts"], report["per_class"]]
+
+
 # --- Palette popup ---------------------------------------------------------------
+
 func _build_palette_popup() -> PopupPanel:
 	var popup := PopupPanel.new()
 	var box := VBoxContainer.new()

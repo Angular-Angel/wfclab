@@ -115,13 +115,20 @@ static func _render(index: ConstraintIndex, assigned: Array[String],
 	return img
 
 
+static var _ctz_cache: Dictionary = {}
+
 static func _ctz(low: int) -> int:
-	## low must be an isolated bit (v & -v). Scans positions, so it is
-	## correct for the sign bit too.
+	## low must be an isolated bit (v & -v). Position lookup is cached:
+	## a dictionary hit replaces the 64-position scan on every hot path.
+	var hit: Variant = _ctz_cache.get(low)
+	if hit != null:
+		return int(hit)
 	for b in 64:
 		if (low >> b) & 1 == 1:
+			_ctz_cache[low] = b
 			return b
 	return 64
+
 
 static func mask_full(nwords: int, nparts: int) -> PackedInt64Array:
 	var m := PackedInt64Array(); m.resize(nwords)
@@ -133,15 +140,18 @@ static func mask_full(nwords: int, nparts: int) -> PackedInt64Array:
 		m[w] = bits
 	return m
 
+
 static func mask_empty(nwords: int) -> PackedInt64Array:
 	var m := PackedInt64Array(); m.resize(nwords)
 	return m
+
 
 static func mask_is_empty(m: PackedInt64Array) -> bool:
 	for w in m.size():
 		if m[w] != 0:
 			return false
 	return true
+
 
 static func mask_count(m: PackedInt64Array) -> int:
 	var n := 0
@@ -152,19 +162,24 @@ static func mask_count(m: PackedInt64Array) -> int:
 			n += 1
 	return n
 
+
 static func mask_has(m: PackedInt64Array, i: int) -> bool:
 	return (m[i >> 6] >> (i & 63)) & 1 == 1
+
 
 static func mask_set(m: PackedInt64Array, i: int) -> void:
 	m[i >> 6] |= 1 << (i & 63)
 
+
 static func mask_clear(m: PackedInt64Array, i: int) -> void:
 	m[i >> 6] &= ~(1 << (i & 63))
+
 
 static func mask_only(m: PackedInt64Array, i: int) -> void:
 	for w in m.size():
 		m[w] = 0
 	m[i >> 6] = 1 << (i & 63)
+
 
 static func mask_first(m: PackedInt64Array) -> int:
 	for w in m.size():
@@ -172,6 +187,7 @@ static func mask_first(m: PackedInt64Array) -> int:
 		if v != 0:
 			return (w << 6) + _ctz(v & -v)
 	return -1
+
 
 static func _kth_set_bit(m: PackedInt64Array, k: int) -> int:
 	var seen := 0
@@ -184,6 +200,7 @@ static func _kth_set_bit(m: PackedInt64Array, k: int) -> int:
 			seen += 1
 			v ^= low
 	return -1
+
 
 static func mask_iter(m: PackedInt64Array) -> Array[int]:
 	var out: Array[int] = []
@@ -226,6 +243,7 @@ class Session extends SynthesisSession:
 	var _trail_marks: Array[int] = []          # (kept for pins/parity; decisions live in _decisions)
 	var nparts := 0                            # FAMILY count (not part count)
 	var nwords := 0                            # 64-bit words per family mask
+	var _full_mask: PackedInt64Array = PackedInt64Array()
 
 	var assigned: Array[String] = []
 	var _decisions: Array[Dictionary] = []
@@ -270,6 +288,7 @@ class Session extends SynthesisSession:
 		nparts = _index.family_count
 		nwords = _index.family_nwords
 		var full := TileCollapse.mask_full(nwords, nparts)
+		_full_mask = full
 		dom.clear(); assigned.clear()
 		dom.resize(_out_w * _out_h)
 		assigned.resize(_out_w * _out_h)
@@ -588,6 +607,9 @@ class Session extends SynthesisSession:
 		var allowed := PackedInt64Array()
 		allowed.resize(nwords)
 		var unconstrained := false
+		var full := _full_mask
+		var probe := 0                           # candidates since last saturation check
+		var done := false
 		if _size[s] == 1:
 			# singleton fast path
 			var sfi := TileCollapse.mask_first(sdom)
@@ -598,6 +620,8 @@ class Session extends SynthesisSession:
 				unconstrained = _unknown_free
 		else:
 			for w in nwords:
+				if done:
+					break
 				var v: int = sdom[w]
 				if v == 0:
 					continue
@@ -608,32 +632,49 @@ class Session extends SynthesisSession:
 					if _index.f_nb_empty[fi][di]:
 						if _unknown_free:
 							unconstrained = true
+							done = true
 							break               # this family supports anything
 						continue                # contributes nothing
 					var nb: PackedInt64Array = _index.f_nb_mask[fi][di]
 					for k in nwords:
 						allowed[k] = allowed[k] | nb[k]
-				if unconstrained:
-					break
+					probe += 1
+					if probe == 16:
+						probe = 0
+						# Saturation check, amortized (every 16th candidate):
+						# the union is monotonic, so once it equals the full
+						# mask no further candidate can change it.
+						var sat := true
+						for k in nwords:
+							if allowed[k] != full[k]:
+								sat = false
+								break
+						if sat:
+							done = true
+							break
 		if unconstrained:
 			return true
-		# intersect q with allowed, recording exactly which bits died
-		var pre := dom[q].duplicate()
+		# Single pass to detect any change BEFORE mutating or allocating —
+		# most cascaded revises change nothing and pay only this scan.
 		var qdom := dom[q]
+		var changed := false
+		for w in nwords:
+			if qdom[w] & allowed[w] != qdom[w]:
+				changed = true
+				break
+		if not changed:
+			return true
+		var pre := dom[q].duplicate()            # pre-wipe state, for diagnostics
 		var removed := PackedInt64Array()
 		removed.resize(nwords)
-		var changed := false
 		for w in nwords:
 			var old_w: int = qdom[w]
 			var new_w: int = old_w & allowed[w]
 			if new_w != old_w:
-				changed = true
 				qdom[w] = new_w
 				removed[w] = old_w & ~new_w
-		if not changed:
-			return true
 		if TileCollapse.mask_is_empty(qdom):
-			_record_wipe(q, s, di, allowed, trace)
+			_record_wipe(q, s, di, allowed, trace, pre)
 			return false
 		_set_dom(q, qdom)                       # COW write-back + buckets
 		_trail.append({"slot": q, "removed": removed})
@@ -814,6 +855,7 @@ class Session extends SynthesisSession:
 		## removals can expand domains. Clears decisions/trail: nothing
 		## above a rebuild is undoable.
 		var full := TileCollapse.mask_full(nwords, nparts)
+		_full_mask = full
 		_buckets.clear()
 		for i in nparts + 1:
 			_buckets.append({})

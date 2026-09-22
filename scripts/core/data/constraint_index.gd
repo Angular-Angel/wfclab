@@ -122,11 +122,14 @@ static func build(parts: Array[Part], constraints: Array[Constraint],
 ## authored rules on top. Rule deltas may exceed the passed deltas —
 ## TileCollapse consumes _index.delta_list, so exclusions propagate
 ## without solver changes.
-func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
-	# Sessions re-call prepare() with identical inputs (Restart, recovery
-	# attempts); skip the full rebuild in that case. Authored content cannot
-	# change under us: edits rebuild the whole index object.
-	var key := "%d|%d|%d" % [deltas.hash(), step.x, step.y]
+func prepare(deltas: Array[Vector2i], step: Vector2i,
+		merge_cfg: Dictionary = {}) -> void:
+	## merge_cfg: {"terrain_merge": bool, "terrain_merge_depth": int}.
+	## Part of the cache key: toggling the option on the same index object
+	## forces a family rebuild instead of returning stale tables.
+	var key := "%d|%d|%d|%s|%d" % [deltas.hash(), step.x, step.y,
+			bool(merge_cfg.get("terrain_merge", false)),
+			int(merge_cfg.get("terrain_merge_depth", 1))]
 	if key == _prepared_key:
 		return
 	_prepared_key = key
@@ -140,12 +143,8 @@ func prepare(deltas: Array[Vector2i], step: Vector2i) -> void:
 	for d: Vector2i in deltas:
 		_pixel_to_di[d] = delta_pixel.size()
 		delta_pixel.append(Vector2i(d.x * step.x, d.y * step.y))
-	_build_families()
-	# Bind the solver-facing aliases to the canonical arrays (same objects,
-	# not copies). Deliberately HERE rather than inside _build_families: the
-	# tables are rebuilt in place across re-prepares, so one binding per
-	# full prepare suffices, and rewriting _build_families can no longer
-	# drop it.
+	_build_families(merge_cfg)
+	# Solver-facing aliases: same Array objects, bound once per prepare.
 	f_nb_mask = nb_mask
 	f_nb_empty = nb_empty
 	f_border_ok = border_ok
@@ -190,40 +189,33 @@ func tag_mask(tag: String) -> PackedInt64Array:
 
 # --- family construction ---------------------------------------------------------
 
-func _build_families() -> void:
-	## Iterative coarsening to a STABLE partition.
-	##
-	## Round 0: every part is its own family. Each round gives every part a
-	## signature — its tag set plus, per evidence offset, the sorted
-	## MULTISET of family ids of its allowed neighbors — and merges parts
-	## with identical signatures. Families never split, so the family count
-	## strictly decreases and the loop terminates; the fixpoint is stable:
-	## every member of every family shares the same family-level neighbor
-	## blocks at every offset.
-	##
-	## Soundness: build() adds both directions of every constraint, so
-	## _neighbors is symmetric-closed. Under symmetric closure, stability
-	## implies block-uniformity between families (complete-or-empty
-	## bipartite arcs): x∈F arcing to y∈G puts the reverse arc in y's
-	## outgoing set, stability copies it to every G member, and the reverse
-	## generation copies it back to every F member. Complete bipartite
-	## blocks are exactly what makes independent occurrence-weighted member
-	## picks (Session._pick_member) reproduce the part-level model exactly.
-	## The same closure rules out partial touches of a family, so multiset
-	## (not set) comparison in the signature is exact.
-	##
-	## Mutual pairs — A and B each appearing in the other's neighbor sets —
-	## are the canonical catch: their raw sets differ only by swapping
-	## A↔B, which the family-level view of round 2 erases.
+func _build_families(merge_cfg: Dictionary) -> void:
+	## Family formation, two stages:
+	## 1) INITIAL PARTITION. terrain_merge off: singletons. on: parts with
+	##    equal tags AND equal per-side edge-terrain composition (class-id
+	##    multiset per side at the configured depth; byte-exact strips when
+	##    no terrain classes are active) are forced together.
+	## 2) COARSENING to a fixpoint, at FAMILY level: each round, every
+	##    family's signature is its tags plus, per offset, the sorted
+	##    MULTISET of family ids over ALL members' neighbor arcs; families
+	##    with equal signatures merge. Forced groups survive (families merge
+	##    whole, never split); merges cascade (mutual references resolve as
+	##    family ids collide) until stable.
+	## The family's solver rows are the UNION of member rows — for exact
+	## families members have identical rows, so the union equals them; for
+	## terrain-merged families the union IS the opted-into semantics.
+	## Equal multisets ⟹ equal union id-sets ⟹ interchangeable under union
+	## semantics, so the fixpoint is sound for the model it defines.
+	var merge_on := bool(merge_cfg.get("terrain_merge", false))
+	var depth := clampi(int(merge_cfg.get("terrain_merge_depth", 1)), 1, 8)
 	var np := part_ids.size()
 	family_of_part = PackedInt32Array()
 	family_of_part.resize(np)
 	family_of_part.fill(-1)
 
-	# Pre-extract evidence once as int structures: per part, per sorted
-	# offset key, the sorted neighbor part ints (OUTSIDE -> -1). Rounds
-	# then only touch ints and family assignments.
-	var per_part: Array = []          # pi -> Dictionary(offsetkey -> PackedInt32Array)
+	# Per-part evidence blocks once: offset key -> sorted neighbor part ints
+	# (OUTSIDE -> -1). Rounds only touch ints and family assignments.
+	var per_part: Array = []
 	per_part.resize(np)
 	for pi in np:
 		var by_offset: Dictionary = _neighbors.get(part_ids[pi], {})
@@ -242,8 +234,6 @@ func _build_families() -> void:
 			blocks[k] = ids
 		per_part[pi] = blocks
 
-	# Sorted tags per part: parts with different tags never merge, keeping
-	# authored-rule behavior per-member exact.
 	var tags_of: Array = []
 	tags_of.resize(np)
 	for pi in np:
@@ -251,52 +241,74 @@ func _build_families() -> void:
 		t.sort()
 		tags_of[pi] = t
 
-	# --- coarsening rounds ---
-	var fam := PackedInt32Array()     # part int -> current family rep part int
+	# --- stage 1: initial partition ---
+	var fam := PackedInt32Array()
 	fam.resize(np)
-	for pi in np:
-		fam[pi] = pi
-	while true:
-		var groups: Dictionary = {}   # signature -> first (lowest-index) member
-		var assign := PackedInt32Array()
-		assign.resize(np)
+	if merge_on:
+		var decoded: Array = TerrainMapper.prepare(
+				AppData.active_terrain_classes())
+		var by_key: Dictionary = {}
 		for pi in np:
-			var sig := _stability_signature(pi, fam, per_part, tags_of)
-			var lead: int = groups.get(sig, -1)
+			var k := _edge_signature_key(pi, depth, decoded, tags_of)
+			var lead: int = by_key.get(k, -1)
 			if lead == -1:
-				groups[sig] = pi
-				assign[pi] = pi
+				by_key[k] = pi
+				fam[pi] = pi
 			else:
-				assign[pi] = lead
-		var old_count := 0
-		var seen := {}
+				fam[pi] = lead
+	else:
 		for pi in np:
-			if not seen.has(fam[pi]):
-				seen[fam[pi]] = true
-				old_count += 1
-		if groups.size() >= old_count:
-			break   # fixpoint: stable partition, sound by construction
-		fam = assign
+			fam[pi] = pi
 
-	# --- family aggregates (unchanged from here down) ---
+	# --- stage 2: family-level coarsening to fixpoint ---
+	while true:
+		var fam_members: Dictionary = {}   # rep part int -> members
+		for pi in np:
+			var r: int = fam[pi]
+			if not fam_members.has(r):
+				fam_members[r] = PackedInt32Array()
+			var lst: PackedInt32Array = fam_members[r]
+			lst.append(pi)
+			fam_members[r] = lst   # COW write-back
+		var new_fam := PackedInt32Array()
+		new_fam.resize(np)
+		var by_sig: Dictionary = {}
+		var merged := false
+		var reps: Array = fam_members.keys()
+		reps.sort()
+		for r: int in reps:
+			var sig := _family_signature(r, fam_members[r], fam,
+					per_part, tags_of)
+			var lead: int = by_sig.get(sig, -1)
+			if lead == -1:
+				by_sig[sig] = r
+				for pi in fam_members[r]:
+					new_fam[pi] = r
+			else:
+				merged = true
+				for pi in fam_members[r]:
+					new_fam[pi] = lead
+		fam = new_fam
+		if not merged:
+			break
+
+	# --- aggregates (dense family indices, first-occurrence order) ---
 	var fam_rep := PackedInt32Array()
 	var rep_seen := {}
 	for pi in np:
 		if not rep_seen.has(fam[pi]):
 			rep_seen[fam[pi]] = true
 			fam_rep.append(pi)
-	
-	# Remap coarsening labels (representative part ints) to dense family
-	# indices in first-occurrence order — family_of_part must be 0..count-1,
-	# everything downstream (weights, tag bits, neighbor masks) indexes by it.
 	var fam_index := {}
 	for fi in fam_rep.size():
 		fam_index[fam_rep[fi]] = fi
 	for pi in np:
 		family_of_part[pi] = fam_index[fam[pi]]
-
 	family_count = fam_rep.size()
 	family_nwords = (family_count + 63) >> 6
+	for fi in family_count:
+		assert(family_of_part[fam_rep[fi]] == fi,
+				"family indices must be dense and rep-aligned")
 	family_ids.clear()
 	family_ids.resize(family_count)
 	family_weights = PackedFloat64Array()
@@ -311,16 +323,14 @@ func _build_families() -> void:
 		family_weights[fi] += part_weights[pi]
 		var lst: PackedInt32Array = member_lists[fi]
 		lst.append(pi)
-		member_lists[fi] = lst   # packed arrays are COW: write back required
+		member_lists[fi] = lst
 	largest_family_size = 0
 	for fi in family_count:
 		largest_family_size = maxi(largest_family_size,
 				(member_lists[fi] as PackedInt32Array).size())
 	family_members = member_lists
 
-	# Family rows from the representative's raw dicts. Members share the
-	# rep's behavior: stable partition ⟹ identical family-level blocks, and
-	# (by the closure argument above) identical raw partner sets.
+	# --- family rows: UNION over all members' raw dicts ---
 	nb_mask.clear(); nb_empty.clear(); border_ok.clear()
 	nb_mask.resize(family_count); nb_empty.resize(family_count)
 	border_ok.resize(family_count)
@@ -328,27 +338,33 @@ func _build_families() -> void:
 	delta_has_outside.resize(delta_list.size())
 	delta_has_outside.fill(false)
 	for fi in family_count:
-		var by_offset: Dictionary = _neighbors.get(family_ids[fi], {})
 		var mrow: Array = []; mrow.resize(delta_list.size())
 		var erow: Array = []; erow.resize(delta_list.size())
 		var brow: Array = []; brow.resize(delta_list.size())
 		for di in delta_list.size():
 			var pix: Vector2i = delta_pixel[di]
-			var nb: Dictionary = by_offset.get("%d,%d" % [pix.x, pix.y], {})
+			var okey := "%d,%d" % [pix.x, pix.y]
 			var m := PackedInt64Array()
 			m.resize(family_nwords)
 			var has_out := false
-			for nid: Variant in nb.keys():
-				if nid == OUTSIDE:
-					has_out = true
+			var any_evidence := false
+			for mi: int in (family_members[fi] as PackedInt32Array):
+				var nb: Dictionary = (_neighbors.get(part_ids[mi], {})
+						as Dictionary).get(okey, {})
+				if nb.is_empty():
 					continue
-				var npi: int = _int_of.get(String(nid), -1)
-				if npi == -1:
-					continue   # defensive; build() filters disabled parts
-				var nfi := family_of_part[npi]
-				m[nfi >> 6] |= 1 << (nfi & 63)
+				any_evidence = true
+				for nid: Variant in nb.keys():
+					if nid == OUTSIDE:
+						has_out = true
+						continue
+					var npi: int = _int_of.get(String(nid), -1)
+					if npi == -1:
+						continue
+					var nfi := family_of_part[npi]
+					m[nfi >> 6] |= 1 << (nfi & 63)
 			mrow[di] = m
-			erow[di] = nb.is_empty()   # OUTSIDE-only evidence is NOT empty
+			erow[di] = not any_evidence   # evidence iff ANY member has arcs
 			brow[di] = has_out
 			if has_out:
 				delta_has_outside[di] = true
@@ -357,31 +373,101 @@ func _build_families() -> void:
 	_compile_family_tags()
 
 
-func _stability_signature(pi: int, fam: PackedInt32Array, per_part: Array,
-		tags_of: Array) -> String:
-	## Tag set + per-offset sorted family-id MULTISETS, as one string.
-	## Multiset (with repeats) rather than set: two parts touching different
-	## counts of the same family must not merge; symmetric closure makes
-	## partial touches impossible for well-formed models, so equal
-	## multisets here ⟺ interchangeable behavior.
+func _family_signature(rep: int, members: PackedInt32Array,
+		fam: PackedInt32Array, per_part: Array, tags_of: Array) -> String:
+	## Tags + per-offset sorted family-id MULTISETS aggregated over all
+	## members. Multiset (not set): keeps option-off behavior identical to
+	## the shipped exact grouping, and stays conservative for unions.
 	var parts := PackedStringArray()
-	for t: Variant in tags_of[pi]:
+	for t: Variant in tags_of[rep]:
 		parts.append(str(t))
-	var blocks: Dictionary = per_part[pi]
-	for k: String in blocks.keys():   # keys were sorted at extraction
-		var ids: PackedInt32Array = blocks[k]
-		var fams := PackedInt32Array()
-		fams.resize(ids.size())
-		for i in ids.size():
-			fams[i] = -1 if ids[i] < 0 else fam[ids[i]]
-		fams.sort()
+	var blocks: Dictionary = per_part[rep]
+	for k: String in blocks.keys():   # inserted sorted; iteration is sorted
+		var acc := PackedInt32Array()
+		for m: int in members:
+			acc.append_array((per_part[m] as Dictionary).get(k,
+					PackedInt32Array()))
+		for i in acc.size():
+			acc[i] = -1 if acc[i] < 0 else fam[acc[i]]
+		acc.sort()
 		var enc := PackedStringArray()
 		enc.append(k)
-		enc.append(str(fams.size()))
-		for f in fams:
+		enc.append(str(acc.size()))
+		for f in acc:
 			enc.append(str(f))
 		parts.append("|".join(enc))
 	return "§".join(parts)
+
+
+func _edge_signature_key(pi: int, depth: int, decoded: Array,
+		tags_of: Array) -> String:
+	## Initial-partition key: tags + per-side edge composition at `depth`.
+	## With active terrain classes: sorted class-id multiset per side
+	## (transparent/unclassed = -1, kept so transparency patterns matter).
+	## Without: byte-exact strips (stronger than ID equality, still exact).
+	var p: Part = _parts[part_ids[pi]]
+	var d_eff := mini(depth, mini(p.size.x, p.size.y))
+	var sections := PackedStringArray()
+	for t: Variant in tags_of[pi]:
+		sections.append(str(t))
+	var img := p.pixel_data.duplicate() as Image
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	var cls_map := PackedInt32Array()
+	if not decoded.is_empty():
+		cls_map = TerrainMapper.apply_mapped(img, decoded)
+	var w := img.get_width()
+	var data := img.get_data()
+	var sides := [
+		[Vector2i(p.size.x - 1, 0), Vector2i(0, 1), Vector2i(-1, 0), p.size.y],
+		[Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 0), p.size.y],
+		[Vector2i(0, p.size.y - 1), Vector2i(1, 0), Vector2i(0, -1), p.size.x],
+		[Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), p.size.x],
+	]
+	for side: Array in sides:
+		var start: Vector2i = side[0]
+		var along: Vector2i = side[1]
+		var inward: Vector2i = side[2]
+		var span: int = side[3]
+		if decoded.is_empty():
+			sections.append(_edge_bytes(data, w, d_eff, start, along,
+					inward, span).hex_encode())
+		else:
+			var ids := PackedInt32Array()
+			ids.resize(d_eff * span)
+			var k := 0
+			for s in span:
+				var base := start + along * s
+				for u in d_eff:
+					var pt := base + inward * u
+					ids[k] = cls_map[pt.y * w + pt.x]
+					k += 1
+			ids.sort()
+			var enc := PackedStringArray()
+			for c in ids:
+				enc.append(str(c))
+			sections.append(",".join(enc))
+	return "§".join(sections)
+
+
+static func _edge_bytes(data: PackedByteArray, img_w: int, depth: int,
+		start: Vector2i, along: Vector2i, inward: Vector2i,
+		span: int) -> PackedByteArray:
+	var out := PackedByteArray()
+	out.resize(depth * span * 4)
+	var k := 0
+	for s in span:
+		var base := start + along * s
+		for u in depth:
+			var p := base + inward * u
+			var o := (p.y * img_w + p.x) * 4
+			out[k] = data[o]
+			out[k + 1] = data[o + 1]
+			out[k + 2] = data[o + 2]
+			out[k + 3] = data[o + 3]
+			k += 4
+	return out
 
 
 func _compile_family_tags() -> void:

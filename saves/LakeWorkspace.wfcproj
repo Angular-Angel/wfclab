@@ -8626,6 +8626,7 @@
 			"colors": [
 				"00a2e8"
 			],
+			"flex": 1,
 			"min_fraction": 0.01,
 			"name": "Water",
 			"tag": "Water",
@@ -8636,6 +8637,7 @@
 				"2ec27e",
 				"008000"
 			],
+			"flex": 1,
 			"min_fraction": 0.01,
 			"name": "Shrooms",
 			"tag": "Shrooms",
@@ -8645,7 +8647,7 @@
 			"colors": [
 				"ed1c24"
 			],
-			"min_fraction": 0.11,
+			"min_fraction": 0.01,
 			"name": "Lava",
 			"tag": "Lava",
 			"tolerance": 0
@@ -8654,9 +8656,21 @@
 			"colors": [
 				"ffffff"
 			],
+			"flex": 1,
 			"min_fraction": 0.01,
 			"name": "Open",
 			"tag": "Open",
+			"tolerance": 0
+		},
+		{
+			"colors": [
+				"000000"
+			],
+			"enabled": true,
+			"flex": 0,
+			"min_fraction": 0.1,
+			"name": "Stone",
+			"tag": "Stone",
 			"tolerance": 0
 		}
 	],

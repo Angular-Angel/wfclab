@@ -34,6 +34,10 @@ func get_parameter_specs() -> Array[Dictionary]:
 			"default": 30, "min": 0, "max": 1000},
 		{"key": "unknown_free", "label": "Unobserved = Free", "type": "bool",
 			"default": true},
+		{"key": "terrain_merge", "label": "Merge Terrain-Equivalent Parts",
+			"type": "bool", "default": false},
+		{"key": "terrain_merge_depth", "label": "Merge Edge Depth",
+			"type": "int", "default": 1, "min": 1, "max": 8},
 	]
 
 
@@ -275,7 +279,10 @@ class Session extends SynthesisSession:
 			return
 		_cell = TileCollapse._derive_step(_index)
 		_deltas = TileCollapse._derive_deltas(_index, _cell)
-		_index.prepare(_deltas, _cell)   # also builds the family layer
+		_index.prepare(_deltas, _cell, {
+			"terrain_merge": params.get("terrain_merge", false),
+			"terrain_merge_depth": params.get("terrain_merge_depth", 1),
+		})
 		nparts = _index.family_count
 		nwords = _index.family_nwords
 		_bordered = _index.has_outside()

@@ -24,6 +24,7 @@ var _user_selected := false
 var _detail_rev := -1
 var _last_revision := -1
 var _accum := 0.0
+var _family_inspector: FamilyInspector = null
 
 
 func _ready() -> void:
@@ -46,6 +47,10 @@ func _ready() -> void:
 			_copy_all_pressed)
 	_copy_all_button.disabled = true
 	button_row.add_child(_copy_all_button)
+	button_row.add_child(_mk_button("Inspect Families",
+            "Preview part families (with or without terrain merging) "
+			+ "before running synthesis.",
+			_open_family_inspector))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button_row.add_child(spacer)
@@ -368,3 +373,10 @@ func _mk_button(label: String, tooltip: String, handler: Callable) -> Button:
 		b.tooltip_text = tooltip
 	b.pressed.connect(handler)
 	return b
+
+
+func _open_family_inspector() -> void:
+	if _family_inspector == null:
+		_family_inspector = FamilyInspector.new()
+		add_child(_family_inspector)
+	_family_inspector.popup_centered(Vector2i(800, 580))

@@ -552,6 +552,23 @@ func _regenerate_constraints() -> void:
 
 func _materialize_constraints() -> void:
 	constraints = {}
+	# Fast path: with no merges and no constraint edits, materialization is a
+	# pure repack — skip the per-object clone and share the raw objects. Safe
+	# because raw is regenerated wholesale on the next extraction, and the
+	# only later mutations (weight, enabled/weight_override) are either set
+	# below or re-applied idempotently if a merge ever forces the slow path.
+	if alias_records.is_empty() and constraint_edits.is_empty():
+		for raw: Constraint in _raw_constraints:
+			if constraints.has(raw.id):
+				# Cross-job id collision: combine evidence like the slow path.
+				var prior := constraints[raw.id] as Constraint
+				prior.evidence.append_array(raw.evidence)
+				prior.weight = prior.evidence.size()
+			else:
+				raw.weight = raw.evidence.size()
+				constraints[raw.id] = raw
+		constraints_changed.emit()
+		return
 	var merged: Dictionary = {}
 	for raw: Constraint in _raw_constraints:
 		var c := raw.clone()

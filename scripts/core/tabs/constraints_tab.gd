@@ -125,17 +125,18 @@ func _ready() -> void:
 	AppData.rules_changed.connect(_refresh_rules, CONNECT_DEFERRED)
 	_refresh_rules()
 
-	# Debounced refresh for edits (dragging a spin box shouldn't rebuild
-	# the matrix 30 times a second).
-	var edits_timer := Timer.new()
-	edits_timer.one_shot = true
-	edits_timer.wait_time = 0.3
-	edits_timer.timeout.connect(_rebuild)
-	add_child(edits_timer)
-	AppData.edits_changed.connect(func() -> void: edits_timer.start())
-
-	AppData.parts_changed.connect(_rebuild)
-	AppData.constraints_changed.connect(_rebuild)
+	# One debounced rebuild for ALL change sources. A decomposition run emits
+	# parts_changed and constraints_changed back to back; a single rebuild
+	# 0.3 s later covers both, off the run pipeline's critical path — instead
+	# of two full synchronous walks inside set_parts/set_constraints.
+	var rebuild_timer := Timer.new()
+	rebuild_timer.one_shot = true
+	rebuild_timer.wait_time = 0.3
+	rebuild_timer.timeout.connect(_rebuild)
+	add_child(rebuild_timer)
+	AppData.edits_changed.connect(func() -> void: rebuild_timer.start())
+	AppData.parts_changed.connect(func() -> void: rebuild_timer.start())
+	AppData.constraints_changed.connect(func() -> void: rebuild_timer.start())
 	_rebuild()
 
 
@@ -168,28 +169,47 @@ func _rebuild() -> void:
 	_c_enabled_check.set_pressed_no_signal(false)
 	_c_override_check.set_pressed_no_signal(false)
 
-	for c: Constraint in AppData.get_constraint_list():
-		if not c.enabled or c.participants.size() != 2:
-			continue
-		var ids := c.part_ids()
-		ids.sort()
-		var k := "%s|%s" % [ids[0], ids[1]]
-		if not _pair_map.has(k):
-			_pair_map[k] = {"weight": 0.0, "constraints": []}
-		_pair_map[k]["weight"] += c.get_effective_weight()
-		(_pair_map[k]["constraints"] as Array).append(c)
-
 	var parts := AppData.get_part_list()
 	if parts.is_empty():
 		_status.text = "No parts. Run a decomposition first."
 		return
 
+	# Pick the matrix parts FIRST, then gate the constraint walk by
+	# membership: two Dictionary lookups per constraint before any string
+	# building, so a 500k-constraint model costs a light scan instead of
+	# 500k key formats. Pairs outside the matrix were never displayed, and
+	# per-pair constraint lists for matrix pairs stay complete.
 	parts.sort_custom(func(a: Part, b: Part) -> bool:
 		return a.occurrence_count() > b.occurrence_count())
-
 	_matrix_parts = []
 	for i in mini(parts.size(), MAX_MATRIX):
 		_matrix_parts.append(parts[i])
+	var member: Dictionary = {}
+	for p: Part in _matrix_parts:
+		member[p.id] = true
+
+	for c: Constraint in AppData.get_constraint_list():
+		if not c.enabled:
+			continue
+		var ps: Array = c.participants
+		if ps.size() != 2:
+			continue
+		var id_a: String = ps[0]["part_id"]
+		var id_b: String = ps[1]["part_id"]
+		if not member.has(id_a) or not member.has(id_b):
+			continue
+		var first := id_a
+		var second := id_b
+		if second < first:
+			first = id_b
+			second = id_a
+		var k := "%s|%s" % [first, second]
+		var entry: Dictionary = _pair_map.get(k, {})
+		if entry.is_empty():
+			entry = {"weight": 0.0, "constraints": []}
+			_pair_map[k] = entry
+		entry["weight"] += c.get_effective_weight()
+		(entry["constraints"] as Array).append(c)
 
 	var n := _matrix_parts.size()
 	var shown_caps := ""

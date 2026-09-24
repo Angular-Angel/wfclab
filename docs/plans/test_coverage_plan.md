@@ -29,7 +29,7 @@ Small fixes so later phases build on a clean base.
 | 0.1 | Rename `text_constraint_index_rules.gd` → `test_constraint_index_rules.gd` (use `git mv` on the script AND its `.gd.uid` together — renaming only the script orphans the old uid and Godot mints a fresh one) | `tests/` |
 | 0.2 | Drop `class_name TagMatcherTest` and `class_name ConstraintIndexRulesTest` | `tests/test_tag_matcher.gd`, `tests/test_constraint_index_rules.gd` |
 | 0.3 | Remove dead construct `return null if false else c` → `return c` | `tests/test_constraint_index_rules.gd` |
-| 0.4 | Fix stale header/usage comment (mentions `test_swap_behavior.gd` and the wrong project name) | `run_tests.sh` |
+| 0.4 | Fix stale header/usage comment (mentions `test_swap_behavior.gd` and the wrong project name); optionally drop the unreachable `EXIT_CODE=$?` capture while there — under `set -e` it never runs on failure (the exit code still propagates) | `run_tests.sh` |
 | 0.5 | Extract shared fixture builders into `tests/builders.gd` (static helpers: `solid_image`, `grid_image`, `make_part`, `make_constraint`, `make_asset`, plus terrain-key save/restore helpers for the `AppData` autoload — see the P1 note); update existing suites to use them (the rules suite keeps its own `_mk_part`/`_mk_adj` — its fixtures set `canonical_id`/`transform_key` by hand instead of deriving from an image) | `tests/builders.gd` + 3 suites |
 
 Acceptance: `./run_tests.sh` discovers **4** suites, 25/25 pass, no
@@ -46,7 +46,14 @@ returned `Array[Constraint]` (ids, participants, `params.offset`,
 
 Fixture recipe: 2×2 parts built from explicit color grids via the P0 builders.
 Left/right strips are 1px wide at depth 1 — a part whose right column is red
-matches a part whose left column is red.
+matches a part whose left column is red. Fixtures must be asymmetric: the
+matcher groups every part into both sides, so a part whose own facing strips
+match emits an A~A self-pair constraint, and mirrored matching sides add a
+B~A pair — two solid-color parts would yield 4 constraints (A→B, B→A, A→A,
+B→B), not the "exactly 1" of 1.1, and a non-empty 1.2. Give every
+non-facing pairing a distinct color (e.g. A = green|red columns, B =
+blue|yellow) so only the intended pairing matches; a uniform-edge part can
+be used deliberately when a test wants to pin self-pair emission.
 
 | # | Test | Pins / asserts |
 |---|---|---|
@@ -86,7 +93,7 @@ additionally passes tags and one exclusion rule through the 4-arg
 | 2.3 | `test_restart_strategy_respects_recovery_budget` | same index, strategy 1, `max_recovery_attempts = 3`: every restart re-derives the same state and re-picks dominant A (weight ratio ≥ 10⁶:1 keeps the surviving-branch first pick at ≤ 10⁻⁶ probability) → budget exhausted → FAILED, `restarts == 3` |
 | 2.4 | `test_backtracking_strategy_recovers_when_a_later_pick_exists` | same index, strategy 2: the dominant first pick dead-ends, backtracking removes it and the surviving branch (B at both slots — A is excluded within distance 1 of B, so [B, B] is the only completion) completes → DONE, `backtracks ≥ 1` |
 | 2.5 | `test_outside_evidence_forbids_interior_border_violations` | DONE side: part P with OUTSIDE evidence only at LEFT + part Q unconstrained, 2-wide grid (`output_width=2`) — column 0 slots may only take P; the right edge stays unenforced (no family has OUTSIDE evidence on that delta). FAILED side: P with OUTSIDE evidence at RIGHT plus evidence P→Q at (1, 0) and `unknown_free = false` — the arc prunes the edge slot to {Q}, the border pass wipes Q (not border-ok there) → ∅ at setup → construction FAILED with `contradictions == 0`, `restarts == 0`. A border wipe alone can never empty a domain: the family that activates a delta's border is itself border-ok there |
-| 2.6 | `test_try_assign_pin_and_rejection_rollback` | pin a legal part → `true`, `get_slot_assignment` reflects it, `get_progress` bumps; pin an incompatible part → `false`, domain + `assigned` + `_collapsed` unchanged (read via `get_slot_domain`/`get_slot_assignment`), `last_rejection` non-empty |
+| 2.6 | `test_try_assign_pin_and_rejection_rollback` | pin a legal part → `true`, `get_slot_assignment` reflects it, `get_progress` bumps; pin an incompatible part → `false`, domain + `assigned` + progress unchanged (read via `get_slot_domain`/`get_slot_assignment`/`get_progress` — `_collapsed` itself is private), `last_rejection` non-empty |
 | 2.7 | `test_try_clear_unpins_and_rebuilds_domain` | pin, clear → domain of the slot contains families again, re-pin still possible |
 | 2.8 | `test_describe_pin_reports_reasons` | out-of-range slot, unknown part, domain-miss → exact message strings |
 | 2.9 | `test_unknown_free_false_constrains_unobserved_offsets` | offset only observed for one pair; `unknown_free = false` → output never places an unobserved pair (assert via final `assigned` neighbors or a FAILED on a forcing grid) |

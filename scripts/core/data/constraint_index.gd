@@ -143,6 +143,16 @@ func prepare(deltas: Array[Vector2i], step: Vector2i,
 	for d: Vector2i in deltas:
 		_pixel_to_di[d] = delta_pixel.size()
 		delta_pixel.append(Vector2i(d.x * step.x, d.y * step.y))
+	# Session view of the evidence offsets: rebuilt from the prepared deltas
+	# (pixel units) so get_offsets() stays evidence-only even though rules
+	# append extra slot-unit deltas below. Consumers expect pixel units:
+	# TileCollapse _derive_step/_derive_deltas and the Parts-tab neighbor
+	# lookups key into _neighbors by pixel offset. Session._init derives
+	# step/deltas BEFORE this runs, and a re-run re-derives the same deltas
+	# from these pixel offsets, so behavior is unchanged across sessions.
+	_offsets.clear()
+	for d: Vector2i in deltas:
+		_offsets[Vector2i(d.x * step.x, d.y * step.y)] = true
 	_build_families(merge_cfg)
 	# Solver-facing aliases: same Array objects, bound once per prepare.
 	f_nb_mask = nb_mask

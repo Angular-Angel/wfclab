@@ -42,9 +42,13 @@ static func coverage_fraction(img: Image, hex_colors: Array,
 
 
 ## rule keys: colors (hex strings), tolerance (int), min_fraction (0..1).
-## Missing/empty colors make the rule inert rather than erroring.
+## Missing/empty colors make the rule inert rather than erroring: it never
+## matches, regardless of min_fraction (0.0 >= 0.0 would otherwise pass).
 static func rule_matches(img: Image, rule: Dictionary) -> bool:
-    var fraction := coverage_fraction(img, rule.get("colors", []),
+    var colors: Array = rule.get("colors", [])
+    if colors.is_empty():
+        return false
+    var fraction := coverage_fraction(img, colors,
             int(rule.get("tolerance", 16)))
     return fraction >= float(rule.get("min_fraction", 0.1))
 

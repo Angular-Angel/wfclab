@@ -86,9 +86,10 @@ func test_technique_registry_registers_and_looks_up_builtins() -> void:
 
 	assert_that(registry.get_decomposition(&"grid_tiles")).is_instanceof(GridTiles)
 	assert_that(registry.get_constraint_technique(&"adjacency")).is_instanceof(AdjacencyExtractor)
+	assert_that(registry.get_constraint_technique(&"pixel_overlap")).is_instanceof(PixelOverlap)
 	assert_that(registry.get_synthesizer(&"tile_collapse")).is_instanceof(TileCollapse)
 	assert_that(registry.get_decomposition_techniques()).has_size(1)
-	assert_that(registry.get_constraint_techniques()).has_size(1)
+	assert_that(registry.get_constraint_techniques()).has_size(2)
 	assert_that(registry.get_synthesizer_techniques()).has_size(1)
 	assert_that(registry.get_synthesizer(&"missing")).is_null()
 

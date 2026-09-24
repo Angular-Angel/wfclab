@@ -84,7 +84,7 @@ additionally passes tags and one exclusion rule through the 4-arg
 | 2.1 | `test_mask_helpers_round_trip` | table-test `mask_full/empty/is_empty/count/has/set/clear/only/first/iter/_kth_set_bit/_ctz` incl. multiword masks: craft 2-word masks directly with bits in word 1 (only `mask_full`/`mask_empty` take `nwords`; the rest read the mask's own length, so `mask_set(mask_empty(2), 64)` needs no ≥ 65-family fixture) |
 | 2.2 | `test_stop_strategy_fails_fast_on_impossible_index` | shared fixture (see the semantics notes below): parts A (weight 10⁶, tag `ta`) and B (tag `tb`), evidence A→B at (1, 0), authored exclusion rule `ta`~`tb` distance 1 chebyshev, grid `output_width=2, output_height=1`, fixed seed. Setup leaves both domains {A, B} (B's empty arc is unconstrained under `unknown_free=true`), the first observation weighted-picks A at slot 0, and the rule-emptied arc wipes slot 1 to ∅ → step-time contradiction, phase FAILED, `get_result() == {}`, `contradictions ≥ 1` |
 | 2.3 | `test_restart_strategy_respects_recovery_budget` | same index, strategy 1, `max_recovery_attempts = 3`: every restart re-derives the same state and re-picks dominant A (weight ratio ≥ 10⁶:1 keeps the surviving-branch first pick at ≤ 10⁻⁶ probability) → budget exhausted → FAILED, `restarts == 3` |
-| 2.4 | `test_backtracking_strategy_recovers_when_a_later_pick_exists` | same index, strategy 2: the dominant first pick dead-ends, backtracking removes it and the surviving branch (B at slot 0, A at slot 1) completes → DONE, `backtracks ≥ 1` |
+| 2.4 | `test_backtracking_strategy_recovers_when_a_later_pick_exists` | same index, strategy 2: the dominant first pick dead-ends, backtracking removes it and the surviving branch (B at both slots — A is excluded within distance 1 of B, so [B, B] is the only completion) completes → DONE, `backtracks ≥ 1` |
 | 2.5 | `test_outside_evidence_forbids_interior_border_violations` | DONE side: part P with OUTSIDE evidence only at LEFT + part Q unconstrained, 2-wide grid (`output_width=2`) — column 0 slots may only take P; the right edge stays unenforced (no family has OUTSIDE evidence on that delta). FAILED side: P with OUTSIDE evidence at RIGHT plus evidence P→Q at (1, 0) and `unknown_free = false` — the arc prunes the edge slot to {Q}, the border pass wipes Q (not border-ok there) → ∅ at setup → construction FAILED with `contradictions == 0`, `restarts == 0`. A border wipe alone can never empty a domain: the family that activates a delta's border is itself border-ok there |
 | 2.6 | `test_try_assign_pin_and_rejection_rollback` | pin a legal part → `true`, `get_slot_assignment` reflects it, `get_progress` bumps; pin an incompatible part → `false`, domain + `assigned` + `_collapsed` unchanged (read via `get_slot_domain`/`get_slot_assignment`), `last_rejection` non-empty |
 | 2.7 | `test_try_clear_unpins_and_rebuilds_domain` | pin, clear → domain of the slot contains families again, re-pin still possible |
@@ -134,7 +134,7 @@ existing `AppData` instantiation pattern (`auto_free` + `_ready()`), plus
 |---|---|---|
 | 3.1 | `test_materialize_expands_enabled_transform_variants` | raw part + `rotation_90: true` in `last_run_config.params` → materialized set contains a rotated variant sharing occurrences; `rot90` on a non-square part is skipped |
 | 3.2 | `test_run_transform_enabled_matrix` | `rot180` implied by `reflect_horizontal && reflect_vertical`; explicit flags win; identity always true |
-| 3.3 | `test_merge_parts_rewrites_participants_and_rebuilds_ids` | alias a→b: a vanishes, b inherits occurrences/weight, constraints referencing a now point at b with rebuilt id; chain a→b then b→c resolves transitively |
+| 3.3 | `test_merge_parts_rewrites_participants_and_rebuilds_ids` | alias a→b: a vanishes, b inherits occurrences/weight, constraints referencing a now point at b with rebuilt id; chain a→b then b→c resolves transitively at the PART level only (c inherits everything, a and b vanish). Known defect — do NOT assert constraint-level transitivity: participant rewriting is single-step through `_alias_mapping` (only the INTO side resolves through the mapping), so after the chain, constraints referencing a still point at merged-away b and `ConstraintIndex.build` silently drops them |
 | 3.4 | `test_clear_all_edits_keeps_tags_and_rules` | edits wiped, `tag_edits`/`rules` survive |
 | 3.5 | `test_tag_crud_and_strip_everywhere` | add (dedupe/strip/empty rejected), remove, `get_all_tags` sorted; `strip_tag_everywhere` returns count and emits once |
 | 3.6 | `test_authored_rule_crud_and_numbering` | add returns `rule_1/2…`, update patches fields except id, remove; after load, numbering continues past the max restored id |
@@ -152,7 +152,7 @@ Cleanup: 3.9 must delete the temp file in the test (use `DirAccess.open("user://
 | # | Test | Pins / asserts |
 |---|---|---|
 | 4.1 | `test_n8_neighborhood_emits_diagonal_offsets` | 2×2 tiles, `neighborhood = 1` → offsets `(step, 0)`, `(0, step)`, `(step, step)`, `(step, -step)` |
-| 4.2 | `test_wrap_evidence_links_seam_and_skips_interior_holes` | 3×1 grid: right-edge pair wraps to column 0; a deliberately missing interior tile produces no pair |
+| 4.2 | `test_wrap_evidence_links_seam_and_skips_interior_holes` | 3×1 grid: right-edge pair wraps to column 0; a deliberately missing interior tile produces no pair (assert at the horizontal offset only — on a 1-high grid the vertical offset wraps each tile onto itself and also emits A~A self-pairs at (0, step)) |
 | 4.3 | `test_non_directional_constraints_are_symmetric_and_canonical` | `directional = false` → `params.symmetric == true`, participant order independent of input order |
 | 4.4 | `test_transform_variants_map_offsets` | canonical A and B each with an enabled `rot90` variant — variant pairs emit only when both sides share the transform key: expect the base pair at `(1, 0)` **and** the variant pair at `(0, 1)` (rot90 mapping `(x,y) → (-y,x)`), with variant part ids as participants |
 | 4.5 | `test_weight_equals_evidence_count` | same pair observed at two positions → `weight == 2`, `evidence.size() == 2` |
@@ -196,6 +196,11 @@ Cleanup: 3.9 must delete the temp file in the test (use `DirAccess.open("user://
 | 5.14 | `test_family_layer_groups_identical_parts` | two parts with identical neighbor behavior → `family_count == 1`, `family_weights[0] == sum`, `family_of_part_id` resolves both, `largest_family_size == 2` |
 | 5.15 | `test_unknown_rule_types_and_tags_warn_but_do_not_throw` | rule with `type: "bogus"` and exclusion referencing a missing tag → index still builds, no deltas added |
 
+Note: 5.12/5.14/5.15 must call `idx.prepare(...)` — rules compile and families
+plus rule deltas are built there, not in `build()` (after `build()` alone
+`family_count == 0`); 5.12's `delta_list` also contains the evidence deltas
+alongside the rule deltas, so account for them in the assertions.
+
 ---
 
 ## P6 — End-to-end smoke (stretch, `tests/test_synthesis_smoke.gd`)
@@ -207,7 +212,8 @@ authored image (e.g. 4×1 checkerboard), asserting:
 - batch synthesis with a fixed seed completes with `stats.families >= 1` and a
   rendered image whose size matches `get_render_size()`;
 - the same pipeline with one exclusion rule never places the excluded pair
-  adjacent (scan the final `assigned` grid).
+  adjacent (batch `synthesize()` returns only `{"image", "stats"}` — drive a
+  `create_session()` loop and scan the public `session.assigned` grid).
 
 This is the cheapest regression net for "the whole app still generates" and
 guards future refactors of the family layer.

@@ -30,7 +30,7 @@ Small fixes so later phases build on a clean base.
 | 0.2 | Drop `class_name TagMatcherTest` and `class_name ConstraintIndexRulesTest` | `tests/test_tag_matcher.gd`, `tests/test_constraint_index_rules.gd` |
 | 0.3 | Remove dead construct `return null if false else c` → `return c` | `tests/test_constraint_index_rules.gd` |
 | 0.4 | Fix stale header/usage comment (mentions `test_swap_behavior.gd` and the wrong project name) | `run_tests.sh` |
-| 0.5 | Extract shared fixture builders into `tests/builders.gd` (static helpers: `solid_image`, `grid_image`, `make_part`, `make_constraint`, `make_asset`); update existing suites to use them | `tests/builders.gd` + 3 suites |
+| 0.5 | Extract shared fixture builders into `tests/builders.gd` (static helpers: `solid_image`, `grid_image`, `make_part`, `make_constraint`, `make_asset`, plus terrain-key save/restore helpers for the `AppData` autoload — see the P1 note); update existing suites to use them | `tests/builders.gd` + 3 suites |
 
 Acceptance: `./run_tests.sh` discovers **4** suites, 25/25 pass, no
 `class_name` under `tests/`.
@@ -58,12 +58,15 @@ matches a part whose left column is red.
 | 1.6 | `test_vertical_pairs_use_vertical_offsets` | matching bottom/top rows → offset `(0, 2)` |
 | 1.7 | `test_extraction_order_does_not_change_output` | reversed input array → identical id set (determinism) |
 | 1.8 | `test_parts_smaller_than_depth_are_skipped` | 1×2 part with `overlap_layers = 2` → no constraints, no crash |
-| 1.9 | `test_terrain_class_rewrites_unify_colors` | two colors registered as one terrain class (via a stubbed `AppData.active_terrain_classes`) match strictly; proves strip classification rewires bytes |
+| 1.9 | `test_terrain_class_rewrites_unify_colors` | two colors registered as one terrain class match strictly; proves strip classification rewires bytes. `extract()` reads the `AppData` **autoload** singleton (registered in `project.godot`), not test-local instances — set `AppData.terrain_key_classes` on the autoload via the P0 save/restore helpers |
 | 1.10 | `test_symmetric_pair_records_both_directions` | A~B and B~A each produce their own directed constraint |
 
-Notes: 1.9 needs `AppData.active_terrain_classes()` to return the class list —
-set `terrain_key_classes` on a fresh `AppData` node like the existing
-state tests do (`auto_free` + `_ready()`).
+Notes: 1.9 must mutate the `AppData` autoload singleton — `PixelOverlap.extract`
+calls `AppData.active_terrain_classes()` on the autoload registered in
+`project.godot`, so terrain classes set on a fresh `auto_free` AppData node
+(like the existing state tests build) are never consulted. Snapshot
+`AppData.terrain_key_classes` before the test and restore it unconditionally
+in `after_test` so a failed assertion cannot leak classes into tests 1.1–1.8.
 
 ---
 
@@ -76,11 +79,11 @@ pattern reuses the existing `_part`/`_constraint` helpers (move to
 
 | # | Test | Pins / asserts |
 |---|---|---|
-| 2.1 | `test_mask_helpers_round_trip` | table-test `mask_full/empty/is_empty/count/has/set/clear/only/first/iter/_kth_set_bit/_ctz` incl. multiword masks (> 64 families is impractical; use 2 words by ≥ 65 families? → instead craft masks directly with bits in word 1) |
-| 2.2 | `test_stop_strategy_fails_fast_on_impossible_index` | two parts, no compatible pair (A needs B right of it, B needs A right of it, 1×2 grid), `contradiction_strategy = 0` → phase FAILED, `get_result() == {}`, `contradictions ≥ 1` |
-| 2.3 | `test_restart_strategy_respects_recovery_budget` | same impossible index, strategy 1, `max_recovery_attempts = 3` → FAILED, `restarts == 3` |
-| 2.4 | `test_backtracking_strategy_recovers_when_a_later_pick_exists` | index where one first pick dead-ends but another works (force with weights + fixed seed) → DONE, `backtracks ≥ 1` |
-| 2.5 | `test_outside_evidence_forbids_interior_border_violations` | part P with OUTSIDE evidence only at LEFT + part Q unconstrained: in a 2-wide grid, column 0 slots may only take P; with width 1 and P-only index → FAILED |
+| 2.1 | `test_mask_helpers_round_trip` | table-test `mask_full/empty/is_empty/count/has/set/clear/only/first/iter/_kth_set_bit/_ctz` incl. multiword masks: craft 2-word masks directly with bits in word 1 (every helper is a static taking explicit `nwords`, so no ≥ 65-family fixture is needed) |
+| 2.2 | `test_stop_strategy_fails_fast_on_impossible_index` | shared fixture (see the semantics notes below): constraint A→B at (1, 0) plus A—OUTSIDE evidence at (1, 0), 1×2 grid, dominant `A` weight + fixed seed. A is picked first and demands B to its right, but the border pass bans B from the edge slot (only OUTSIDE-evidenced families are border-ok) → step-time contradiction, phase FAILED, `get_result() == {}`, `contradictions ≥ 1` |
+| 2.3 | `test_restart_strategy_respects_recovery_budget` | same index, strategy 1, `max_recovery_attempts = 3`: every restart re-derives the same state and re-picks dominant A (weight ratio ≥ 10⁶:1 keeps the surviving-branch first pick at ≤ 10⁻⁶ probability) → budget exhausted → FAILED, `restarts == 3` |
+| 2.4 | `test_backtracking_strategy_recovers_when_a_later_pick_exists` | same index, strategy 2: the dominant first pick dead-ends, backtracking removes it and the surviving branch (B at slot 0, A at the edge) completes → DONE, `backtracks ≥ 1` |
+| 2.5 | `test_outside_evidence_forbids_interior_border_violations` | part P with OUTSIDE evidence only at LEFT + part Q unconstrained: in a 2-wide grid, column 0 slots may only take P (the right edge stays unenforced — no family has OUTSIDE evidence on that delta). The FAILED side is the 2.2 fixture: a family demanded into an edge slot it lacks OUTSIDE evidence for is wiped at setup. A single-family index can never border-fail: the family that activates a delta's border is itself border-ok there |
 | 2.6 | `test_try_assign_pin_and_rejection_rollback` | pin a legal part → `true`, `get_slot_assignment` reflects it, `get_progress` bumps; pin an incompatible part → `false`, domain + `assigned` + `_collapsed` unchanged (read via `get_slot_domain`/`get_slot_assignment`), `last_rejection` non-empty |
 | 2.7 | `test_try_clear_unpins_and_rebuilds_domain` | pin, clear → domain of the slot contains families again, re-pin still possible |
 | 2.8 | `test_describe_pin_reports_reasons` | out-of-range slot, unknown part, domain-miss → exact message strings |
@@ -88,9 +91,18 @@ pattern reuses the existing `_part`/`_constraint` helpers (move to
 | 2.10 | `test_render_geometry_with_overlap_step` | 2 slots, step `(2, 1)`, tile 3×2 → image size `((2-1)*2+3, 2)`; blit positions from `slot_rect` |
 | 2.11 | `test_same_seed_reproduces_identical_output` | batch twice + stepped once, all three PixelHash-equal (extends the existing parity test with a *constrained* index so propagation actually runs) |
 
-Keep 2.2–2.4 seeds/weights pinned so they cannot go flaky; if a fixture turns
-out ambiguous, enlarge to 3×3 and add explicit weights rather than loosening
-assertions.
+Engine semantics the 2.2–2.5 fixtures rely on (verified against
+`tile_collapse.gd` / `constraint_index.gd`): positive arcs are permissions
+and their reverse arcs are materialized, so an out-of-grid obligation exists
+only where the index has OUTSIDE evidence on that exact delta
+(`delta_has_outside` gates the border wipe) — borders are the only
+deterministic contradiction source. A session that fails during
+construction reports `contradictions == 0` and `restarts == 0` (those
+counters only track step-time recovery), which is why 2.2–2.4 force the
+contradiction at the first observation via a border-banned target plus
+dominant weight; residual seed dependence is bounded by the weight ratio.
+Keep the seed pinned; if a fixture turns out ambiguous, enlarge to 3×3 and
+add explicit weights rather than loosening assertions.
 
 ---
 
@@ -108,12 +120,12 @@ existing `AppData` instantiation pattern (`auto_free` + `_ready()`), plus
 | 3.4 | `test_clear_all_edits_keeps_tags_and_rules` | edits wiped, `tag_edits`/`rules` survive |
 | 3.5 | `test_tag_crud_and_strip_everywhere` | add (dedupe/strip/empty rejected), remove, `get_all_tags` sorted; `strip_tag_everywhere` returns count and emits once |
 | 3.6 | `test_authored_rule_crud_and_numbering` | add returns `rule_1/2…`, update patches fields except id, remove; after load, numbering continues past the max restored id |
-| 3.7 | `test_apply_tagging_rules_is_idempotent_and_reports` | second call adds 0; per-rule counts; disabled rule skipped; single `edits_changed` emission (flag via signal spy) |
-| 3.8 | `test_terrain_key_filters_and_regen` | `active_terrain_classes` drops disabled classes; `set_terrain_key` emits `terrain_key_changed` and refreshes constraints; `apply_terrain_key_tags` honors `min_fraction` |
+| 3.7 | `test_apply_tagging_rules_is_idempotent_and_reports` | second call adds 0; per-rule counts; disabled rule skipped; signal spy: exactly one `edits_changed` on the first application, zero on the idempotent second (emission is conditional on `tagged_parts > 0`) |
+| 3.8 | `test_terrain_key_filters_and_regen` | `active_terrain_classes` drops disabled classes; `set_terrain_key` emits `terrain_key_changed` and refreshes constraints; `apply_terrain_key_tags` honors `min_fraction`. Seed `last_run_config.constraint_jobs` with adjacency only — pixel_overlap regeneration reads the `AppData` autoload's key, not this instance's |
 | 3.9 | `test_save_and_load_project_round_trip` | save to `user://test_project.wfcproj`, load into a fresh AppData → edits/tags/rules/terrain key equal; legacy `terrain_keys` array migrates first enabled key; missing file → `{}`; `_decode_tag_edits` drops empty/non-string entries |
 | 3.10 | `test_remove_output_clears_last_synthesis` | removing the current output id resets `last_synthesis` and emits; removing another output leaves it |
 
-Cleanup: 3.9 must delete the temp file in the test (use `DirAccess.remove_absolute("user://test_project.wfcproj")`) so runs stay hermetic.
+Cleanup: 3.9 must delete the temp file in the test (use `DirAccess.open("user://").remove("test_project.wfcproj")`) so runs stay hermetic.
 
 ---
 
@@ -124,7 +136,7 @@ Cleanup: 3.9 must delete the temp file in the test (use `DirAccess.remove_absolu
 | 4.1 | `test_n8_neighborhood_emits_diagonal_offsets` | 2×2 tiles, `neighborhood = 1` → offsets `(step, 0)`, `(0, step)`, `(step, step)`, `(step, -step)` |
 | 4.2 | `test_wrap_evidence_links_seam_and_skips_interior_holes` | 3×1 grid: right-edge pair wraps to column 0; a deliberately missing interior tile produces no pair |
 | 4.3 | `test_non_directional_constraints_are_symmetric_and_canonical` | `directional = false` → `params.symmetric == true`, participant order independent of input order |
-| 4.4 | `test_transform_variants_map_offsets` | canonical A (with enabled `rot90` variant) adjacent to B: expect the base pair at `(1, 0)` **and** the variant pair at `(0, 1)` (rot90 mapping `(x,y) → (-y,x)`), with variant part ids as participants |
+| 4.4 | `test_transform_variants_map_offsets` | canonical A and B each with an enabled `rot90` variant — variant pairs emit only when both sides share the transform key: expect the base pair at `(1, 0)` **and** the variant pair at `(0, 1)` (rot90 mapping `(x,y) → (-y,x)`), with variant part ids as participants |
 | 4.5 | `test_weight_equals_evidence_count` | same pair observed at two positions → `weight == 2`, `evidence.size() == 2` |
 
 ---
@@ -161,7 +173,7 @@ Cleanup: 3.9 must delete the temp file in the test (use `DirAccess.remove_absolu
 
 | # | Test | Pins / asserts |
 |---|---|---|
-| 5.12 | `test_offset_metrics_manhattan_and_euclidean` | rule distance 2: manhattan yields the diamond set, euclidean the disc set (assert `delta_list` contents) |
+| 5.12 | `test_offset_metrics_manhattan_and_euclidean` | rule distance 3: manhattan yields the 24-offset diamond (no (±2, ±2)), euclidean the 28-offset disc — at distance 2 both metrics coincide, so assert the differing `delta_list` contents at 3 |
 | 5.13 | `test_duplicate_pair_constraints_accumulate_weight` | two constraints, same pair+offset → `get_neighbors` weight is the sum |
 | 5.14 | `test_family_layer_groups_identical_parts` | two parts with identical neighbor behavior → `family_count == 1`, `family_weights[0] == sum`, `family_of_part_id` resolves both, `largest_family_size == 2` |
 | 5.15 | `test_unknown_rule_types_and_tags_warn_but_do_not_throw` | rule with `type: "bogus"` and exclusion referencing a missing tag → index still builds, no deltas added |

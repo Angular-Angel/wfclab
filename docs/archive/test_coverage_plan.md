@@ -1,5 +1,8 @@
 # Test Coverage Plan
 
+> **Status:** ✅ Complete — archived 2026-09-24. All phases (P0–P6) implemented:
+> 11 suites, 77 test cases, green via `./run_tests.sh`.
+
 Plan to close the gaps identified in the test-suite audit (baseline: 4 suites,
 25 cases, all green via `./run_tests.sh`). Phases are ordered by risk: each
 targets code that can silently corrupt synthesis output today.

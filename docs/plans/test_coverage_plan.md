@@ -26,11 +26,11 @@ Small fixes so later phases build on a clean base.
 
 | # | Change | File(s) |
 |---|---|---|
-| 0.1 | Rename `text_constraint_index_rules.gd` → `test_constraint_index_rules.gd` (use `git mv`; also rename the `.uid` if Godot regenerates it) | `tests/` |
+| 0.1 | Rename `text_constraint_index_rules.gd` → `test_constraint_index_rules.gd` (use `git mv` on the script AND its `.gd.uid` together — renaming only the script orphans the old uid and Godot mints a fresh one) | `tests/` |
 | 0.2 | Drop `class_name TagMatcherTest` and `class_name ConstraintIndexRulesTest` | `tests/test_tag_matcher.gd`, `tests/test_constraint_index_rules.gd` |
 | 0.3 | Remove dead construct `return null if false else c` → `return c` | `tests/test_constraint_index_rules.gd` |
 | 0.4 | Fix stale header/usage comment (mentions `test_swap_behavior.gd` and the wrong project name) | `run_tests.sh` |
-| 0.5 | Extract shared fixture builders into `tests/builders.gd` (static helpers: `solid_image`, `grid_image`, `make_part`, `make_constraint`, `make_asset`, plus terrain-key save/restore helpers for the `AppData` autoload — see the P1 note); update existing suites to use them | `tests/builders.gd` + 3 suites |
+| 0.5 | Extract shared fixture builders into `tests/builders.gd` (static helpers: `solid_image`, `grid_image`, `make_part`, `make_constraint`, `make_asset`, plus terrain-key save/restore helpers for the `AppData` autoload — see the P1 note); update existing suites to use them (the rules suite keeps its own `_mk_part`/`_mk_adj` — its fixtures set `canonical_id`/`transform_key` by hand instead of deriving from an image) | `tests/builders.gd` + 3 suites |
 
 Acceptance: `./run_tests.sh` discovers **4** suites, 25/25 pass, no
 `class_name` under `tests/`.
@@ -75,34 +75,52 @@ in `after_test` so a failed assertion cannot leak classes into tests 1.1–1.8.
 Pins the solver's recovery, border, and interactive-editing contracts. Fixture
 pattern reuses the existing `_part`/`_constraint` helpers (move to
 `tests/builders.gd` in P0): build a `ConstraintIndex`, then a
-`TileCollapse.new().create_session(index, params, rng)`.
+`TileCollapse.new().create_session(index, params, rng)`. The 2.2–2.4 fixture
+additionally passes tags and one exclusion rule through the 4-arg
+`ConstraintIndex.build(parts, constraints, tags, rules)`.
 
 | # | Test | Pins / asserts |
 |---|---|---|
-| 2.1 | `test_mask_helpers_round_trip` | table-test `mask_full/empty/is_empty/count/has/set/clear/only/first/iter/_kth_set_bit/_ctz` incl. multiword masks: craft 2-word masks directly with bits in word 1 (every helper is a static taking explicit `nwords`, so no ≥ 65-family fixture is needed) |
-| 2.2 | `test_stop_strategy_fails_fast_on_impossible_index` | shared fixture (see the semantics notes below): constraint A→B at (1, 0) plus A—OUTSIDE evidence at (1, 0), 1×2 grid, dominant `A` weight + fixed seed. A is picked first and demands B to its right, but the border pass bans B from the edge slot (only OUTSIDE-evidenced families are border-ok) → step-time contradiction, phase FAILED, `get_result() == {}`, `contradictions ≥ 1` |
+| 2.1 | `test_mask_helpers_round_trip` | table-test `mask_full/empty/is_empty/count/has/set/clear/only/first/iter/_kth_set_bit/_ctz` incl. multiword masks: craft 2-word masks directly with bits in word 1 (only `mask_full`/`mask_empty` take `nwords`; the rest read the mask's own length, so `mask_set(mask_empty(2), 64)` needs no ≥ 65-family fixture) |
+| 2.2 | `test_stop_strategy_fails_fast_on_impossible_index` | shared fixture (see the semantics notes below): parts A (weight 10⁶, tag `ta`) and B (tag `tb`), evidence A→B at (1, 0), authored exclusion rule `ta`~`tb` distance 1 chebyshev, grid `output_width=2, output_height=1`, fixed seed. Setup leaves both domains {A, B} (B's empty arc is unconstrained under `unknown_free=true`), the first observation weighted-picks A at slot 0, and the rule-emptied arc wipes slot 1 to ∅ → step-time contradiction, phase FAILED, `get_result() == {}`, `contradictions ≥ 1` |
 | 2.3 | `test_restart_strategy_respects_recovery_budget` | same index, strategy 1, `max_recovery_attempts = 3`: every restart re-derives the same state and re-picks dominant A (weight ratio ≥ 10⁶:1 keeps the surviving-branch first pick at ≤ 10⁻⁶ probability) → budget exhausted → FAILED, `restarts == 3` |
-| 2.4 | `test_backtracking_strategy_recovers_when_a_later_pick_exists` | same index, strategy 2: the dominant first pick dead-ends, backtracking removes it and the surviving branch (B at slot 0, A at the edge) completes → DONE, `backtracks ≥ 1` |
-| 2.5 | `test_outside_evidence_forbids_interior_border_violations` | part P with OUTSIDE evidence only at LEFT + part Q unconstrained: in a 2-wide grid, column 0 slots may only take P (the right edge stays unenforced — no family has OUTSIDE evidence on that delta). The FAILED side is the 2.2 fixture: a family demanded into an edge slot it lacks OUTSIDE evidence for is wiped at setup. A single-family index can never border-fail: the family that activates a delta's border is itself border-ok there |
+| 2.4 | `test_backtracking_strategy_recovers_when_a_later_pick_exists` | same index, strategy 2: the dominant first pick dead-ends, backtracking removes it and the surviving branch (B at slot 0, A at slot 1) completes → DONE, `backtracks ≥ 1` |
+| 2.5 | `test_outside_evidence_forbids_interior_border_violations` | DONE side: part P with OUTSIDE evidence only at LEFT + part Q unconstrained, 2-wide grid (`output_width=2`) — column 0 slots may only take P; the right edge stays unenforced (no family has OUTSIDE evidence on that delta). FAILED side: P with OUTSIDE evidence at RIGHT plus evidence P→Q at (1, 0) and `unknown_free = false` — the arc prunes the edge slot to {Q}, the border pass wipes Q (not border-ok there) → ∅ at setup → construction FAILED with `contradictions == 0`, `restarts == 0`. A border wipe alone can never empty a domain: the family that activates a delta's border is itself border-ok there |
 | 2.6 | `test_try_assign_pin_and_rejection_rollback` | pin a legal part → `true`, `get_slot_assignment` reflects it, `get_progress` bumps; pin an incompatible part → `false`, domain + `assigned` + `_collapsed` unchanged (read via `get_slot_domain`/`get_slot_assignment`), `last_rejection` non-empty |
 | 2.7 | `test_try_clear_unpins_and_rebuilds_domain` | pin, clear → domain of the slot contains families again, re-pin still possible |
 | 2.8 | `test_describe_pin_reports_reasons` | out-of-range slot, unknown part, domain-miss → exact message strings |
 | 2.9 | `test_unknown_free_false_constrains_unobserved_offsets` | offset only observed for one pair; `unknown_free = false` → output never places an unobserved pair (assert via final `assigned` neighbors or a FAILED on a forcing grid) |
-| 2.10 | `test_render_geometry_with_overlap_step` | 2 slots, step `(2, 1)`, tile 3×2 → image size `((2-1)*2+3, 2)`; blit positions from `slot_rect` |
+| 2.10 | `test_render_geometry_with_overlap_step` | grid `output_width=2, output_height=1`, step `(2, 1)`, tile 3×2 → image size `((2-1)*2+3, (1-1)*1+2) == (5, 2)`; blit positions from `slot_rect` |
 | 2.11 | `test_same_seed_reproduces_identical_output` | batch twice + stepped once, all three PixelHash-equal (extends the existing parity test with a *constrained* index so propagation actually runs) |
 
 Engine semantics the 2.2–2.5 fixtures rely on (verified against
-`tile_collapse.gd` / `constraint_index.gd`): positive arcs are permissions
-and their reverse arcs are materialized, so an out-of-grid obligation exists
-only where the index has OUTSIDE evidence on that exact delta
-(`delta_has_outside` gates the border wipe) — borders are the only
-deterministic contradiction source. A session that fails during
-construction reports `contradictions == 0` and `restarts == 0` (those
-counters only track step-time recovery), which is why 2.2–2.4 force the
-contradiction at the first observation via a border-banned target plus
-dominant weight; residual seed dependence is bounded by the weight ratio.
-Keep the seed pinned; if a fixture turns out ambiguous, enlarge to 3×3 and
-add explicit weights rather than loosening assertions.
+`tile_collapse.gd` / `constraint_index.gd`, then confirmed empirically with a
+disposable probe suite that was deleted afterwards):
+
+- Evidence arcs are permissions, never obligations: `_revise` prunes an
+  *unassigned* neighbor only, and assigned neighbors are skipped — "A demands
+  B" is enforced only while B's slot is still open.
+- The border pass runs at construction (`_reset_attempt` queues every slot
+  once the index has OUTSIDE evidence), so a border-wiped edge slot is a
+  size-1 domain before the first step — and `_pick_slot` is MRV, so that slot
+  is observed first, not the dominant-weight slot. A border wipe alone can
+  never empty a domain: the family that sets `delta_has_outside` on a delta
+  is itself border-ok there. (An A→B at (1, 0) plus A—OUTSIDE at (1, 0)
+  fixture does NOT fail — it completes, placing the unobserved A/A pair via
+  `unknown_free` — so the shared fixture derives its contradiction from an
+  authored exclusion rule instead: `_exclude_at` empties A's evidence arc at
+  (1, 0) while forcing `nb_empty = false`, so the wipe cannot be neutralized
+  by `unknown_free`.)
+- A session that fails during construction reports `contradictions == 0` and
+  `restarts == 0` (those counters only track step-time recovery) — 2.5's
+  FAILED side asserts exactly that construction-failure shape.
+- Probe-verified outcomes for the shared 2.2 fixture: strategy 0 → FAILED,
+  `get_result() == {}`, `contradictions == 1`; strategy 1 with
+  `max_recovery_attempts = 3` → `restarts == 3` (the 4th contradiction
+  exhausts the budget); strategy 2 → DONE, `backtracks == 1`.
+- Keep the seed pinned; the 10⁶:1 weight ratio bounds first-pick flake
+  probability at ≤ 10⁻⁶. If a fixture turns out ambiguous, enlarge to 3×3
+  and add explicit weights rather than loosening assertions.
 
 ---
 
@@ -164,7 +182,7 @@ Cleanup: 3.9 must delete the temp file in the test (use `DirAccess.open("user://
 | # | Test | Pins / asserts |
 |---|---|---|
 | 5.7 | `test_pixel_hash_is_format_independent` | same pixels as FORMAT_RGB8, L8, RGBA8 → identical hash (the documented core claim) |
-| 5.8 | `test_pixel_hash_handles_compressed_source` | compressed (WebP/PNG-lossy path or `compress()`), decompressed-equivalent hash |
+| 5.8 | `test_pixel_hash_handles_compressed_source` | lossless round-trip only: `save_png_to_buffer` → `load_png_from_buffer` → hash equal to the source; if the `is_compressed()` branch is exercised via in-memory `compress()`, assert only that `PixelHash.of` runs (never hash-equality — lossy codecs and driver-dependent formats alter pixels) |
 | 5.9 | `test_image_asset_from_image_derives_id_and_hash` | `img_` + first 10 hash chars; `load_from_path` on a missing/empty file → `null` |
 | 5.10 | `test_json_codec_edge_cases` | `{"__v2i": …}` with extra keys is NOT decoded as a vector; float ≥ 2³¹ stays float; nested arrays |
 | 5.11 | `test_run_monitor_stage_lifecycle` | begin → stage begin/report/end → finish: statuses, `progress` recomputation, `rev` bumps, `clear_finished` keeps running runs. Call the `_`-prefixed deferred impls directly to avoid frame awaits |
@@ -204,8 +222,9 @@ guards future refactors of the family layer.
 4. P5 fills the long tail; P6 last.
 
 Validation after each phase: `./run_tests.sh` green, suite count grows as
-planned, and total runtime stays well under a second (current suites run in
+planned (4 suites now → 11 after P6), and total runtime stays well under a
+second (current suites run in
 ~100 ms; all proposed tests are deterministic and sub-millisecond apart from
 the P6 smoke).
 
-Estimated total: ~30 new test cases across 6 new suites plus 3 extended ones.
+Estimated total: ~54 new test cases across 7 new suites plus 2 extended ones.

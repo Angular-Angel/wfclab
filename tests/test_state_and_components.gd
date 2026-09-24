@@ -2,33 +2,14 @@ extends GdUnitTestSuite
 
 const AppDataScript = preload("res://scripts/core/app_data.gd")
 const TechniqueRegistryScript = preload("res://scripts/core/technique_registry.gd")
-
-
-func _image(width: int, height: int, pixels: Array[Color]) -> Image:
-	var image := Image.create_empty(width, height, false, Image.FORMAT_RGBA8)
-	for y in height:
-		for x in width:
-			image.set_pixel(x, y, pixels[y * width + x])
-	return image
-
-
-func _asset(id_name: String, image: Image) -> ImageAssetData:
-	var asset := ImageAssetData.from_image(image, id_name)
-	asset.id = id_name
-	return asset
-
-
-func _raw_part(hash_hex: String, color: Color) -> Part:
-	var part := Part.new()
-	part.setup(_image(1, 1, [color]), hash_hex, "source", Vector2i.ZERO)
-	part.weight = 1.0
-	return part
+const Builders = preload("res://tests/builders.gd")
 
 
 func test_app_data_add_remove_and_number_synthesis_outputs() -> void:
 	var data: Variant = auto_free(AppDataScript.new())
 	data._ready()
-	var asset := _asset("img_source", _image(1, 1, [Color.RED]))
+	var asset := Builders.make_asset("img_source",
+			Builders.flat_image(1, 1, [Color.RED]))
 
 	assert_bool(data.add_image(asset)).is_true()
 	assert_bool(data.add_image(asset)).is_false()
@@ -36,7 +17,7 @@ func test_app_data_add_remove_and_number_synthesis_outputs() -> void:
 	assert_bool(data.remove_image(asset.id)).is_true()
 	assert_bool(data.remove_image(asset.id)).is_false()
 
-	var output_image := _image(1, 1, [Color.BLUE])
+	var output_image := Builders.flat_image(1, 1, [Color.BLUE])
 	data.set_synthesis(output_image, {"seed": 1}, {"label": "first"})
 	data.set_synthesis(output_image, {"seed": 2}, {"label": "second"})
 	var output_ids: Array = data.outputs.keys()
@@ -51,7 +32,7 @@ func test_app_data_add_remove_and_number_synthesis_outputs() -> void:
 func test_app_data_materializes_edits_and_invalidates_cached_index() -> void:
 	var data: Variant = auto_free(AppDataScript.new())
 	data._ready()
-	var raw := _raw_part("aaaaaaaaaaaa", Color.RED)
+	var raw := Builders.make_part("aaaaaaaaaaaa", Color.RED)
 	var raw_parts: Array[Part] = [raw]
 	data.set_parts(raw_parts, {})
 	var materialized: Part = data.get_part_list()[0]
@@ -95,8 +76,8 @@ func test_technique_registry_registers_and_looks_up_builtins() -> void:
 
 
 func test_grid_tiles_deduplicates_occurrences_and_clamps_edge_origins() -> void:
-	var image := _image(3, 1, [Color.RED, Color.RED, Color.RED])
-	var asset := _asset("img_grid", image)
+	var image := Builders.flat_image(3, 1, [Color.RED, Color.RED, Color.RED])
+	var asset := Builders.make_asset("img_grid", image)
 	var result: Dictionary = GridTiles.new().decompose([asset], {
 		"tile_size": Vector2i(2, 1), "stride": Vector2i(1, 1),
 		"edge_handling": GridTiles.EdgeHandling.CLAMP, "dedupe": true,
@@ -110,7 +91,8 @@ func test_grid_tiles_deduplicates_occurrences_and_clamps_edge_origins() -> void:
 
 
 func test_grid_tiles_transforms_rotate_and_reflect_pixels() -> void:
-	var source := _image(2, 2, [Color.RED, Color.GREEN, Color.BLUE, Color.WHITE])
+	var source := Builders.flat_image(2, 2,
+			[Color.RED, Color.GREEN, Color.BLUE, Color.WHITE])
 	var rot90 := GridTiles.transform_image(source, "rot90")
 	var flip_h := GridTiles.transform_image(source, "flip_h")
 

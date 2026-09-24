@@ -1,5 +1,5 @@
 #!/bin/bash
-# run_tests.sh — headless test runner for Inheritors of Elyrion
+# run_tests.sh — headless test runner for WFCLab
 #
 # Prerequisites:
 #   1. gdUnit4 addon installed in addons/gdUnit4/
@@ -8,7 +8,7 @@
 # Usage:
 #   ./run_tests.sh              # Run all tests
 #   ./run_tests.sh -a tests/    # Run all tests (explicit directory)
-#   ./run_tests.sh tests/test_swap_behavior.gd  # Run a single test file
+#   ./run_tests.sh tests/test_core_algorithms.gd  # Run a single test file
 #
 # Exit codes:
 #   0 — all tests passed
@@ -47,10 +47,6 @@ cd "$SCRIPT_DIR"
     --ignoreHeadlessMode \
     -a "$TEST_DIR"
 
-EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ]; then
-    echo "All tests passed."
-else
-    echo "One or more tests failed (exit code: $EXIT_CODE)."
-fi
-exit $EXIT_CODE
+# Under `set -e` the gdUnit4 invocation above aborts the script on failure
+# (its exit code propagates), so reaching this line means everything passed.
+echo "All tests passed."

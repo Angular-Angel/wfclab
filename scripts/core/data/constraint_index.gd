@@ -416,66 +416,35 @@ func _edge_signature_key(pi: int, depth: int, decoded: Array,
 	## (transparent/unclassed = -1, kept so transparency patterns matter).
 	## Without: byte-exact strips (stronger than ID equality, still exact).
 	var p: Part = _parts[part_ids[pi]]
+	# Clamped depth: parts smaller than `depth` still contribute a shallower
+	# strip here (PixelOverlap skips such parts entirely instead).
 	var d_eff := mini(depth, mini(p.size.x, p.size.y))
 	var sections := PackedStringArray()
 	for t: Variant in tags_of[pi]:
 		sections.append(str(t))
 	var img := p.pixel_data.duplicate() as Image
 	ImageOps.to_rgba8_in_place(img)
-	var cls_map := PackedInt32Array()
-	if not decoded.is_empty():
-		cls_map = TerrainMapper.apply_mapped(img, decoded)
+	var cls_map := StripUtil.class_map(img, decoded)
 	var w := img.get_width()
 	var data := img.get_data()
-	var sides := [
-		[Vector2i(p.size.x - 1, 0), Vector2i(0, 1), Vector2i(-1, 0), p.size.y],
-		[Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 0), p.size.y],
-		[Vector2i(0, p.size.y - 1), Vector2i(1, 0), Vector2i(0, -1), p.size.x],
-		[Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), p.size.x],
-	]
-	for side: Array in sides:
-		var start: Vector2i = side[0]
-		var along: Vector2i = side[1]
-		var inward: Vector2i = side[2]
-		var span: int = side[3]
+	for side_name: String in StripUtil.SIDES:
+		var g := StripUtil.side(side_name, p.size)
+		var start: Vector2i = g["start"]
+		var along: Vector2i = g["along"]
+		var inward: Vector2i = g["inward"]
+		var span: int = g["span"]
 		if decoded.is_empty():
-			sections.append(_edge_bytes(data, w, d_eff, start, along,
+			sections.append(StripUtil.bytes(data, w, d_eff, start, along,
 					inward, span).hex_encode())
 		else:
-			var ids := PackedInt32Array()
-			ids.resize(d_eff * span)
-			var k := 0
-			for s in span:
-				var base := start + along * s
-				for u in d_eff:
-					var pt := base + inward * u
-					ids[k] = cls_map[pt.y * w + pt.x]
-					k += 1
+			var ids := StripUtil.classes(cls_map, w, d_eff, start, along,
+					inward, span)
 			ids.sort()
 			var enc := PackedStringArray()
 			for c in ids:
 				enc.append(str(c))
 			sections.append(",".join(enc))
 	return "§".join(sections)
-
-
-static func _edge_bytes(data: PackedByteArray, img_w: int, depth: int,
-		start: Vector2i, along: Vector2i, inward: Vector2i,
-		span: int) -> PackedByteArray:
-	var out := PackedByteArray()
-	out.resize(depth * span * 4)
-	var k := 0
-	for s in span:
-		var base := start + along * s
-		for u in depth:
-			var p := base + inward * u
-			var o := (p.y * img_w + p.x) * 4
-			out[k] = data[o]
-			out[k + 1] = data[o + 1]
-			out[k + 2] = data[o + 2]
-			out[k + 3] = data[o + 3]
-			k += 4
-	return out
 
 
 func _compile_family_tags() -> void:

@@ -73,36 +73,23 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 		if p.size.x >= depth and p.size.y >= depth:
 			var img := p.pixel_data.duplicate() as Image
 			ImageOps.to_rgba8_in_place(img)
-			var cls_map := PackedInt32Array()
-			if not decoded.is_empty():
-				cls_map = TerrainMapper.apply_mapped(img, decoded)
+			var cls_map := StripUtil.class_map(img, decoded)
 			var w := img.get_width()
-			var rc := _strip_classes(cls_map, w, depth,
-					Vector2i(p.size.x - 1, 0), Vector2i(0, 1),
-					Vector2i(-1, 0), p.size.y)
-			var lc := _strip_classes(cls_map, w, depth,
-					Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 0), p.size.y)
-			var bc := _strip_classes(cls_map, w, depth,
-					Vector2i(0, p.size.y - 1), Vector2i(1, 0),
-					Vector2i(0, -1), p.size.x)
-			var tc := _strip_classes(cls_map, w, depth,
-					Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), p.size.x)
-			strips[p.id] = {
-				"right": _strip(img, depth, Vector2i(p.size.x - 1, 0),
-					Vector2i(0, 1), Vector2i(-1, 0), p.size.y),
-				"left": _strip(img, depth, Vector2i(0, 0),
-					Vector2i(0, 1), Vector2i(1, 0), p.size.y),
-				"bottom": _strip(img, depth, Vector2i(0, p.size.y - 1),
-					Vector2i(1, 0), Vector2i(0, -1), p.size.x),
-				"top": _strip(img, depth, Vector2i(0, 0),
-					Vector2i(1, 0), Vector2i(0, 1), p.size.x),
-				"right_cls": rc, "left_cls": lc,
-				"bottom_cls": bc, "top_cls": tc,
-				"right_loose": _strip_loose(rc, class_flex, flex),
-				"left_loose": _strip_loose(lc, class_flex, flex),
-				"bottom_loose": _strip_loose(bc, class_flex, flex),
-				"top_loose": _strip_loose(tc, class_flex, flex),
-			}
+			var data := img.get_data()
+			var entry := {}
+			for side_name: String in StripUtil.SIDES:
+				var g := StripUtil.side(side_name, p.size)
+				var start: Vector2i = g["start"]
+				var along: Vector2i = g["along"]
+				var inward: Vector2i = g["inward"]
+				var span: int = g["span"]
+				var cls := StripUtil.classes(cls_map, w, depth,
+						start, along, inward, span)
+				entry[side_name] = StripUtil.bytes(data, w, depth,
+						start, along, inward, span)
+				entry[side_name + "_cls"] = cls
+				entry[side_name + "_loose"] = _strip_loose(cls, class_flex, flex)
+			strips[p.id] = entry
 		done += 1
 		report_progress.call(strips_share * float(done) / float(total))
 
@@ -292,29 +279,6 @@ func _bucket_key(size: Vector2i, strip: PackedByteArray) -> String:
 	return "%d,%d|%d" % [size.x, size.y, hash(strip)]
 
 
-func _strip(img: Image, depth: int, start: Vector2i, along: Vector2i,
-		inward: Vector2i, span: int) -> PackedByteArray:
-	## Copies depth × span pixels from `start` (a point on the seam),
-	## stepping `along` across the seam and `inward` away from it.
-	## Outer loop = v (along the seam), inner = u (seam inward).
-	var w := img.get_width()
-	var bytes := img.get_data()
-	var out := PackedByteArray()
-	out.resize(depth * span * 4)
-	var k := 0
-	for s in span:
-		var base := start + along * s
-		for u in depth:
-			var p := base + inward * u
-			var o := (p.y * w + p.x) * 4
-			out[k] = bytes[o]
-			out[k + 1] = bytes[o + 1]
-			out[k + 2] = bytes[o + 2]
-			out[k + 3] = bytes[o + 3]
-			k += 4
-	return out
-
-
 func _match(sa: PackedByteArray, sb: PackedByteArray, depth: int, span: int,
 		tolerance: int, flex: int, omissions: int) -> bool:
 	## True when at most `omissions` pixels of `sa` lack a satisfying
@@ -371,26 +335,6 @@ func _record_pairs(aggregate: Dictionary, a_parts: Array, b_parts: Array,
 	for pa: Part in a_parts:
 		for pb: Part in b_parts:
 			_record(aggregate, pa, pb, offset)
-
-
-func _strip_classes(cls_map: PackedInt32Array, img_w: int, depth: int,
-		start: Vector2i, along: Vector2i, inward: Vector2i,
-		span: int) -> PackedInt32Array:
-	## Class id per strip pixel, identical iteration order to _strip().
-	## Empty class map (no terrain key) yields an empty array, which the
-	## matcher treats as "every pixel unclassed".
-	if cls_map.is_empty():
-		return PackedInt32Array()
-	var out := PackedInt32Array()
-	out.resize(depth * span)
-	var k := 0
-	for s in span:
-		var base := start + along * s
-		for u in depth:
-			var p := base + inward * u
-			out[k] = cls_map[p.y * img_w + p.x]
-			k += 1
-	return out
 
 
 func _strip_loose(cls_arr: PackedInt32Array, class_flex: PackedInt32Array,

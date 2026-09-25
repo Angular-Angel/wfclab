@@ -3,8 +3,7 @@ class_name DecompositionTab extends TabBase
 ## The run config is a JSON-safe snapshot — it is also what project save/load
 ## stores and reloads.
 
-var _technique_option: OptionButton
-var _params_box: VBoxContainer
+var _panel: TechniquePanel
 var _ct_section: VBoxContainer
 var _image_list: ItemList
 var _run_button: Button
@@ -34,17 +33,11 @@ func _ready() -> void:
 	# at small window sizes.
 	var left := UiKit.scroll_panel(split, 320.0)
 
-	left.add_child(UiKit.label("Technique"))
-	_technique_option = OptionButton.new()
+	_panel = TechniquePanel.new("Technique")
+	left.add_child(_panel)
 	for technique: DecompositionTechnique in TechniqueRegistry.get_decomposition_techniques():
-		_technique_option.add_item(technique.get_display_name())
-		_technique_option.set_item_metadata(_technique_option.item_count - 1, technique.get_id())
-	_technique_option.item_selected.connect(_on_technique_selected)
-	left.add_child(_technique_option)
-
-	left.add_child(UiKit.label("Parameters"))
-	_params_box = VBoxContainer.new()
-	left.add_child(_params_box)
+		_panel.add_technique(technique.get_id(), technique.get_display_name())
+	_panel.technique_selected.connect(_on_technique_selected)
 
 	_auto_constraints = CheckButton.new()
 	_auto_constraints.text = "Immediately find constraints"
@@ -109,9 +102,7 @@ func _ready() -> void:
 	right.add_child(_set_empty_state(
 			"No run yet — configure a decomposition and press Run."))
 
-	if _technique_option.item_count > 0:
-		_technique_option.select(0)
-		_on_technique_selected(0)
+	_panel.select_initial()
 
 
 func _update_edits_label() -> void:
@@ -127,12 +118,10 @@ func _on_ct_toggled(pressed: bool, tech_id: StringName) -> void:
 
 # --- Technique / image list handling --------------------------------------------
 
-func _on_technique_selected(index: int, initial_params: Dictionary = {}) -> void:
-	var id: StringName = _technique_option.get_item_metadata(index)
+func _on_technique_selected(id: StringName, initial_params: Dictionary = {}) -> void:
 	_current_technique = TechniqueRegistry.get_decomposition(id)
-	UiKit.clear_children(_params_box)
-	_param_values = {}
-	ParamBuilder.build(_current_technique.get_parameter_specs(), _param_values, _params_box, initial_params)
+	_panel.rebuild_params(_current_technique.get_parameter_specs(),
+			_param_values, initial_params)
 
 
 func _rebuild_image_list() -> void:
@@ -155,11 +144,7 @@ func _selected_image_ids() -> Array:
 func apply_config(config: Dictionary) -> void:
 	## Sync all widgets from a stored (e.g. loaded) run config.
 	var tech_id := StringName(String(config.get("technique_id", "")))
-	for i in _technique_option.item_count:
-		if _technique_option.get_item_metadata(i) == tech_id:
-			_technique_option.select(i)
-			_on_technique_selected(i, config.get("params", {}))
-			break
+	_panel.select_by_id(tech_id, config.get("params", {}))
 
 	var job_params: Dictionary = {}
 	for job: Dictionary in config.get("constraint_jobs", []):

@@ -3,8 +3,7 @@ class_name SynthesizersTab extends TabBase
 ## Interactive sessions can be stepped, played, and hand-edited: click a
 ## slot (or cursor onto it with arrows) to see its candidates and pin one.
 
-var _technique_option: OptionButton
-var _params_box: VBoxContainer
+var _panel: TechniquePanel
 var _seed_spin: SpinBox
 var _run_button: Button
 var _status: Label
@@ -41,17 +40,11 @@ func _ready() -> void:
 
 	var left := UiKit.scroll_panel(split, 320.0)
 
-	left.add_child(UiKit.label("Synthesizer"))
-	_technique_option = OptionButton.new()
+	_panel = TechniquePanel.new("Synthesizer")
+	left.add_child(_panel)
 	for s: Synthesizer in TechniqueRegistry.get_synthesizer_techniques():
-		_technique_option.add_item(s.get_display_name())
-		_technique_option.set_item_metadata(_technique_option.item_count - 1, s.get_id())
-	_technique_option.item_selected.connect(_on_technique_selected)
-	left.add_child(_technique_option)
-
-	left.add_child(UiKit.label("Parameters"))
-	_params_box = VBoxContainer.new()
-	left.add_child(_params_box)
+		_panel.add_technique(s.get_id(), s.get_display_name())
+	_panel.technique_selected.connect(_on_technique_selected)
 
 	var seed_row := HBoxContainer.new()
 	left.add_child(seed_row)
@@ -161,23 +154,19 @@ func _ready() -> void:
 		+ "Enter) to see its candidate tiles and pin one; propagation ripples "
 		+ "from your edit. Edits that contradict neighbors are rejected."))
 
-	if _technique_option.item_count > 0:
-		_technique_option.select(0)
-		_on_technique_selected(0)
+	_panel.select_initial()
 
 
-func _on_technique_selected(index: int) -> void:
+func _on_technique_selected(id: StringName, _initial: Dictionary = {}) -> void:
 	_stop_session()
-	var id: StringName = _technique_option.get_item_metadata(index)
 	_current = TechniqueRegistry.get_synthesizer(id)
-	UiKit.clear_children(_params_box)
-	_param_values = {}
 	var steppable := _current != null and _current.supports_stepping()
 	_interactive.disabled = not steppable
 	if not steppable:
 		_interactive.button_pressed = false
-	if _current != null:
-		ParamBuilder.build(_current.get_parameter_specs(), _param_values, _params_box)
+	var specs: Array[Dictionary] = _current.get_parameter_specs() \
+			if _current != null else []
+	_panel.rebuild_params(specs, _param_values)
 
 
 func _on_run_pressed() -> void:

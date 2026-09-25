@@ -1,4 +1,4 @@
-class_name MonitorTab extends Control
+class_name MonitorTab extends TabBase
 ## Inspector for technique runs: live progress for active runs and a
 ## permanent record of finished ones. Polls RunMonitor ~10x per second;
 ## the detail pane rebuilds only when the selected run's record changes.
@@ -27,8 +27,8 @@ var _family_inspector: FamilyInspector = null
 
 
 func _ready() -> void:
-	var split := UiKit.split_shell()
-	add_child(split)
+	super._ready()
+	var split := _build_shell()
 
 	var left := VBoxContainer.new()
 	left.custom_minimum_size = Vector2(360.0, 0.0)
@@ -120,14 +120,12 @@ func _process(delta: float) -> void:
 
 
 func _rebuild_list() -> void:
-	var keep := _selected_id
-	_list.clear()
-	_row_ids.clear()
-	for r: Dictionary in RunMonitor.get_run_list():
-		var index := _list.add_item(_row_text(r))
-		_row_ids.append(int(r["id"]))
-		if int(r["id"]) == keep:
-			_list.select(index)
+	_retain_selection(_list, func() -> void:
+		_list.clear()
+		_row_ids.clear()
+		for r: Dictionary in RunMonitor.get_run_list():
+			var index := _list.add_item(_row_text(r))
+			_row_ids.append(int(r["id"])))
 	_copy_all_button.disabled = _row_ids.is_empty()
 
 

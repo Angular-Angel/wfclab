@@ -1,4 +1,4 @@
-class_name DecompositionTab extends Control
+class_name DecompositionTab extends TabBase
 ## Configure a decomposition run (plus constraint extraction) and execute it.
 ## The run config is a JSON-safe snapshot — it is also what project save/load
 ## stores and reloads.
@@ -26,8 +26,8 @@ var _ct_boxes: Dictionary = {}     # id -> VBoxContainer (param widgets)
 
 
 func _ready() -> void:
-	var split := UiKit.split_shell()
-	add_child(split)
+	super._ready()
+	var split := _build_shell()
 
 	# Left panel scrolls vertically: its content (technique + params +
 	# constraint section + image list + run button) exceeds the window

@@ -1,4 +1,4 @@
-class_name ConstraintsTab extends Control
+class_name ConstraintsTab extends TabBase
 ## Constraint matrix with drill-down and editing.
 
 signal occurrence_selected(image_id: String, position: Vector2i, size: Vector2i)
@@ -38,10 +38,10 @@ var _editing_rule_id := ""
 
 
 func _ready() -> void:
+	super._ready()
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
-	var split := UiKit.split_shell()
-	add_child(split)
+	var split := _build_shell()
 
 	# --- Left: matrix ---------------------------------------------------------
 	var left := VBoxContainer.new()
@@ -125,14 +125,9 @@ func _ready() -> void:
 	# parts_changed and constraints_changed back to back; a single rebuild
 	# 0.3 s later covers both, off the run pipeline's critical path — instead
 	# of two full synchronous walks inside set_parts/set_constraints.
-	var rebuild_timer := Timer.new()
-	rebuild_timer.one_shot = true
-	rebuild_timer.wait_time = UiKit.DEBOUNCE_S
-	rebuild_timer.timeout.connect(_rebuild)
-	add_child(rebuild_timer)
-	AppData.edits_changed.connect(func() -> void: rebuild_timer.start())
-	AppData.parts_changed.connect(func() -> void: rebuild_timer.start())
-	AppData.constraints_changed.connect(func() -> void: rebuild_timer.start())
+	AppData.edits_changed.connect(func() -> void: _debounce_rebuild(_rebuild))
+	AppData.parts_changed.connect(func() -> void: _debounce_rebuild(_rebuild))
+	AppData.constraints_changed.connect(func() -> void: _debounce_rebuild(_rebuild))
 	_rebuild()
 
 

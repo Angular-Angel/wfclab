@@ -1,4 +1,4 @@
-class_name OutputsTab extends Control
+class_name OutputsTab extends TabBase
 ## Displays the last synthesis result; re-synthesizes with the same or a
 ## fresh seed without returning to the Synthesizers tab.
 
@@ -17,8 +17,8 @@ var _save_png_dialog: FileDialog
 
 
 func _ready() -> void:
-	var split := UiKit.split_shell()
-	add_child(split)
+	super._ready()
+	var split := _build_shell()
 
 	var left := VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -96,16 +96,17 @@ func _update() -> void:
 
 
 func _rebuild_output_list() -> void:
-	var retained_id := _active_output_id
+	_retain_selection(_output_list, _fill_output_list)
+	_discard_button.disabled = _active_output_id.is_empty()
+
+
+func _fill_output_list() -> void:
 	_output_list.clear()
 	for output: Dictionary in AppData.get_output_list():
 		var asset: ImageAssetData = output["asset"]
 		var index := _output_list.add_icon_item(asset.thumb)
 		_output_list.set_item_text(index, asset.name)
 		_output_list.set_item_metadata(index, asset.id)
-	if not retained_id.is_empty():
-		_select_output(retained_id)
-	_discard_button.disabled = _active_output_id.is_empty()
 
 
 func _on_output_selected(index: int) -> void:
@@ -114,10 +115,9 @@ func _on_output_selected(index: int) -> void:
 
 
 func _select_output(output_id: String) -> void:
-	for index in _output_list.item_count:
-		if _output_list.get_item_metadata(index) == output_id:
-			_output_list.select(index)
-			return
+	var index := _find_by_metadata(_output_list, output_id)
+	if index != -1:
+		_output_list.select(index)
 
 
 func _show_active_output() -> void:

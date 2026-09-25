@@ -1,4 +1,4 @@
-class_name SynthesizersTab extends Control
+class_name SynthesizersTab extends TabBase
 ## Configure and run a synthesizer over the current materialized state.
 ## Interactive sessions can be stepped, played, and hand-edited: click a
 ## slot (or cursor onto it with arrows) to see its candidates and pin one.
@@ -38,8 +38,8 @@ var _last_monitor_push := 0
 
 
 func _ready() -> void:
-	var split := UiKit.split_shell()
-	add_child(split)
+	super._ready()
+	var split := _build_shell()
 
 	var left := UiKit.scroll_panel(split, 320.0)
 

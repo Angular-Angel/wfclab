@@ -1,4 +1,4 @@
-class_name PartsTab extends Control
+class_name PartsTab extends TabBase
 ## Browse the parts from the last run; inspect, edit, compare, and merge them.
 
 signal occurrence_selected(image_id: String, position: Vector2i, size: Vector2i)
@@ -39,10 +39,10 @@ var _neighbors: NeighborsPanel
 
 
 func _ready() -> void:
+	super._ready()
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
-	var split := UiKit.split_shell()
-	add_child(split)
+	var split := _build_shell()
 
 	# --- Left: parts grid ---------------------------------------------------
 	var left := VBoxContainer.new()
@@ -164,13 +164,8 @@ func _ready() -> void:
 
 	# Edits refresh is debounced: dragging a weight spin box fires many
 	# edits per second, and each would otherwise rebuild the whole grid.
-	var edits_timer := Timer.new()
-	edits_timer.one_shot = true
-	edits_timer.wait_time = UiKit.DEBOUNCE_S
-	edits_timer.timeout.connect(_rebuild)
-	add_child(edits_timer)
-	AppData.edits_changed.connect(func() -> void: edits_timer.start())
-	AppData.constraints_changed.connect(func() -> void: edits_timer.start())
+	AppData.edits_changed.connect(func() -> void: _debounce_rebuild(_rebuild))
+	AppData.constraints_changed.connect(func() -> void: _debounce_rebuild(_rebuild))
 
 	AppData.parts_changed.connect(_rebuild)
 	_rebuild()

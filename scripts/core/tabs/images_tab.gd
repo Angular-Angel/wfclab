@@ -1,4 +1,4 @@
-extends Control
+extends TabBase
 
 ## Images tab: load image files, browse them, preview one. Storage lives in
 ## AppData; this tab is pure UI.
@@ -13,8 +13,8 @@ var _discard_button: Button
 
 
 func _ready() -> void:
-	var split := UiKit.split_shell()
-	add_child(split)
+	super._ready()
+	var split := _build_shell()
 
 	var left := VBoxContainer.new()
 	left.custom_minimum_size = Vector2(240.0, 0.0)
@@ -95,7 +95,7 @@ func _on_files_selected(paths: PackedStringArray) -> void:
 		if AppData.add_image(asset):
 			last_added = asset
 	if last_added != null:
-		var index := _index_of_asset(last_added)
+		var index := _find_by_metadata(_list, last_added.id)
 		if index >= 0:
 			_list.select(index)
 			_on_item_selected(index)
@@ -108,13 +108,6 @@ func _rebuild_list() -> void:
 		_list.set_item_text(index, asset.name)
 		_list.set_item_metadata(index, asset.id)
 	_discard_button.disabled = true
-
-
-func _index_of_asset(asset: ImageAssetData) -> int:
-	for i in _list.item_count:
-		if _list.get_item_metadata(i) == asset.id:
-			return i
-	return -1
 
 
 func _on_item_selected(index: int) -> void:
@@ -161,7 +154,7 @@ func _apply_filter_mode() -> void:
 ## Cross-tab API: show this image and flash-highlight a region of it,
 ## in image pixel coordinates. Returns false if the image isn't loaded.
 func show_occurrence(image_id: String, position: Vector2i, region_size: Vector2i) -> bool:
-	var index := _index_of_id(image_id)
+	var index := _find_by_metadata(_list, image_id)
 	if index < 0:
 		return false
 	_list.select(index)
@@ -175,10 +168,3 @@ func show_occurrence(image_id: String, position: Vector2i, region_size: Vector2i
 		_scroll.scroll_horizontal = maxi(0, int(position.x - view.x * 0.5))
 		_scroll.scroll_vertical = maxi(0, int(position.y - view.y * 0.5))
 	return true
-
-
-func _index_of_id(id: String) -> int:
-	for i in _list.item_count:
-		if _list.get_item_metadata(i) == id:
-			return i
-	return -1

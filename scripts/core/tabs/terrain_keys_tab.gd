@@ -1,4 +1,4 @@
-class_name TerrainKeysTab extends Control
+class_name TerrainKeysTab extends TabBase
 ## Author the global terrain key: an ordered set of color-equivalence
 ## classes consumed by comparative constraint techniques (currently
 ## PixelOverlap), plus optional per-class tagging: a part whose
@@ -17,6 +17,7 @@ var _draft: Array = []   # working copy; pushed to AppData on Save
 var _palette_popup: PalettePicker
 var _palette_target_ci := -1
 func _ready() -> void:
+	super._ready()
 	_editor_box = UiKit.scroll_panel(self)
 	# Popup lives on the tab root: _rebuild_editor() clears _editor_box's
 	# children, and the popup must survive that.

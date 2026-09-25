@@ -190,8 +190,7 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 					/ float(maxi(positions_total, 1)))
 
 	var list: Array = aggregate.values()
-	list.sort_custom(func(a: Constraint, b: Constraint) -> bool:
-		return a.id < b.id)
+	Ids.by_id(list)
 	result.assign(list)
 	for c: Constraint in result:
 		c.weight = c.evidence.size()
@@ -255,8 +254,7 @@ func _get_or_create(aggregate: Dictionary, directional: bool,
 		{"part_id": second, "role": "b"},
 	]
 	# Readable id built from participants + offset: debuggable by eye.
-	c.id = "c_%s_%s_%d_%d" % [
-		first.substr(2, 6), second.substr(2, 6), offset.x, offset.y]
+	c.id = Ids.constraint(first, second, offset)
 	aggregate[key] = c
 	return c
 
@@ -277,6 +275,6 @@ func _record_outside(aggregate: Dictionary, a_id: String, offset: Vector2i,
 			{"part_id": a_id, "role": "a"},
 			{"part_id": ConstraintIndex.OUTSIDE, "role": "out"},
 		]
-		c.id = "c_%s_out_%d_%d" % [a_id.substr(2, 6), offset.x, offset.y]
+		c.id = "c_%s_out_%d_%d" % [Ids.short(a_id), offset.x, offset.y]
 		aggregate[key] = c
 	c.evidence.append({"image_id": img_id, "positions": [pos, npos]})

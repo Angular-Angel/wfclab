@@ -490,7 +490,7 @@ func _materialize_parts() -> void:
 			var image := raw.pixel_data if transform_key == "identity" \
 					else GridTiles.transform_image(raw.pixel_data, transform_key)
 			var hash := PixelHash.of(image, get_dedupe_tolerance())
-			var id := "p_" + hash.substr(0, 12)
+			var id := Ids.part(hash)
 			var p: Part
 			if parts.has(id):
 				p = parts[id]

@@ -41,10 +41,8 @@ func clone() -> Constraint:
 
 func rebuild_id() -> void:
 	## Recompute the id from current participants + offset. Called after
-	## alias rewriting changes participants. Must stay in sync with
-	## AdjacencyExtractor's id scheme.
+	## alias rewriting changes participants; the scheme is shared with the
+	## extractors via Ids.constraint, so it stays in sync by construction.
 	var offset: Vector2i = params.get("offset", Vector2i())
-	id = "c_%s_%s_%d_%d" % [
-		participants[0]["part_id"].substr(2, 6),
-		participants[1]["part_id"].substr(2, 6),
-		offset.x, offset.y]
+	id = Ids.constraint(participants[0]["part_id"],
+			participants[1]["part_id"], offset)

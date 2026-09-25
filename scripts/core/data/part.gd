@@ -23,7 +23,7 @@ func setup(tile: Image, hash_hex: String, image_id: String, position: Vector2i) 
 	pixel_data = tile
 	size = tile.get_size()
 	canonical_hash = hash_hex
-	id = "p_" + hash_hex.substr(0, 12)
+	id = Ids.part(hash_hex)
 	canonical_id = id
 	transform_sources.append({"canonical_id": id, "transform_key": transform_key})
 	occurrences.append({"image_id": image_id, "position": position,

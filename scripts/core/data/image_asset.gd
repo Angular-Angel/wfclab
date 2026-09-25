@@ -29,7 +29,7 @@ static func from_image(image: Image, display_name: String, source_path := "") ->
 	asset.name = display_name
 	asset.image = image
 	asset.hash = PixelHash.of(image)
-	asset.id = "img_" + asset.hash.substr(0, 10)
+	asset.id = Ids.image(asset.hash)
 	asset.texture = ImageTexture.create_from_image(image)
 	asset.thumb = _make_thumbnail(image)
 	return asset

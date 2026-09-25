@@ -54,8 +54,7 @@ func decompose(images: Array[ImageAssetData], params: Dictionary,
 	var tolerance: int = params.get("dedupe_tolerance", 0)
 	# Determinism: process images in stable id order regardless of load order.
 	var ordered := images.duplicate()
-	ordered.sort_custom(func(a: ImageAssetData, b: ImageAssetData) -> bool:
-		return a.id < b.id)
+	Ids.by_id(ordered)
 
 	var parts_by_hash: Dictionary = {}   # hash hex -> Part
 	var total_tiles := 0

@@ -58,7 +58,7 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 		class_flex[ci] = int(decoded[ci]["flex"])
 	var ordered: Array[Part] = []
 	ordered.assign(parts)
-	ordered.sort_custom(func(a: Part, b: Part) -> bool: return a.id < b.id)
+	Ids.by_id(ordered)
 
 	# Strips indexed FROM THE SEAM: u = 0 touches the neighbor, u = depth-1
 	# is deepest. v runs along the seam. Byte (u, v) at (v*depth+u)*4; the
@@ -325,8 +325,7 @@ func _record(aggregate: Dictionary, a: Part, b: Part, offset: Vector2i) -> void:
 		{"part_id": a.id, "role": "a"},
 		{"part_id": b.id, "role": "b"},
 	]
-	c.id = "o_%s_%s_%d_%d" % [
-		a.id.substr(2, 6), b.id.substr(2, 6), offset.x, offset.y]
+	c.id = Ids.constraint(a.id, b.id, offset, "o_")
 	c.evidence.append({"image_id": "overlap", "positions": []})  # weight = 1
 	aggregate[key] = c
 

@@ -9,19 +9,13 @@ class_name TerrainKeysTab extends Control
 ## Edits are explicit ("Save Key") so AppData regenerates constraints once
 ## per save rather than per widget tweak.
 const SWATCH := Vector2(34.0, 26.0)
-const PALETTE_SWATCH := Vector2(30.0, 30.0)
 const MAX_CLASS_COLORS := 8
 var _editor_box: VBoxContainer
 var _status: Label
 var _classes_box: VBoxContainer
 var _draft: Array = []   # working copy; pushed to AppData on Save
 # --- palette popup (pick colors from tiles / source images) -------------------
-var _palette_popup: PopupPanel
-var _palette_source: OptionButton
-var _palette_status: Label
-var _palette_grid: GridContainer
-var _all_palette_cache: Dictionary = {}
-var _all_palette_valid := false
+var _palette_popup: PalettePicker
 var _palette_target_ci := -1
 func _ready() -> void:
 	var scroll := ScrollContainer.new()
@@ -33,10 +27,18 @@ func _ready() -> void:
 	scroll.add_child(_editor_box)
 	# Popup lives on the tab root: _rebuild_editor() clears _editor_box's
 	# children, and the popup must survive that.
-	_palette_popup = _build_palette_popup()
+	# No selected-part context in this tab, so the tagging editor's
+	# "Selected tile" source becomes "Source images" here.
+	_palette_popup = PalettePicker.new()
+	_palette_popup.setup([
+		{"label": "All tiles", "empty": "No tiles/images to sample.",
+				"images": PalettePicker.all_tile_images},
+		{"label": "Source images", "empty": "No tiles/images to sample.",
+				"images": _source_images},
+	], 0, "Click swatches to add them to the class; close when done.")
+	_palette_popup.color_picked.connect(_on_palette_swatch_pressed)
 	add_child(_palette_popup)
 	AppData.terrain_key_changed.connect(_refresh)
-	AppData.parts_changed.connect(func() -> void: _all_palette_valid = false)
 	_refresh()
 func _mk_label(text: String) -> Label:
 	var l := Label.new()
@@ -289,101 +291,28 @@ func _on_apply_tags_pressed() -> void:
 
 # --- Palette popup ---------------------------------------------------------------
 
-func _build_palette_popup() -> PopupPanel:
-	var popup := PopupPanel.new()
-	var box := VBoxContainer.new()
-	popup.add_child(box)
-	var head := HBoxContainer.new()
-	box.add_child(head)
-	head.add_child(_mk_label("Source"))
-	_palette_source = OptionButton.new()
-	# No selected-part context in this tab, so the tagging editor's
-	# "Selected tile" source becomes "Source images" here.
-	_palette_source.add_item("All tiles")
-	_palette_source.add_item("Source images")
-	_palette_source.item_selected.connect(
-		func(_i: int) -> void: _populate_palette())
-	head.add_child(_palette_source)
-	_palette_status = Label.new()
-	_palette_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_palette_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(_palette_status)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(320.0, 320.0)
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	box.add_child(scroll)
-	_palette_grid = GridContainer.new()
-	_palette_grid.columns = 8
-	_palette_grid.add_theme_constant_override("h_separation", 3)
-	_palette_grid.add_theme_constant_override("v_separation", 3)
-	scroll.add_child(_palette_grid)
-	var hint := Label.new()
-	hint.text = "Click swatches to add them to the class; close when done."
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(hint)
-	return popup
+func _source_images() -> Array[Image]:
+	var images: Array[Image] = []
+	for asset: ImageAssetData in AppData.get_image_list():
+		if asset.image != null:
+			images.append(asset.image)
+	return images
+
 func _open_palette_popup(ci: int) -> void:
 	_palette_target_ci = ci
-	_populate_palette()
-	_palette_popup.popup_centered(Vector2i(360, 440))
-func _populate_palette() -> void:
-	for child in _palette_grid.get_children():
-		child.queue_free()
-	var images: Array[Image] = []
-	if _palette_source.selected == 0:
-		for p: Part in AppData.get_part_list():
-			if p.pixel_data != null:
-				images.append(p.pixel_data)
-	else:
-		for asset: ImageAssetData in AppData.get_image_list():
-			if asset.image != null:
-				images.append(asset.image)
-	if images.is_empty():
-		_palette_status.text = "No tiles/images to sample."
-		return
-	var result: Dictionary
-	if _palette_source.selected == 0:
-		if not _all_palette_valid:
-			_all_palette_cache = PaletteExtractor.palette_of_images(
-				images, 4, 64)
-			_all_palette_valid = true
-		result = _all_palette_cache
-	else:
-		result = PaletteExtractor.palette_of_images(images, 4, 64)
-	var entries: Array = result["entries"]
-	var total := int(result["total"])
-	if entries.is_empty():
-		_palette_status.text = "No opaque pixels found."
-		return
-	if total <= entries.size():
-		_palette_status.text = "%d color(s)" % total
-	else:
-		_palette_status.text = "%d distinct colors — showing top %d by " \
-			+ "frequency" % [total, entries.size()]
-	for e: Dictionary in entries:
-		var swatch := Button.new()
-		swatch.custom_minimum_size = PALETTE_SWATCH
-		swatch.focus_mode = Control.FOCUS_NONE
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = e["color"]
-		swatch.add_theme_stylebox_override("normal", sb)
-		swatch.add_theme_stylebox_override("hover", sb)
-		swatch.add_theme_stylebox_override("pressed", sb)
-		swatch.tooltip_text = "#%s  — %s px" % [e["hex"], e["count"]]
-		swatch.pressed.connect(_on_palette_swatch_pressed.bind(String(e["hex"])))
-		_palette_grid.add_child(swatch)
+	_palette_popup.open()
 func _on_palette_swatch_pressed(hex: String) -> void:
 	if _palette_target_ci < 0 or _palette_target_ci >= _draft.size():
 		return
 	var cls := _draft[_palette_target_ci] as Dictionary
 	var colors: Array = cls.get("colors", [])
 	if colors.size() >= MAX_CLASS_COLORS:
-		_palette_status.text = "Class color limit (%d) reached — remove one first." \
-			% MAX_CLASS_COLORS
+		_palette_popup.set_status(
+				"Class color limit (%d) reached — remove one first."
+				% MAX_CLASS_COLORS)
 		return
 	if colors.has(hex):
-		_palette_status.text = "Color already in this class."
+		_palette_popup.set_status("Color already in this class.")
 		return
 	colors.append(hex)
 	cls["colors"] = colors

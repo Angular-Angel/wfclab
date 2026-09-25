@@ -49,12 +49,7 @@ var _at_color_buttons: Array[ColorPickerButton] = []
 var _at_tolerance: SpinBox
 var _at_min_fraction: SpinBox
 var _editing_tag_rule_id := ""
-var _palette_popup: PopupPanel
-var _palette_source: OptionButton
-var _palette_status: Label
-var _palette_grid: GridContainer
-var _all_palette_cache: Dictionary = {}
-var _all_palette_valid := false
+var _palette_popup: PalettePicker
 
 
 func _ready() -> void:
@@ -145,9 +140,15 @@ func _ready() -> void:
 	_auto_editor = _build_tag_rule_editor()
 	_auto_editor.visible = false
 	right.add_child(_auto_editor)
-	_palette_popup = _build_palette_popup()
+	_palette_popup = PalettePicker.new()
+	_palette_popup.setup([
+		{"label": "Selected tile", "empty": "No tile selected.",
+				"images": _selected_tile_images},
+		{"label": "All tiles", "empty": "No tiles to sample.",
+				"images": PalettePicker.all_tile_images},
+	], 1, "Click swatches to add them to the rule; close when done.")
+	_palette_popup.color_picked.connect(_on_palette_color_picked)
 	right.add_child(_palette_popup)
-	AppData.parts_changed.connect(func() -> void: _all_palette_valid = false)
 	AppData.tagging_rules_changed.connect(_refresh_tag_rules, CONNECT_DEFERRED)
 	_refresh_tag_rules()
 
@@ -334,96 +335,20 @@ func _mk_cmp_preview() -> TextureRect:
 	return t
 
 
-func _build_palette_popup() -> PopupPanel:
-	var popup := PopupPanel.new()
-	var box := VBoxContainer.new()
-	popup.add_child(box)
-	var head := HBoxContainer.new()
-	box.add_child(head)
-	head.add_child(_mk_label("Source"))
-	_palette_source = OptionButton.new()
-	_palette_source.add_item("Selected tile")
-	_palette_source.add_item("All tiles")
-	_palette_source.item_selected.connect(func(_i: int) -> void: _populate_palette())
-	head.add_child(_palette_source)
-	_palette_status = Label.new()
-	_palette_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_palette_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(_palette_status)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(320.0, 320.0)
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	box.add_child(scroll)
-	_palette_grid = GridContainer.new()
-	_palette_grid.columns = 8
-	_palette_grid.add_theme_constant_override("h_separation", 3)
-	_palette_grid.add_theme_constant_override("v_separation", 3)
-	scroll.add_child(_palette_grid)
-	var hint := Label.new()
-	hint.text = "Click swatches to add them to the rule; close when done."
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(hint)
-	return popup
+func _selected_tile_images() -> Array[Image]:
+	if _selected == null or _selected.pixel_data == null:
+		return []
+	return [_selected.pixel_data]
 
 
 func _open_palette_popup() -> void:
-	_palette_source.select(0 if _selected != null else 1)
-	_populate_palette()
-	_palette_popup.popup_centered(Vector2i(360, 440))
+	_palette_popup.open(0 if _selected != null else 1)
 
 
-func _populate_palette() -> void:
-	for child in _palette_grid.get_children():
-		child.free()
-	var images: Array[Image] = []
-	if _palette_source.selected == 0:
-		if _selected == null or _selected.pixel_data == null:
-			_palette_status.text = "No tile selected."
-			return
-		images.append(_selected.pixel_data)
-	else:
-		for p: Part in AppData.get_part_list():
-			if p.pixel_data != null:
-				images.append(p.pixel_data)
-	if images.is_empty():
-		_palette_status.text = "No tiles to sample."
-		return
-	var result: Dictionary
-	if _palette_source.selected == 0:
-		result = PaletteExtractor.palette_of_images(images, 4, 64)
-	else:
-		if not _all_palette_valid:
-			_all_palette_cache = PaletteExtractor.palette_of_images(images, 4, 64)
-			_all_palette_valid = true
-		result = _all_palette_cache
-	var entries: Array = result["entries"]
-	var total := int(result["total"])
-	if entries.is_empty():
-		_palette_status.text = "No opaque pixels found."
-		return
-	if total <= entries.size():
-		_palette_status.text = "%d color(s)" % total
-	else:
-		_palette_status.text = "%d distinct colors — showing top %d by frequency" % [
-			total, entries.size()]
-	for e: Dictionary in entries:
-		var swatch := Button.new()
-		swatch.custom_minimum_size = Vector2(30.0, 30.0)
-		swatch.focus_mode = Control.FOCUS_NONE
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = e["color"]
-		swatch.add_theme_stylebox_override("normal", sb)
-		swatch.add_theme_stylebox_override("hover", sb)
-		swatch.add_theme_stylebox_override("pressed", sb)
-		swatch.tooltip_text = "#%s  — %s px" % [e["hex"], e["count"]]
-		swatch.pressed.connect(_on_swatch_pressed.bind(String(e["hex"])))
-		_palette_grid.add_child(swatch)
-
-
-func _on_swatch_pressed(hex: String) -> void:
+func _on_palette_color_picked(hex: String) -> void:
 	if _at_color_buttons.size() >= 8:
-		_palette_status.text = "Rule color limit (8) reached — remove one first."
+		_palette_popup.set_status(
+				"Rule color limit (8) reached — remove one first.")
 		return
 	var b := ColorPickerButton.new()
 	b.custom_minimum_size = Vector2(36.0, 28.0)

@@ -65,11 +65,8 @@ func _ready() -> void:
 	_seed_spin.max_value = 999999
 	_seed_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	seed_row.add_child(_seed_spin)
-	var random_seed := Button.new()
-	random_seed.text = "Random"
-	random_seed.pressed.connect(
-		func() -> void: _seed_spin.value = randi() % 1000000)
-	seed_row.add_child(random_seed)
+	seed_row.add_child(UiKit.button("Random",
+			func() -> void: _seed_spin.value = randi() % 1000000))
 
 	_interactive = CheckButton.new()
 	_interactive.text = "Interactive (step through)"
@@ -77,9 +74,7 @@ func _ready() -> void:
 		+ " instead of the worker thread. Same seed, same result."
 	left.add_child(_interactive)
 
-	_run_button = Button.new()
-	_run_button.text = "Synthesize"
-	_run_button.pressed.connect(_on_run_pressed)
+	_run_button = UiKit.button("Synthesize", _on_run_pressed)
 	left.add_child(_run_button)
 
 	_session_box = VBoxContainer.new()
@@ -88,9 +83,7 @@ func _ready() -> void:
 
 	var step_row := HBoxContainer.new()
 	_session_box.add_child(step_row)
-	_step_button = Button.new()
-	_step_button.text = "Step"
-	_step_button.pressed.connect(_on_step_pressed)
+	_step_button = UiKit.button("Step", _on_step_pressed)
 	step_row.add_child(_step_button)
 	_micro_check = CheckButton.new()
 	_micro_check.text = "Micro-step"
@@ -100,9 +93,7 @@ func _ready() -> void:
 
 	var play_row := HBoxContainer.new()
 	_session_box.add_child(play_row)
-	_play_button = Button.new()
-	_play_button.text = "Play"
-	_play_button.pressed.connect(_on_play_pressed)
+	_play_button = UiKit.button("Play", _on_play_pressed)
 	play_row.add_child(_play_button)
 	_speed = OptionButton.new()
 	var speeds: Array = [["1/s", 1.0], ["4/s", 4.0], ["15/s", 15.0],
@@ -115,23 +106,16 @@ func _ready() -> void:
 
 	var ctl_row := HBoxContainer.new()
 	_session_box.add_child(ctl_row)
-	_restart_button = Button.new()
-	_restart_button.text = "Restart"
-	_restart_button.tooltip_text = "Start over with the current seed."
-	_restart_button.pressed.connect(_start_session)
+	_restart_button = UiKit.button("Restart", _start_session,
+			"Start over with the current seed.")
 	ctl_row.add_child(_restart_button)
-	_cancel_button = Button.new()
-	_cancel_button.text = "Close"
-	_cancel_button.pressed.connect(_stop_session)
+	_cancel_button = UiKit.button("Close", _stop_session)
 	ctl_row.add_child(_cancel_button)
 
-	var status_row := HBoxContainer.new()
+	var status_row := UiKit.status_copy_row(
+			func() -> String: return _status.text)
+	_status = status_row.status
 	left.add_child(status_row)
-	_status = UiKit.status_label("")
-	status_row.add_child(_status)
-	status_row.add_child(UiKit.copy_button(
-			func() -> String: return _status.text, "Copy",
-			"Copy the run status line to the clipboard."))
 	left.add_child(_set_empty_state("No parts. Run a decomposition first."))
 	AppData.parts_changed.connect(_update_empty_hint)
 	_update_empty_hint()
@@ -621,10 +605,7 @@ class SlotPicker extends PopupPanel:
 		scroll.custom_minimum_size = Vector2(4 * 76 + 16, 240)
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		box.add_child(scroll)
-		var grid := GridContainer.new()
-		grid.columns = 4
-		grid.add_theme_constant_override("h_separation", 4)
-		grid.add_theme_constant_override("v_separation", 4)
+		var grid := UiKit.thumb_grid(4)
 		scroll.add_child(grid)
 
 		var first: Button = null

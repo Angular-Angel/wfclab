@@ -103,9 +103,7 @@ func _ready() -> void:
 	right.add_child(_rules_status)
 	_rules_box = VBoxContainer.new()
 	right.add_child(_rules_box)
-	_add_rule_button = Button.new()
-	_add_rule_button.text = "Add exclusion rule…"
-	_add_rule_button.pressed.connect(_on_add_rule_pressed)
+	_add_rule_button = UiKit.button("Add exclusion rule…", _on_add_rule_pressed)
 	right.add_child(_add_rule_button)
 	_rule_editor = _build_rule_editor()
 	_rule_editor.visible = false
@@ -382,14 +380,8 @@ func _build_rule_editor() -> VBoxContainer:
 	row_m.add_child(_re_metric)
 	var btn_row := HBoxContainer.new()
 	box.add_child(btn_row)
-	var apply := Button.new()
-	apply.text = "Apply"
-	apply.pressed.connect(_on_rule_apply)
-	btn_row.add_child(apply)
-	var cancel := Button.new()
-	cancel.text = "Cancel"
-	cancel.pressed.connect(_on_rule_cancel)
-	btn_row.add_child(cancel)
+	btn_row.add_child(UiKit.button("Apply", _on_rule_apply))
+	btn_row.add_child(UiKit.button("Cancel", _on_rule_cancel))
 	box.add_child(UiKit.note(
 			"Slot units, inclusive. Applied at synthesis time; takes effect on the next run."))
 	return box
@@ -501,15 +493,11 @@ func _refresh_rules() -> void:
 		row.add_child(check)
 		var label := UiKit.status_label(_rule_summary(r))
 		row.add_child(label)
-		var edit := Button.new()
+		var edit := UiKit.button("Edit", _on_edit_rule_pressed.bind(id))
 		edit.disabled = locked
-		edit.text = "Edit"
-		edit.pressed.connect(_on_edit_rule_pressed.bind(id))
 		row.add_child(edit)
-		var del := Button.new()
+		var del := UiKit.button("×", _on_rule_delete.bind(id))
 		del.disabled = locked
-		del.text = "×"
-		del.pressed.connect(_on_rule_delete.bind(id))
 		row.add_child(del)
 
 

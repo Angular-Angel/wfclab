@@ -50,10 +50,7 @@ func show_part(part: Part) -> void:
 		header.text = "offset (%s, %s) — %s part(s)" % [off.x, off.y, ids.size()]
 		add_child(header)
 
-		var grid := GridContainer.new()
-		grid.columns = 8
-		grid.add_theme_constant_override("h_separation", 2)
-		grid.add_theme_constant_override("v_separation", 2)
+		var grid := UiKit.thumb_grid(8, 2, 2)
 		add_child(grid)
 
 		for i in mini(ids.size(), MAX_NEIGHBORS_PER_OFFSET):

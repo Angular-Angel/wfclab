@@ -62,11 +62,8 @@ func _ready() -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	left.add_child(scroll)
 
-	_grid = GridContainer.new()
-	_grid.columns = 8
+	_grid = UiKit.thumb_grid(8)
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_grid.add_theme_constant_override("h_separation", 4)
-	_grid.add_theme_constant_override("v_separation", 4)
 	scroll.add_child(_grid)
 
 	left.add_child(_set_empty_state("No parts. Run a decomposition first."))
@@ -120,9 +117,7 @@ func _ready() -> void:
 	right.add_child(_override_row)
 	_override_row.override_changed.connect(_on_override_changed)
 
-	_pin_button = Button.new()
-	_pin_button.text = "Pin for comparison"
-	_pin_button.pressed.connect(_on_pin_pressed)
+	_pin_button = UiKit.button("Pin for comparison", _on_pin_pressed)
 	right.add_child(_pin_button)
 
 	_compare_box = VBoxContainer.new()
@@ -138,9 +133,7 @@ func _ready() -> void:
 	cmp_row.add_child(_cmp_diff)
 	_cmp_label = Label.new()
 	_compare_box.add_child(_cmp_label)
-	_merge_button = Button.new()
-	_merge_button.text = "Merge selected INTO pinned"
-	_merge_button.pressed.connect(_on_merge_pressed)
+	_merge_button = UiKit.button("Merge selected INTO pinned", _on_merge_pressed)
 	_compare_box.add_child(_merge_button)
 	_compare_box.visible = false
 	
@@ -366,12 +359,10 @@ func _refresh_tags() -> void:
 		label.text = tag
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)
-		var remove := Button.new()
-		remove.text = "×"
+		# Bind the id, not the Part: rows can outlive a re-materialization.
+		var remove := UiKit.button("×", _on_tag_remove.bind(_selected.id, tag))
 		remove.focus_mode = Control.FOCUS_NONE
 		remove.disabled = RunMonitor.has_running()
-		# Bind the id, not the Part: rows can outlive a re-materialization.
-		remove.pressed.connect(_on_tag_remove.bind(_selected.id, tag))
 		row.add_child(remove)
 
 

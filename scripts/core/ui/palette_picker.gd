@@ -17,7 +17,7 @@ var _cache: Dictionary = {}
 var _cache_valid := false
 var _source_button := OptionButton.new()
 var _status := UiKit.status_label("")
-var _grid := GridContainer.new()
+var _grid: GridContainer
 
 
 func _init() -> void:
@@ -48,9 +48,7 @@ func setup(sources: Array, cached_index := -1,
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	box.add_child(scroll)
-	_grid.columns = 8
-	_grid.add_theme_constant_override("h_separation", 3)
-	_grid.add_theme_constant_override("v_separation", 3)
+	_grid = UiKit.thumb_grid(8, 3, 3)
 	scroll.add_child(_grid)
 	box.add_child(UiKit.note(hint))
 

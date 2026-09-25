@@ -71,18 +71,9 @@ func _rebuild_editor() -> void:
 	_rebuild_classes()
 	var btn_row := HBoxContainer.new()
 	_editor_box.add_child(btn_row)
-	var add_class := Button.new()
-	add_class.text = "+ class"
-	add_class.pressed.connect(_on_add_class_pressed)
-	btn_row.add_child(add_class)
-	var save_btn := Button.new()
-	save_btn.text = "Save Key"
-	save_btn.pressed.connect(_on_save_pressed)
-	btn_row.add_child(save_btn)
-	var apply_btn := Button.new()
-	apply_btn.text = "Apply Class Tags to Parts"
-	apply_btn.pressed.connect(_on_apply_tags_pressed)
-	btn_row.add_child(apply_btn)
+	btn_row.add_child(UiKit.button("+ class", _on_add_class_pressed))
+	btn_row.add_child(UiKit.button("Save Key", _on_save_pressed))
+	btn_row.add_child(UiKit.button("Apply Class Tags to Parts", _on_apply_tags_pressed))
 	_status = UiKit.status_label("")
 	_editor_box.add_child(_status)
 	_editor_box.add_child(UiKit.note(
@@ -142,9 +133,7 @@ func _build_class_editor(ci: int, cls: Dictionary) -> VBoxContainer:
 	var colors_row := HBoxContainer.new()
 	box.add_child(colors_row)
 	colors_row.add_child(UiKit.label("Colors"))
-	var pick := Button.new()
-	pick.text = "Pick from tiles…"
-	pick.pressed.connect(_open_palette_popup.bind(ci))
+	var pick := UiKit.button("Pick from tiles…", _open_palette_popup.bind(ci))
 	colors_row.add_child(pick)
 	var editor := ColorListEditor.new()
 	editor.set_colors(cls.get("colors", []))

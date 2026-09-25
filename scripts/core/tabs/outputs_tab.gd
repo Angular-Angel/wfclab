@@ -52,30 +52,24 @@ func _ready() -> void:
 	_output_list.fixed_icon_size = Vector2i(96, 96)
 	_output_list.item_selected.connect(_on_output_selected)
 	right.add_child(_output_list)
-	_discard_button = Button.new()
-	_discard_button.text = "Discard Selected Output"
+	_discard_button = UiKit.button("Discard Selected Output", _discard_selected_output)
 	_discard_button.disabled = true
-	_discard_button.pressed.connect(_discard_selected_output)
 	right.add_child(_discard_button)
 	_meta_label = UiKit.status_label("No synthesis yet.\nRun one from the Synthesizers tab.")
 	right.add_child(_meta_label)
 	right.add_child(_set_empty_state("No outputs yet. Run a synthesis."))
 
-	_rerun_button = Button.new()
-	_rerun_button.text = "Re-synthesize (same seed)"
+	_rerun_button = UiKit.button("Re-synthesize (same seed)",
+			func() -> void: _resynthesize(false))
 	_rerun_button.disabled = true
-	_rerun_button.pressed.connect(func() -> void: _resynthesize(false))
 	right.add_child(_rerun_button)
-	_newseed_button = Button.new()
-	_newseed_button.text = "Synthesize (new seed)"
+	_newseed_button = UiKit.button("Synthesize (new seed)",
+			func() -> void: _resynthesize(true))
 	_newseed_button.disabled = true
-	_newseed_button.pressed.connect(func() -> void: _resynthesize(true))
 	right.add_child(_newseed_button)
 
-	_save_button = Button.new()
-	_save_button.text = "Save as PNG..."
+	_save_button = UiKit.button("Save as PNG...", _on_save_png_pressed)
 	_save_button.disabled = true
-	_save_button.pressed.connect(_on_save_png_pressed)
 	right.add_child(_save_button)
 
 	_save_png_dialog = UiKit.file_dialog(FileDialog.FILE_MODE_SAVE_FILE,

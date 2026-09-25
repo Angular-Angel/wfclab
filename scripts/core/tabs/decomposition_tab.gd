@@ -61,18 +61,13 @@ func _ready() -> void:
 	AppData.images_changed.connect(_rebuild_image_list)
 	_rebuild_image_list()
 
-	_run_button = Button.new()
-	_run_button.text = "Run Decomposition"
-	_run_button.pressed.connect(_on_run_pressed)
+	_run_button = UiKit.button("Run Decomposition", _on_run_pressed)
 	left.add_child(_run_button)
 
-	var status_row := HBoxContainer.new()
+	var status_row := UiKit.status_copy_row(
+			func() -> String: return _status.text)
+	_status = status_row.status
 	left.add_child(status_row)
-	_status = UiKit.status_label("")
-	status_row.add_child(_status)
-	status_row.add_child(UiKit.copy_button(
-			func() -> String: return _status.text, "Copy",
-			"Copy the run status line to the clipboard."))
 
 	_edits_label = UiKit.status_label("")
 	left.add_child(_edits_label)
@@ -99,10 +94,8 @@ func _ready() -> void:
 		_ct_values[ct.get_id()] = {}
 		ParamBuilder.build(ct.get_parameter_specs(), _ct_values[ct.get_id()], box)
 
-	_find_button = Button.new()
-	_find_button.text = "Find Constraints"
+	_find_button = UiKit.button("Find Constraints", _on_find_constraints_pressed)
 	_find_button.disabled = true
-	_find_button.pressed.connect(_on_find_constraints_pressed)
 	middle.add_child(_find_button)
 	_ct_status = UiKit.status_label("")
 	middle.add_child(_ct_status)

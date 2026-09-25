@@ -28,6 +28,44 @@ static func label(text: String) -> Label:
 	return l
 
 
+## Text button wired to its handler; the caller adds it to the layout
+## and sets any extras (disabled state, min size) on the return value.
+static func button(text: String, handler: Callable, tooltip := "") -> Button:
+	var b := Button.new()
+	b.text = text
+	if not tooltip.is_empty():
+		b.tooltip_text = tooltip
+	b.pressed.connect(handler)
+	return b
+
+
+## GridContainer configured for thumbnail cells: one shared spacing
+## policy for the parts grid, palette swatches, neighbor strips, and the
+## slot picker.
+static func thumb_grid(columns: int, hsep := 4, vsep := 4) -> GridContainer:
+	var g := GridContainer.new()
+	g.columns = columns
+	g.add_theme_constant_override("h_separation", hsep)
+	g.add_theme_constant_override("v_separation", vsep)
+	return g
+
+
+## Status line + Copy button in one row (the run tabs' pattern). The
+## label is `row.status`; `get_text` is evaluated lazily on click.
+static func status_copy_row(get_text: Callable,
+		tooltip := "Copy the run status line to the clipboard.") -> StatusRow:
+	var row := StatusRow.new()
+	row.status = status_label("")
+	row.status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(row.status)
+	row.add_child(copy_button(get_text, "Copy", tooltip))
+	return row
+
+
+class StatusRow extends HBoxContainer:
+	var status: Label
+
+
 ## A wrapping status line. Horizontal EXPAND_FILL is visually neutral
 ## inside VBoxContainers and lets HBox-housed lines (palette headers, rule
 ## rows) take the leftover width, matching today's per-site flags.

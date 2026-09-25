@@ -44,14 +44,14 @@ func _ready() -> void:
 			"Copy All", "Copy a one-line summary of every run to the clipboard.")
 	_copy_all_button.disabled = true
 	button_row.add_child(_copy_all_button)
-	button_row.add_child(_mk_button("Inspect Families",
-            "Preview part families (with or without terrain merging) "
-			+ "before running synthesis.",
-			_open_family_inspector))
+	button_row.add_child(UiKit.button("Inspect Families",
+			_open_family_inspector,
+			"Preview part families (with or without terrain merging) "
+			+ "before running synthesis."))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button_row.add_child(spacer)
-	button_row.add_child(_mk_button("Clear Finished", "",
+	button_row.add_child(UiKit.button("Clear Finished",
 			func() -> void: RunMonitor.clear_finished()))
 
 	var right := VBoxContainer.new()
@@ -331,16 +331,6 @@ func _fmt_stat(v: Variant) -> String:
 	if text.length() > 120:
 		text = text.substr(0, 117) + "..."
 	return text
-
-
-func _mk_button(label: String, tooltip: String, handler: Callable) -> Button:
-	var b := Button.new()
-	b.text = label
-	b.set_meta("label", label)
-	if not tooltip.is_empty():
-		b.tooltip_text = tooltip
-	b.pressed.connect(handler)
-	return b
 
 
 func _open_family_inspector() -> void:

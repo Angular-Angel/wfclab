@@ -31,10 +31,7 @@ func _ready() -> void:
     _depth.max_value = 8
     _depth.value = 1
     cfg_row.add_child(_depth)
-    var compute := Button.new()
-    compute.text = "Compute"
-    compute.pressed.connect(_compute)
-    cfg_row.add_child(compute)
+    cfg_row.add_child(UiKit.button("Compute", _compute))
     _status = UiKit.status_label("Builds a throwaway index; safe during a run.")
     cfg_row.add_child(_status)
 

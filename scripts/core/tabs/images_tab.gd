@@ -20,14 +20,10 @@ func _ready() -> void:
 	left.custom_minimum_size = Vector2(240.0, 0.0)
 	split.add_child(left)
 
-	var load_button := Button.new()
-	load_button.text = "Load Images..."
-	load_button.pressed.connect(_open_file_dialog)
-	left.add_child(load_button)
-	_discard_button = Button.new()
-	_discard_button.text = "Discard Selected Image"
+	left.add_child(UiKit.button("Load Images...", _open_file_dialog))
+	_discard_button = UiKit.button("Discard Selected Image",
+			_discard_selected_image)
 	_discard_button.disabled = true
-	_discard_button.pressed.connect(_discard_selected_image)
 	left.add_child(_discard_button)
 	left.add_child(_set_empty_state("No images loaded."))
 
@@ -54,10 +50,6 @@ func _ready() -> void:
 	_info = Label.new()
 	_info.text = "No image selected"
 	toolbar.add_child(_info)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right.add_child(scroll)
 
 	_scroll = ScrollContainer.new()
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL

@@ -245,36 +245,36 @@ func _run_with(config: Dictionary) -> void:
 	var input_names: Array = []
 	for asset: ImageAssetData in run_images:
 		input_names.append(asset.name)
-	var run_id := RunMonitor.begin_run("decomposition",
+	var spec := RunExecutor.RunSpec.new("decomposition",
 			"%s — decomposition" % technique.get_display_name(),
-			String(technique.get_id()), monitor_params, input_names, "worker",
-			stage_plan)
-	var decompose_rec := RunMonitor.make_recorder(run_id, "decompose")
-
-	_run_button.disabled = true
-	_status.text = "Running..."
+			String(technique.get_id()), monitor_params, input_names, stage_plan)
 
 	# Phase 1 (worker): decompose only. Constraint extraction moves to phase
 	# 2 because it must run against the MATERIALIZED part set — the same set
 	# synthesis will consume — which does not exist until the main thread
 	# ingests the raw parts.
-	WorkerThreadPool.add_task(func() -> void:
-		var t0 := Time.get_ticks_msec()
-		RunMonitor.begin_stage(run_id, "decompose", "Decompose", t0)
-		var result: Dictionary = technique.decompose(run_images, params, decompose_rec)
-		var t1 := Time.get_ticks_msec()
-		if result.is_empty():
-			RunMonitor.end_stage(run_id, "decompose", "returned no result", t1)
-			_fail_decomposition.call_deferred(run_id)
-			return
-		var stats: Dictionary = result["stats"]
-		RunMonitor.end_stage(run_id, "decompose",
-				"%d tiles → %d raw parts" % [
-					int(stats.get("total_tiles", 0)),
-					(result["parts"] as Array).size()], t1)
-		_after_decompose.call_deferred(result, run_images, snapshot,
-				constraints_planned, run_id)
-	)
+	RunExecutor.launch(self, [_run_button], _status, spec,
+		func(run_id: int) -> Dictionary:
+			var decompose_rec := RunMonitor.make_recorder(run_id, "decompose")
+			var t0 := Time.get_ticks_msec()
+			RunMonitor.begin_stage(run_id, "decompose", "Decompose", t0)
+			var result: Dictionary = technique.decompose(run_images, params, decompose_rec)
+			var t1 := Time.get_ticks_msec()
+			if result.is_empty():
+				RunMonitor.end_stage(run_id, "decompose", "returned no result", t1)
+				return {}
+			var stats: Dictionary = result["stats"]
+			RunMonitor.end_stage(run_id, "decompose",
+					"%d tiles → %d raw parts" % [
+						int(stats.get("total_tiles", 0)),
+						(result["parts"] as Array).size()], t1)
+			return result,
+		func(result: Dictionary, run_id: int) -> void:
+			if result.is_empty():
+				_fail_decomposition(run_id)
+				return
+			_after_decompose(result, run_images, snapshot,
+					constraints_planned, run_id))
 
 
 func _after_decompose(result: Dictionary, run_images: Array[ImageAssetData],
@@ -305,25 +305,26 @@ func _after_decompose(result: Dictionary, run_images: Array[ImageAssetData],
 	if jobs.is_empty():
 		_publish_decomposition.call_deferred([], run_id)
 		return
-	WorkerThreadPool.add_task(func() -> void:
-		var all_constraints: Array[Constraint] = []
-		for job: Dictionary in jobs:
-			var ct: ConstraintTechnique = job["technique"]
-			var key := "ct_%s" % String(ct.get_id())
-			RunMonitor.begin_stage(run_id, key, ct.get_display_name(),
-					Time.get_ticks_msec())
-			var cs: Array[Constraint] = ct.extract(parts, run_images,
-					job["params"], RunMonitor.make_recorder(run_id, key))
-			RunMonitor.end_stage(run_id, key,
-					"%d constraints" % cs.size(), Time.get_ticks_msec())
-			all_constraints.append_array(cs)
-		_publish_decomposition.call_deferred(all_constraints, run_id)
-	)
+	RunExecutor.continue_run(
+		func() -> Array[Constraint]:
+			var all_constraints: Array[Constraint] = []
+			for job: Dictionary in jobs:
+				var ct: ConstraintTechnique = job["technique"]
+				var key := "ct_%s" % String(ct.get_id())
+				RunMonitor.begin_stage(run_id, key, ct.get_display_name(),
+						Time.get_ticks_msec())
+				var cs: Array[Constraint] = ct.extract(parts, run_images,
+						job["params"], RunMonitor.make_recorder(run_id, key))
+				RunMonitor.end_stage(run_id, key,
+						"%d constraints" % cs.size(), Time.get_ticks_msec())
+				all_constraints.append_array(cs)
+			return all_constraints,
+		func(all_constraints: Array[Constraint]) -> void:
+			_publish_decomposition(all_constraints, run_id))
 
 
 func _publish_decomposition(all_constraints: Array[Constraint],
 		run_id: int) -> void:
-	_run_button.disabled = false
 	var t0 := Time.get_ticks_msec()
 	RunMonitor.begin_stage(run_id, "publish", "Publish", t0)
 	AppData.set_constraints(all_constraints)
@@ -331,7 +332,7 @@ func _publish_decomposition(all_constraints: Array[Constraint],
 	RunMonitor.end_stage(run_id, "publish",
 			"%d constraints materialized in %d ms" % [
 				AppData.constraints.size(), t_end - t0], t_end)
-	RunMonitor.finish_run(run_id, {
+	RunExecutor.complete([_run_button], run_id, {
 		"raw_parts": int(AppData.last_run_stats.get("part_count", 0)),
 		"materialized_parts": AppData.parts.size(),
 		"raw_constraints": all_constraints.size(),
@@ -356,9 +357,8 @@ func _publish_decomposition(all_constraints: Array[Constraint],
 
 
 func _fail_decomposition(run_id: int) -> void:
-	_run_button.disabled = false
 	_status.text = "Run failed (see console)."
-	RunMonitor.fail_run(run_id, "decompose() returned no result.")
+	RunExecutor.fail([_run_button], run_id, "decompose() returned no result.")
 
 func _collect_constraint_jobs() -> Array:
 	var jobs: Array = []

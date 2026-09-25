@@ -637,27 +637,14 @@ func _weighted_pick(m: PackedInt64Array) -> int:
 	## Weighted choice over FAMILY ints. Family weight is the sum of its
 	## members' effective weights, so family-then-member sampling has the
 	## same outcome distribution as the old per-part pick.
-	var total := 0.0
+	var weights: Array[float] = []
 	for w in nwords:
 		var v: int = m[w]
 		while v != 0:
 			var low := v & -v
 			v ^= low
-			total += _index.family_weights[(w << 6) + BitMask.ctz(low)]
-	if total <= 0.0:
-		var k := _rng.randi_range(0, BitMask.count(m) - 1)
-		return BitMask.kth(m, k)
-	var r := _rng.randf() * total
-	for w in nwords:
-		var v: int = m[w]
-		while v != 0:
-			var low := v & -v
-			v ^= low
-			var fi := (w << 6) + BitMask.ctz(low)
-			r -= _index.family_weights[fi]
-			if r <= 0.0:
-				return fi
-	return BitMask.kth(m, BitMask.count(m) - 1)
+			weights.append(_index.family_weights[(w << 6) + BitMask.ctz(low)])
+	return BitMask.kth(m, RngUtil.weighted_pick(weights, _rng))
 
 
 func _pick_member(fi: int) -> int:
@@ -669,17 +656,10 @@ func _pick_member(fi: int) -> int:
 	var members: PackedInt32Array = _index.family_members[fi]
 	if members.size() == 1:
 		return members[0]
-	var total := 0.0
+	var weights: Array[float] = []
 	for mi in members:
-		total += _index.part_weights[mi]
-	if total <= 0.0:
-		return members[_rng.randi_range(0, members.size() - 1)]
-	var r := _rng.randf() * total
-	for mi in members:
-		r -= _index.part_weights[mi]
-		if r <= 0.0:
-			return mi
-	return members[members.size() - 1]
+		weights.append(_index.part_weights[mi])
+	return members[RngUtil.weighted_pick(weights, _rng)]
 
 
 func _pick_slot() -> int:

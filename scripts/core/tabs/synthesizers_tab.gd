@@ -219,24 +219,23 @@ func _on_run_pressed() -> void:
 	var params := _param_values.duplicate(true)
 	var seed := int(_seed_spin.value)
 
-	var run_id := RunMonitor.begin_run("synthesis",
+	var spec := RunExecutor.RunSpec.new("synthesis",
 			"%s — batch (seed %d)" % [synth.get_display_name(), seed],
-			String(synth.get_id()), params, _synth_inputs(index), "worker",
+			String(synth.get_id()), params, _synth_inputs(index),
 			[{"key": "synthesize", "label": "Synthesize"},
 			 {"key": "publish", "label": "Publish"}])
-	_run_button.disabled = true
-	_status.text = "Synthesizing..."
-
-	WorkerThreadPool.add_task(func() -> void:
-		var rng := RandomNumberGenerator.new()
-		rng.seed = seed
-		RunMonitor.begin_stage(run_id, "synthesize", "Synthesize",
-				Time.get_ticks_msec())
-		var result: Dictionary = synth.synthesize(index, params, rng,
-				RunMonitor.make_recorder(run_id, "synthesize"))
-		RunMonitor.end_stage(run_id, "synthesize", "", Time.get_ticks_msec())
-		_publish.call_deferred(result, synth, params, seed, run_id)
-	)
+	RunExecutor.launch(self, [_run_button], _status, spec,
+		func(run_id: int) -> Dictionary:
+			var rng := RandomNumberGenerator.new()
+			rng.seed = seed
+			RunMonitor.begin_stage(run_id, "synthesize", "Synthesize",
+					Time.get_ticks_msec())
+			var result: Dictionary = synth.synthesize(index, params, rng,
+					RunMonitor.make_recorder(run_id, "synthesize"))
+			RunMonitor.end_stage(run_id, "synthesize", "", Time.get_ticks_msec())
+			return result,
+		func(result: Dictionary, run_id: int) -> void:
+			_publish(result, synth, params, seed, run_id))
 
 
 func _synth_inputs(index: ConstraintIndex) -> Array:
@@ -250,10 +249,9 @@ func _synth_inputs(index: ConstraintIndex) -> Array:
 
 func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
 		seed: int, run_id: int) -> void:
-	_run_button.disabled = false
 	if result.is_empty():
 		_status.text = "Synthesis failed (see console)."
-		RunMonitor.fail_run(run_id, "synthesize() returned no result.")
+		RunExecutor.fail([_run_button], run_id, "synthesize() returned no result.")
 		return
 	var t0 := Time.get_ticks_msec()
 	RunMonitor.begin_stage(run_id, "publish", "Publish", t0)
@@ -265,7 +263,7 @@ func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
 	var t_end := Time.get_ticks_msec()
 	RunMonitor.end_stage(run_id, "publish",
 			"set_synthesis %d ms" % (t_end - t0), t_end)
-	RunMonitor.finish_run(run_id, result["stats"],
+	RunExecutor.complete([_run_button], run_id, result["stats"],
 			"Done (%d restarts)" % int(result["stats"].get("restarts", 0)))
 	var stats: Dictionary = result["stats"]
 	_status.text = "Done (%d restarts, %d ms)" % [

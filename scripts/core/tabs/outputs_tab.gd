@@ -188,28 +188,48 @@ func _resynthesize(new_seed: bool) -> void:
 		seed = randi() % 1000000
 	var index := AppData.get_constraint_index()
 
-	_rerun_button.disabled = true
-	_newseed_button.disabled = true
-	WorkerThreadPool.add_task(func() -> void:
-		var rng := RandomNumberGenerator.new()
-		rng.seed = seed
-		var no_progress := func(_f: float) -> void: pass
-		var result: Dictionary = synth.synthesize(index, params, rng, no_progress)
-		_publish.call_deferred(result, synth, params, seed)
-	)
+	# The re-run is registered with RunMonitor so the Monitor tab shows it
+	# like any other synthesis (the other tabs' runs were always recorded).
+	var spec := RunExecutor.RunSpec.new("synthesis",
+			"%s — re-synthesize (seed %d)" % [synth.get_display_name(), seed],
+			String(synth.get_id()), params, [],
+			[{"key": "synthesize", "label": "Synthesize"},
+			 {"key": "publish", "label": "Publish"}])
+	RunExecutor.launch(self, [_rerun_button, _newseed_button], null, spec,
+		func(run_id: int) -> Dictionary:
+			var rng := RandomNumberGenerator.new()
+			rng.seed = seed
+			RunMonitor.begin_stage(run_id, "synthesize", "Synthesize",
+					Time.get_ticks_msec())
+			var result: Dictionary = synth.synthesize(index, params, rng,
+					RunMonitor.make_recorder(run_id, "synthesize"))
+			RunMonitor.end_stage(run_id, "synthesize", "", Time.get_ticks_msec())
+			return result,
+		func(result: Dictionary, run_id: int) -> void:
+			_publish(result, synth, params, seed, run_id))
 
 
 func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
-		seed: int) -> void:
+		seed: int, run_id: int) -> void:
 	if result.is_empty():
 		_meta_label.text = "Synthesis failed (see console)."
+		RunExecutor.fail([_rerun_button, _newseed_button], run_id,
+				"synthesize() returned no result.")
 		_update()   # re-enables buttons, keeps last good image
 		return
+	var t0 := Time.get_ticks_msec()
+	RunMonitor.begin_stage(run_id, "publish", "Publish", t0)
 	AppData.set_synthesis(result["image"], result["stats"], {
 		"synthesizer_id": String(synth.get_id()),
 		"params": params,
 		"seed": seed,
 	})
+	var t_end := Time.get_ticks_msec()
+	RunMonitor.end_stage(run_id, "publish",
+			"set_synthesis %d ms" % (t_end - t0), t_end)
+	RunExecutor.complete([_rerun_button, _newseed_button], run_id,
+			result["stats"], "Re-synthesized: %d restarts" %
+					int(result["stats"].get("restarts", 0)))
 
 
 func _on_save_png_pressed() -> void:

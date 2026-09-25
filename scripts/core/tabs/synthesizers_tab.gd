@@ -240,11 +240,7 @@ func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
 	_status.text = "Done (%d restarts, %d ms)" % [
 		stats.get("restarts", 0), stats.get("elapsed_ms", 0)]
 
-	var tabs := get_parent() as TabContainer
-	if tabs != null:
-		var target := tabs.get_node_or_null("Outputs")
-		if target != null:
-			tabs.current_tab = tabs.get_tab_idx_from_control(target)
+	switch_to_tab("Outputs")
 
 
 # --- Interactive session --------------------------------------------------------

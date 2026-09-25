@@ -332,15 +332,7 @@ func _publish_decomposition(all_constraints: Array[Constraint],
 		int(stats.get("total_tiles", 0)), int(stats.get("part_count", 0)),
 		AppData.constraints.size(), int(stats.get("elapsed_ms", 0))]
 
-	var tabs := get_parent() as TabContainer
-	if tabs != null:
-		var target
-		if not all_constraints.is_empty():
-			target = tabs.get_node_or_null("Constraints")
-		else:
-			target = tabs.get_node_or_null("Parts")
-		if target != null:
-			tabs.current_tab = tabs.get_tab_idx_from_control(target)
+	switch_to_tab("Constraints" if not all_constraints.is_empty() else "Parts")
 
 
 func _fail_decomposition(run_id: int) -> void:
@@ -442,8 +434,4 @@ func _publish_constraints(all_constraints: Array[Constraint], run_id: int) -> vo
 			"Found %d constraints (%d materialized)." % [
 				all_constraints.size(), AppData.constraints.size()])
 	_ct_status.text = "Found %d constraints." % all_constraints.size()
-	var tabs := get_parent() as TabContainer
-	if tabs != null:
-		var target := tabs.get_node_or_null("Constraints")
-		if target != null:
-			tabs.current_tab = tabs.get_tab_idx_from_control(target)
+	switch_to_tab("Constraints")

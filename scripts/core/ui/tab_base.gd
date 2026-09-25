@@ -103,3 +103,14 @@ func _apply_run_lock() -> void:
 	var busy := RunMonitor.has_running()
 	for button in _run_lock_buttons:
 		button.disabled = busy
+
+
+## Focus the sibling tab by its page name (main.gd names each page after
+## TAB_NAMES). Used after a run publishes to jump where the results are.
+func switch_to_tab(tab_name: String) -> void:
+	var tabs := get_parent() as TabContainer
+	if tabs == null:
+		return
+	var target := tabs.get_node_or_null(NodePath(tab_name))
+	if target != null:
+		tabs.current_tab = tabs.get_tab_idx_from_control(target)

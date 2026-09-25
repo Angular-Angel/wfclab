@@ -287,32 +287,15 @@ func remove_part_tag(part_id: String, tag: String) -> void:
 ## Note: "Clear All Edits" deliberately leaves tags and rules intact.
 
 func add_rule(rule: Dictionary) -> String:
-	var r := rule.duplicate(true)
-	r["id"] = "rule_%d" % _next_rule_number
-	_next_rule_number += 1
-	r["enabled"] = bool(r.get("enabled", true))
-	rules.append(r)
-	rules_changed.emit()
-	return r["id"]
+	return _rule_add(rules, "rule_", rule, rules_changed)
 
 
 func update_rule(id: String, fields: Dictionary) -> void:
-	for r: Dictionary in rules:
-		if String(r.get("id", "")) != id:
-			continue
-		for k: String in fields:
-			if k != "id":
-				r[k] = fields[k]
-		rules_changed.emit()
-		return
+	_rule_update(rules, id, fields, rules_changed)
 
 
 func remove_rule(id: String) -> void:
-	for i in rules.size():
-		if String((rules[i] as Dictionary).get("id", "")) == id:
-			rules.remove_at(i)
-			rules_changed.emit()
-			return
+	_rule_remove(rules, id, rules_changed)
 
 
 ## Callers must treat the returned array as read-only.
@@ -328,37 +311,60 @@ func get_rules() -> Array:
 ## write through the normal tag_edits layer and are idempotent.
 
 func add_tagging_rule(rule: Dictionary) -> String:
-	var r := rule.duplicate(true)
-	r["id"] = "tagrule_%d" % _next_tag_rule_number
-	_next_tag_rule_number += 1
-	r["enabled"] = bool(r.get("enabled", true))
-	tagging_rules.append(r)
-	tagging_rules_changed.emit()
-	return r["id"]
+	return _rule_add(tagging_rules, "tagrule_", rule, tagging_rules_changed)
 
 
 func update_tagging_rule(id: String, fields: Dictionary) -> void:
-	for r: Dictionary in tagging_rules:
-		if String(r.get("id", "")) != id:
-			continue
-		for k: String in fields:
-			if k != "id":
-				r[k] = fields[k]
-		tagging_rules_changed.emit()
-		return
+	_rule_update(tagging_rules, id, fields, tagging_rules_changed)
 
 
 func remove_tagging_rule(id: String) -> void:
-	for i in tagging_rules.size():
-		if String((tagging_rules[i] as Dictionary).get("id", "")) == id:
-			tagging_rules.remove_at(i)
-			tagging_rules_changed.emit()
-			return
+	_rule_remove(tagging_rules, id, tagging_rules_changed)
 
 
 ## Callers must treat the returned array as read-only.
 func get_tagging_rules() -> Array:
 	return tagging_rules
+
+
+func _rule_add(list: Array, prefix: String, rule: Dictionary,
+		changed: Signal) -> String:
+	var r := rule.duplicate(true)
+	r["id"] = "%s%d" % [prefix, _take_rule_number(prefix)]
+	r["enabled"] = bool(r.get("enabled", true))
+	list.append(r)
+	changed.emit()
+	return r["id"]
+
+
+func _rule_update(list: Array, id: String, fields: Dictionary,
+		changed: Signal) -> void:
+	for r: Dictionary in list:
+		if String(r.get("id", "")) != id:
+			continue
+		for k: String in fields:
+			if k != "id":
+				r[k] = fields[k]
+		changed.emit()
+		return
+
+
+func _rule_remove(list: Array, id: String, changed: Signal) -> void:
+	for i in list.size():
+		if String((list[i] as Dictionary).get("id", "")) == id:
+			list.remove_at(i)
+			changed.emit()
+			return
+
+
+func _take_rule_number(prefix: String) -> int:
+	var n := _next_rule_number
+	if prefix == "tagrule_":
+		n = _next_tag_rule_number
+		_next_tag_rule_number += 1
+	else:
+		_next_rule_number += 1
+	return n
 
 
 ## Applies every enabled rule to all materialized parts. Additive and
@@ -725,18 +731,17 @@ func _decode_tag_edits(src: Variant) -> Dictionary:
 
 
 func _max_rule_number() -> int:
-	var maxn := 0
-	for r: Variant in rules:
-		var rid := String((r as Dictionary).get("id", ""))
-		if rid.begins_with("rule_") and rid.substr(5).is_valid_int():
-			maxn = maxi(maxn, int(rid.substr(5)))
-	return maxn
+	return _rule_max_number(rules, "rule_")
 
 
 func _max_tag_rule_number() -> int:
+	return _rule_max_number(tagging_rules, "tagrule_")
+
+
+func _rule_max_number(list: Array, prefix: String) -> int:
 	var maxn := 0
-	for r: Variant in tagging_rules:
+	for r: Variant in list:
 		var rid := String((r as Dictionary).get("id", ""))
-		if rid.begins_with("tagrule_") and rid.substr(8).is_valid_int():
-			maxn = maxi(maxn, int(rid.substr(8)))
+		if rid.begins_with(prefix) and rid.substr(prefix.length()).is_valid_int():
+			maxn = maxi(maxn, int(rid.substr(prefix.length())))
 	return maxn

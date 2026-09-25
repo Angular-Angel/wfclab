@@ -54,7 +54,7 @@ func _ready() -> void:
 func get_constraint_index() -> ConstraintIndex:
 	if not _index_valid:
 		_index = ConstraintIndex.build(get_part_list(), get_constraint_list(),
-				tag_edits, rules)
+				tag_edits, rules, active_terrain_classes())
 		_index_valid = true
 	return _index
 
@@ -551,7 +551,8 @@ func _regenerate_constraints() -> void:
 				StringName(String(job.get("id", ""))))
 		if technique != null:
 			regenerated.append_array(technique.extract(get_part_list(), run_images,
-					job.get("params", {}), func(_progress: float) -> void: pass))
+					job.get("params", {}), func(_progress: float) -> void: pass,
+					active_terrain_classes()))
 	_raw_constraints = regenerated
 	_materialize_constraints()
 

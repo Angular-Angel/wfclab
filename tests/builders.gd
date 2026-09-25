@@ -4,8 +4,7 @@ extends RefCounted
 ## the static helpers. No class_name — keeps the global class registry clean.
 ##
 ## All helpers are deterministic: fixed sizes, explicit colors, no RNG, no
-## timing. Terrain-key helpers snapshot/restore the AppData autoload's key so
-## a failed assertion cannot leak classes into other tests.
+## timing.
 
 const AppDataScript = preload("res://scripts/core/app_data.gd")
 
@@ -69,16 +68,3 @@ static func make_asset(id_name: String, image: Image) -> ImageAssetData:
 	asset.id = id_name
 	return asset
 
-
-# --- AppData autoload terrain-key save/restore -----------------------------
-
-static func terrain_key_snapshot() -> Array:
-	## Deep-copy the autoload's terrain key; call before a test mutates it.
-	var classes: Array = AppData.terrain_key_classes
-	return classes.duplicate(true)
-
-
-static func terrain_key_restore(saved: Array) -> void:
-	## Restore unconditionally (in after_test), bypassing set_terrain_key's
-	## regeneration side effects — tests only need the raw variable back.
-	AppData.terrain_key_classes = saved

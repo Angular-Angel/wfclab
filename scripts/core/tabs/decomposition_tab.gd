@@ -314,7 +314,8 @@ func _after_decompose(result: Dictionary, run_images: Array[ImageAssetData],
 				RunMonitor.begin_stage(run_id, key, ct.get_display_name(),
 						Time.get_ticks_msec())
 				var cs: Array[Constraint] = ct.extract(parts, run_images,
-						job["params"], RunMonitor.make_recorder(run_id, key))
+						job["params"], RunMonitor.make_recorder(run_id, key),
+						AppData.active_terrain_classes())
 				RunMonitor.end_stage(run_id, key,
 						"%d constraints" % cs.size(), Time.get_ticks_msec())
 				all_constraints.append_array(cs)
@@ -435,7 +436,8 @@ func _on_find_constraints_pressed() -> void:
 					Time.get_ticks_msec())
 			all_constraints.append_array(ct.extract(
 				parts, run_images, job["params"],
-				RunMonitor.make_recorder(run_id, key)))
+				RunMonitor.make_recorder(run_id, key),
+				AppData.active_terrain_classes()))
 			RunMonitor.end_stage(run_id, key, "", Time.get_ticks_msec())
 		_publish_constraints.call_deferred(all_constraints, run_id)
 	)

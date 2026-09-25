@@ -42,7 +42,8 @@ func get_parameter_specs() -> Array[Dictionary]:
 
 
 func extract(parts: Array[Part], images: Array[ImageAssetData],
-		params: Dictionary, report_progress: Callable) -> Array[Constraint]:
+		params: Dictionary, report_progress: Callable,
+		_terrain_classes: Array = []) -> Array[Constraint]:
 	var result: Array[Constraint] = []
 	if parts.is_empty():
 		return result

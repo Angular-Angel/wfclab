@@ -67,7 +67,7 @@ func _compute() -> void:
     UiKit.clear_children(_members_box)
     _index = ConstraintIndex.build(AppData.get_part_list(),
             AppData.get_constraint_list(), AppData.tag_edits,
-            AppData.get_rules())
+            AppData.get_rules(), AppData.active_terrain_classes())
     if _index.get_part_ids().is_empty():
         _status.text = "No enabled parts."
         _index = null

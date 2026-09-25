@@ -42,7 +42,8 @@ func get_parameter_specs() -> Array[Dictionary]:
 	"default": 0, "min": 0, "max": 64},
 	]
 func extract(parts: Array[Part], images: Array[ImageAssetData],
-		params: Dictionary, report_progress: Callable) -> Array[Constraint]:
+		params: Dictionary, report_progress: Callable,
+		terrain_classes: Array = []) -> Array[Constraint]:
 	var result: Array[Constraint] = []
 	if parts.size() < 2:
 		return result
@@ -50,7 +51,7 @@ func extract(parts: Array[Part], images: Array[ImageAssetData],
 	var tolerance := maxi(0, int(params.get("tolerance", 0)))
 	var omissions := maxi(0, int(params.get("allowed_omissions", 0)))
 	var flex := maxi(0, int(params.get("flex", 0)))
-	var groups: Array = AppData.active_terrain_classes()
+	var groups: Array = terrain_classes
 	var decoded: Array = TerrainMapper.prepare(groups)
 	var class_flex := PackedInt32Array()
 	class_flex.resize(decoded.size())

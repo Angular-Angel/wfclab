@@ -31,6 +31,7 @@ var _parts: Dictionary = {}       # part_id -> Part (enabled only)
 var _weights: Dictionary = {}     # part_id -> effective weight
 var tile_size := Vector2i(1, 1)
 var _has_outside := false
+var _terrain_classes: Array = []  # threaded in by build(); consumed by _build_families
 
 # --- integer-id layer (per-PART; member resolution and weights) --------------
 var part_ids: Array[String] = []          # int -> id, in _parts.keys() order
@@ -81,8 +82,10 @@ func has_outside() -> bool:
 
 
 static func build(parts: Array[Part], constraints: Array[Constraint],
-		tag_map: Dictionary = {}, rules: Array = []) -> ConstraintIndex:
+		tag_map: Dictionary = {}, rules: Array = [],
+		terrain_classes: Array = []) -> ConstraintIndex:
 	var idx := ConstraintIndex.new()
+	idx._terrain_classes = terrain_classes
 
 	for p: Part in parts:
 		if not p.enabled:
@@ -255,8 +258,7 @@ func _build_families(merge_cfg: Dictionary) -> void:
 	var fam := PackedInt32Array()
 	fam.resize(np)
 	if merge_on:
-		var decoded: Array = TerrainMapper.prepare(
-				AppData.active_terrain_classes())
+		var decoded: Array = TerrainMapper.prepare(_terrain_classes)
 		var by_key: Dictionary = {}
 		for pi in np:
 			var k := _edge_signature_key(pi, depth, decoded, tags_of)

@@ -12,20 +12,10 @@ const Builders = preload("res://tests/builders.gd")
 ## unintended right~left pairing can match. A uniform-edge part may only be
 ## used deliberately, when a test wants to pin self-pair emission.
 
-var _saved_key: Array = []
-
-
-func before_test() -> void:
-	_saved_key = Builders.terrain_key_snapshot()
-
-
-func after_test() -> void:
-	Builders.terrain_key_restore(_saved_key)
-
-
-func _extract(parts: Array[Part], params: Dictionary) -> Array[Constraint]:
+func _extract(parts: Array[Part], params: Dictionary,
+		terrain_classes: Array = []) -> Array[Constraint]:
 	return PixelOverlap.new().extract(parts, [], params,
-			func(_progress: float) -> void: pass)
+			func(_progress: float) -> void: pass, terrain_classes)
 
 
 func _part2x2(tl: Color, tr: Color, bl: Color, br: Color,
@@ -154,10 +144,9 @@ func test_parts_smaller_than_depth_are_skipped() -> void:
 func test_terrain_class_rewrites_unify_colors() -> void:
 	# A's right column is red, B's left column is green; both are members of
 	# one terrain class whose representative is red, so AFTER classification
-	# the strips are byte-equal and match strictly. extract() reads the
-	# AppData AUTOLOAD (registered in project.godot) — snapshotted in
-	# before_test and restored unconditionally in after_test.
-	AppData.terrain_key_classes = [{
+	# the strips are byte-equal and match strictly. The classes are passed
+	# straight to extract(); techniques no longer read the AppData autoload.
+	var terrain_classes = [{
 		"name": "stone", "colors": ["ff0000", "00ff00"],
 		"tolerance": 0, "flex": 0, "enabled": true,
 	}]
@@ -167,7 +156,8 @@ func test_terrain_class_rewrites_unify_colors() -> void:
 	var b := _part2x2(Color("#00ff00"), Color("#ffff00"),
 			Color("#00ff00"), Color("#00ffff"), "bbbbbbbbbbbb")
 
-	assert_int(_extract([a, b], {"overlap_layers": 1}).size()).is_equal(1)
+	assert_int(_extract([a, b], {"overlap_layers": 1},
+			terrain_classes).size()).is_equal(1)
 
 
 func test_symmetric_pair_records_both_directions() -> void:

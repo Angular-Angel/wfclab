@@ -18,10 +18,7 @@ static func palette_of_images(images: Array[Image], bucket_bits := 4,
 	for img: Image in images:
 		if img == null:
 			continue
-		var src := img
-		if src.get_format() != Image.FORMAT_RGBA8:
-			src = img.duplicate()   # never mutate part pixel data
-			src.convert(Image.FORMAT_RGBA8)
+		var src := ImageOps.to_rgba8(img)   # never mutate part pixel data
 		var data := src.get_data()
 		for i in range(0, data.size(), 4):
 			if data[i + 3] == 0:

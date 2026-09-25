@@ -690,10 +690,7 @@ class SlotPicker extends PopupPanel:
 					id, fsize, index.family_weights[fi]]
 		else:
 			b.tooltip_text = "%s\nweight: %.2f" % [id, index.get_weight(id)]
-		var img := index.get_part(id).pixel_data
-		if img.get_format() != Image.FORMAT_RGBA8:
-			img = img.duplicate()
-			img.convert(Image.FORMAT_RGBA8)
+		var img := ImageOps.to_rgba8(index.get_part(id).pixel_data)
 		var tr := TextureRect.new()
 		tr.texture = ImageTexture.create_from_image(img)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

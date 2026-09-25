@@ -4,12 +4,7 @@ static func of(image: Image, tolerance: int = 0) -> String:
 	## identical pixels hash identically regardless of source format (L8
 	## grayscale PNGs, RGB8 24-bit PNGs, RGBA8, ...). Never mutates the
 	## caller's image.
-	var src := image
-	if src.is_compressed() or src.get_format() != Image.FORMAT_RGBA8:
-		src = src.duplicate()
-		if src.is_compressed():
-			src.decompress()
-		src.convert(Image.FORMAT_RGBA8)
+	var src := ImageOps.to_rgba8(image)
 	var data := src.get_data()   # copy; safe to mutate
 	if tolerance > 0:
 		var step := tolerance * 2 + 1   # values within ±tolerance usually collide

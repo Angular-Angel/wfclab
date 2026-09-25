@@ -421,9 +421,7 @@ func _edge_signature_key(pi: int, depth: int, decoded: Array,
 	for t: Variant in tags_of[pi]:
 		sections.append(str(t))
 	var img := p.pixel_data.duplicate() as Image
-	if img.is_compressed():
-		img.decompress()
-	img.convert(Image.FORMAT_RGBA8)
+	ImageOps.to_rgba8_in_place(img)
 	var cls_map := PackedInt32Array()
 	if not decoded.is_empty():
 		cls_map = TerrainMapper.apply_mapped(img, decoded)

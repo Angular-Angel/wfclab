@@ -60,8 +60,7 @@ static func apply_mapped(img: Image, decoded: Array) -> PackedInt32Array:
     var out := PackedInt32Array()
     if img == null or decoded.is_empty():
         return out
-    if img.get_format() != Image.FORMAT_RGBA8:
-        img.convert(Image.FORMAT_RGBA8)
+    ImageOps.to_rgba8_in_place(img)
     var w := img.get_width()
     var h := img.get_height()
     var data := img.get_data()   # copy; written back once below

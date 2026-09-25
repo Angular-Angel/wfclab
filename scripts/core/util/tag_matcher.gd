@@ -16,10 +16,7 @@ static func coverage_fraction(img: Image, hex_colors: Array,
     var targets := _decode(hex_colors)
     if targets.is_empty() or img == null:
         return 0.0
-    var src := img
-    if src.get_format() != Image.FORMAT_RGBA8:
-        src = img.duplicate()   # never mutate the part's pixel data
-        src.convert(Image.FORMAT_RGBA8)
+    var src := ImageOps.to_rgba8(img)   # never mutate the part's pixel data
     var data := src.get_data()
     var tol := clampi(tolerance, 0, 255)
     var matched := 0

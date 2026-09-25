@@ -74,10 +74,7 @@ static func _render(index: ConstraintIndex, assigned: Array[String],
 		var part_id: String = assigned[i]
 		if part_id == "":
 			continue
-		var src := index.get_part(part_id).pixel_data
-		if src.get_format() != Image.FORMAT_RGBA8:
-			src = src.duplicate()
-			src.convert(Image.FORMAT_RGBA8)
+		var src := ImageOps.to_rgba8(index.get_part(part_id).pixel_data)
 		var x := (i % out_w) * step.x
 		var y := (i / out_w) * step.y
 		img.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), Vector2i(x, y))

@@ -17,8 +17,7 @@ static func load_from_path(path: String) -> ImageAssetData:
 		return null
 	# Normalize at the boundary: tile regions, transforms, hashes, strip
 	# extraction, and palettes then all see one uniform byte layout.
-	if image.get_format() != Image.FORMAT_RGBA8:
-		image.convert(Image.FORMAT_RGBA8)
+	image = ImageOps.to_rgba8(image)
 	return from_image(image, path.get_file(), path)
 
 

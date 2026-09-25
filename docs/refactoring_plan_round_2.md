@@ -16,13 +16,25 @@
 > table, sort triple), R17 (registry refs, wrapper names), R18.4 (emit
 > count), R22 (count), R23 (codec ref), and the dependency graph
 > (R10 → R22).
+>
+> 2026-09-24 verification pass (independent plan-vs-source re-audit, plus
+> an engine behavior check on Godot 4.7.1): corrections applied to R9
+> (clear_children terrain_keys exemption, preview ×8 incl.
+> parts_tab:89-93, NEAREST addition documented as a visual no-op,
+> HEADING_COLOR call-site delta, smoke extended to terrain buttons), R10
+> (debounce comment wording), R12 (hex serialization note), R13
+> (out-of-scope block relabeled to the Find Constraints run, RunSpec
+> thread field, weighted_pick allocation note), R15 (rebuild_id
+> outside-variant residual), R16 (full call-site inventory + acceptance
+> grep), R20 (outputs self-disables its run buttons too), R22 (exists/new
+> classification, Monitor exemption rationale).
 
 Plan to address the findings of the 2026-09-24 second audit. Two threads,
 interleaved so features land on top of the helpers they need:
 
 - **UI standardization (R9–R13, R19–R22):** every size, spacing, and color is
   a per-site magic number; construction boilerplate (`_mk_label` ×9,
-  scroll+VBox panels ×5, preview factories ×7, FileDialogs ×4) is
+  scroll+VBox panels ×5, preview factories ×8, FileDialogs ×4) is
   copy-pasted across 12 files; the run-execution choreography exists in
   three hand-rolled variants (plus two second variants kept out of scope —
   see R13).
@@ -82,7 +94,7 @@ placed `param_builder.gd`).
 | `PREVIEW_SMALL` | `Vector2(96, 96)` | constraints_tab.gd:151 |
 | `SWATCH` | `Vector2(34, 26)` | terrain_keys_tab.gd:11, tag_rule_editor.gd:288 (36×28 → this) |
 | `SWATCH_SQUARE` | `Vector2(30, 30)` | palette_picker.gd:10 |
-| `HEADING_COLOR` | `Color("#8fa8bf")` | monitor_tab.gd:13 (a String today; becomes Color) |
+| `HEADING_COLOR` | `Color("#8fa8bf")` | monitor_tab.gd:13 (a String today; becomes Color — delta: its BBCode consumer at monitor_tab.gd:229 switches to `to_html(false)`) |
 | `DIFF_RED` | `Color(1.0, 0.25, 0.25)` | parts_tab.gd:496 |
 | `HIGHLIGHT_AMBER` | `Color(1.0, 0.9, 0.2, …)` / cursor variant | preview_rect.gd:40-41, synthesizers_tab.gd:602-603 |
 | `HINT_ALPHA` | 0.6 | synthesizers_tab.gd:160, 672 (0.55 → this). parts_tab.gd:296's 0.35 is a disabled-look button modulate — a different role, stays per-site |
@@ -108,21 +120,35 @@ without forcing, so they stay per-site.
 | `note(text)` | status_label with muted/heading style | terrain_keys_tab:105-114, synthesizers_tab:188-200, constraints_tab:427-430, tag_rule_editor:159-165 |
 | `scroll_panel(min_width)` | ScrollContainer (h-scroll disabled) + expand-fill VBox; returns the VBox | terrain_keys_tab:21-27, parts_tab:77-86, decomposition_tab:36-45/89-98, synthesizers_tab:45-53 |
 | `split_shell()` | HSplitContainer + FULL_RECT, returns it | parts_tab:46, constraints_tab:43, decomposition_tab:29, images_tab:16, outputs_tab:20, monitor_tab:31, synthesizers_tab:41 |
-| `preview(min_size, keep_aspect := true)` | TextureRect: `EXPAND_IGNORE_SIZE` + NEAREST, plus `KEEP_ASPECT_CENTERED` unless `keep_aspect = false` | parts_tab:202-207, constraints_tab:149-154/237-244, outputs_tab:41-45 (fill, passes false), synthesizers_tab:167-171 (fill, passes false)/694-700, family_inspector:121-127 |
-| `clear_children(node)` | the free-children loop, normalized to `free()` (documented: rebuild paths run outside the container's own signal callbacks) | the ~15 clear-children sites |
+| `preview(min_size, keep_aspect := true)` | TextureRect: `EXPAND_IGNORE_SIZE` + NEAREST, plus `KEEP_ASPECT_CENTERED` unless `keep_aspect = false` | parts_tab:89-93/202-207, constraints_tab:149-154/237-244, outputs_tab:41-45 (fill, passes false), synthesizers_tab:167-171 (fill, passes false)/694-700, family_inspector:121-127 |
+| `clear_children(node)` | the free-children loop, normalized to `free()` (documented: rebuild paths run outside the container's own signal callbacks) | the ~15 clear-children sites except the two terrain_keys_tab sites (exemption in the note below) |
 | `file_dialog(mode, filters, on_selected)` | ACCESS_FILESYSTEM + filters + wiring | main.gd:96-109 (×2 dialogs), images_tab:73-83, outputs_tab:85-90 |
 | `confirm(owner, title, text, ok_text, on_confirmed)` | ConfirmationDialog builder | main.gd:111-119; new callers in R19 |
 
 `clear_children` normalization note: sites currently using `queue_free()`
-(palette_picker.gd:87 and others) switch to `free()` — safe because all call
-sites are top-of-refresh, never inside that container's signal callbacks;
-each converted site gets a one-line smoke check in this phase.
+(palette_picker.gd:87 and others) switch to `free()` — safe because those
+call sites are top-of-refresh, never inside the cleared container's own
+signal callbacks; each converted site gets a one-line smoke check in this
+phase. **Exempted — keep `queue_free()`:** the two terrain_keys_tab sites
+(`_rebuild_editor` :75-76, `_rebuild_classes` :119-120). Their containers
+hold the buttons that trigger them: "Save Key" reaches `_rebuild_editor`
+synchronously via `set_terrain_key` → `terrain_key_changed` (direct
+connection, app_data.gd:429), and "− class"/"− color" call
+`_rebuild_classes()` inside their own `pressed` emission. `free()` during
+signal emission is refused by the engine ("Object is locked and can't be
+freed"; verified on Godot 4.7.1).
 
 **Deltas, not verbatim:** the "Fit to window" vs "Fit" checkbox label
 (synthesizers_tab.gd:148) unifies to "Fit to window"; its toggle logic stays
-local. The `preview` factory adds `TEXTURE_FILTER_NEAREST` at the three
-sites that set no filter today (parts_tab:202-207,
-constraints_tab:149-154/237-244) — a slight visual change, intentional.
+local. The `preview` factory adds `TEXTURE_FILTER_NEAREST` at the four
+sites that set no filter of their own today (parts_tab:89-93/202-207,
+constraints_tab:149-154/237-244). This is a visual **no-op**, not a
+change: both tabs' roots already set `TEXTURE_FILTER_NEAREST`
+(parts_tab.gd:44, constraints_tab.gd:41) and CanvasItem texture filtering
+inherits, so the children already render nearest. Outputs'
+`_apply_filter_mode` keeps overriding the filter per texture size after
+the factory runs (the factory returns the TextureRect, so the override
+keeps working).
 
 | # | Change | File(s) |
 |---|---|---|
@@ -132,7 +158,8 @@ constraints_tab:149-154/237-244) — a slight visual change, intentional.
 
 Acceptance: `grep -rn "_mk_label" scripts/` empty; suite green; smoke: open
 every tab — all 8 render, palettes/rules/terrain swatches still edit,
-save/load dialogs still open.
+terrain "− class"/"− color"/"Save Key" click through with no console
+errors, save/load dialogs still open.
 
 ### R10 — `TabBase`: tab lifecycle + shared rebuild machinery (medium, low risk)
 
@@ -145,8 +172,9 @@ Control`. All 8 tabs re-derive from it. Members:
   `super._ready()` first, then builds content; the base provides
   `_build_shell() -> HSplitContainer` wrapping `UiKit.split_shell()`.)
 - `func _debounce_rebuild(fn: Callable)` — the 0.3 s one-shot Timer
-  (parts_tab.gd:183-190, constraints_tab.gd:132-139 — identical code and
-  identical rationale comments), created once in the base.
+  (parts_tab.gd:183-190, constraints_tab.gd:132-139 — identical code; the
+  rationale comments differ per tab and stay local), created once in the
+  base.
 - `func _retain_selection(container, id_of: Callable) -> int` — the
   selection-preserved-across-rebuild pattern hand-rolled three ways
   (parts_tab.gd:221-274, outputs_tab.gd:112-121, monitor_tab.gd:116-133).
@@ -203,6 +231,12 @@ signal `colors_changed(colors: Array)`, `set_colors()` for refresh. Swatch
 size unifies to `UiKit.SWATCH` (34×26). The two guard messages unify to one
 string (delta, intentional).
 
+Serialization note: the two sites store hex differently today — terrain
+keys via `_to_hex` ("#rrggbb", terrain_keys_tab.gd:47-51), tag rules via
+`to_html(false)` ("rrggbb", tag_rule_editor.gd:241). The unified editor
+picks one format for both; old saves still load either way (the decoders
+add a missing "#"), but new saves write the unified format for both.
+
 Acceptance: suite green; smoke: edit terrain-key class colors and tag-rule
 colors; both still sample via PalettePicker and persist through save/load.
 
@@ -213,7 +247,11 @@ Array[float], rng: RandomNumberGenerator) -> int` — the "sum; if total ≤ 0
 uniform randi; else randf()·total walk-down" algorithm duplicated in
 tile_collapse_session.gd:636-660 (`_weighted_pick`) and 663-682
 (`_pick_member`). Both become thin loops over the util (the member variant
-maps its per-source weights into a float array first). The existing
+maps its per-source weights into a float array first). Both samplers are
+allocation-free today (bitmask walk / packed array); routing through
+`Array[float]` allocates per observation step — accepted for the dedup
+(the pick is O(domain) anyway), and a packed-array overload can be added
+later without call-site changes if it ever profiles. The existing
 `test_tile_collapse_derives_geometry_and_matches_stepped_synthesis`
 (tests/test_core_algorithms.gd:138) must stay green **unmodified** — it
 pins the batch-vs-stepped semantics.
@@ -224,17 +262,23 @@ disable button → "Running…" status → `WorkerThreadPool.add_task` →
 in decomposition_tab.gd:236-391, synthesizers_tab.gd:228-299, and
 outputs_tab.gd:191-227 (outputs has no begin_run today — 13.2 adds it).
 Two further blocks are deliberately out of scope: decomposition_tab's
-auto-constraints chain (:452-490, a second begin_run/add_task/finish
-sequence — it becomes the `publish` continuation in 13.4) and
-synthesizers_tab's interactive session path (:322-401, chunked stepping
-with its own finish/fail). API shaped around the common skeleton, not a
-forcing of all variants through one template:
+manual "Find Constraints" run (:452-491, `_on_find_constraints_pressed` →
+`_publish_constraints` — a second, fully independent begin_run/add_task/
+finish sequence with its own run id) and synthesizers_tab's interactive
+session path (:322-401, chunked stepping with its own finish/fail). The
+auto-constraints continuation is *not* out of scope: `_after_decompose`'s
+second `add_task` (:338-351) shares the decomposition run's id and becomes
+the `publish` continuation in 13.4. API shaped around the common skeleton,
+not a forcing of all variants through one template:
 
 ```gdscript
 class_name RunExecutor
 static func launch(owner: Control, buttons: Array[Button], status: Label,
         spec: RunSpec, worker: Callable, publish: Callable) -> int
 ## RunSpec: kind, title, technique_id, params, inputs, stage_plan.
+## begin_run's `thread` arg is deliberately absent: every migrated path
+## runs on the worker thread, so launch passes "worker" (the interactive
+## session path is out of scope).
 ## Handles: RunMonitor.begin_run, button disable/enable, status text,
 ## WorkerThreadPool.add_task, end/finish/fail marshalling.
 ```
@@ -289,7 +333,13 @@ scheme" comment is deleted — the sync is enforced by construction. Two
 schemes stay per-site as single copies: the output id (`"out_%d_%s"`,
 app_data.gd:67) and adjacency's to-outside variant (`"c_%s_out_%d_%d"`,
 adjacency.gd:280 — a different format string), which routes its hash
-through `Ids.short` so the substr discipline still has one home. The
+through `Ids.short` so the substr discipline still has one home. Known
+residual, pre-existing and unchanged here: `rebuild_id()` applied to a
+to-outside constraint (participants[1] is `"~outside"`) yields
+`"c_<short>_utside_…"` — `substr(2, 6)` of `"~outside"` — instead of the
+extractor's `"c_<short>_out_…"`. It stays a unique dictionary key, so it
+is harmless today; fixing it would alter which ids `constraint_edits`
+bind to after merges, so it stays out of scope. The
 deterministic `sort_custom(by id)` triples (grid_tiles.gd:56-58,
 pixel_overlap.gd:59-61, adjacency.gd:193-194) move to a `Sort.by_id(arr)`
 static in the same file — one home for both determinism disciplines.
@@ -308,11 +358,14 @@ isolation (tests must snapshot/restore the autoload — tests/builders.gd:7-8).
 |---|---|---|
 | 16.1 | `PixelOverlap.extract(..., terrain_classes: Array)` — new trailing param; same silent-empty contract for bad params | pixel_overlap.gd |
 | 16.2 | `ConstraintIndex.build(..., terrain_classes: Array)` — threaded through to `_build_families` | constraint_index.gd |
-| 16.3 | AppData call sites pass `active_terrain_classes()` (app_data.gd:56-57 region) | app_data.gd |
+| 16.3 | Every remaining call site passes `active_terrain_classes()`: `get_constraint_index`'s `ConstraintIndex.build` (app_data.gd:56-57), `_regenerate_constraints`'s `technique.extract` (app_data.gd:553), both decomposition_tab `extract` calls (:345, :466), and family_inspector's preview `build` (:72) | app_data.gd, decomposition_tab.gd, family_inspector.gd |
 | 16.4 | Test call sites updated; builders.gd terrain-key snapshot/restore deleted if no longer needed | tests/ |
 
 Acceptance: `grep -rn "AppData\." scripts/core/techniques/
-scripts/core/data/` returns nothing; suite green (PixelOverlap terrain
+scripts/core/data/` returns nothing; `grep -rn "active_terrain_classes"
+scripts/` shows only app_data.gd (definition + its own tagging use) and
+the 16.3 call sites — this is what keeps family_inspector's
+terrain-merge preview working; suite green (PixelOverlap terrain
 cases pin behavior).
 
 ### R17 — `TechniqueBase` + generic registry (small, low risk)
@@ -368,8 +421,9 @@ cleanly and confirms the action.
 
 ### R20 — Global run-in-progress state (medium)
 
-Today nothing prevents editing parts/constraints mid-run, and only
-decomposition/synthesizers disable their own buttons. `RunMonitor` gains:
+Today nothing prevents editing parts/constraints mid-run, and each tab
+only disables its own buttons for its own runs (decomposition,
+synthesizers, and outputs' two re-synthesize buttons). `RunMonitor` gains:
 
 - `signal busy_changed` (next to `runs_changed`), emitted on the
   running→terminal transitions.
@@ -394,14 +448,17 @@ text editor.
 
 ### R22 — Standardized empty-state hints (small)
 
-`TabBase._set_empty_state` (from R10) applied everywhere: Parts
-("No parts. Run a decomposition first." — exists, moves to the helper),
-Constraints (exists, same), Synthesizers (its parts-empty message at
-synthesizers_tab.gd:233 moves to the helper), and new for Images ("No
-images loaded."), Terrain Keys, Decomposition (pre-run), Outputs ("No
-outputs yet. Run a synthesis."). Monitor is exempt (it has its own
-empty-history table row). Smoke: fresh project shows a hint on every tab;
-hints clear on first data.
+`TabBase._set_empty_state` (from R10) applied everywhere. Existing
+messages move to the helper: Parts ("No parts. Run a decomposition
+first."), Constraints (same), Synthesizers (its parts-empty message at
+synthesizers_tab.gd:233), Terrain Keys (its "No classes defined." note,
+terrain_keys_tab.gd:78-84). New: Images ("No images loaded."),
+Decomposition (pre-run), Outputs ("No outputs yet. Run a synthesis." — a
+list-side hint; the right pane's existing "No synthesis yet." meta label
+stays). Monitor is exempt (its list is empty by design until the first
+run; the detail pane already shows its own "No run selected."
+placeholder). Smoke: fresh project shows a hint on every tab; hints clear
+on first data.
 
 ---
 

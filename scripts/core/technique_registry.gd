@@ -1,9 +1,13 @@
 extends Node
-## Single enumeration point for available techniques.
+## Single enumeration point for available techniques. One generic store,
+## kind-keyed; the register/get/get_list triplets stay as thin wrappers so
+## the public API (and the tabs) don't move.
 
-var _decomposition: Dictionary = {}   # StringName -> DecompositionTechnique
-var _constraint: Dictionary = {}      # StringName -> ConstraintTechnique
-var _synthesizers: Dictionary = {}   # StringName -> Synthesizer
+const KIND_DECOMPOSITION := &"decomposition"
+const KIND_CONSTRAINT := &"constraint"
+const KIND_SYNTHESIZER := &"synthesizer"
+
+var _store: Dictionary = {}   # kind -> {StringName -> TechniqueBase}
 
 
 func _ready() -> void:
@@ -13,55 +17,61 @@ func _ready() -> void:
 	register_synthesizer(TileCollapse.new())
 
 
-func register_decomposition(technique: DecompositionTechnique) -> void:
-	assert(technique is DecompositionTechnique)
+func _register(kind: StringName, technique: TechniqueBase) -> void:
+	var bucket: Dictionary = _store.get_or_add(kind, {})
 	assert(not technique.get_id().is_empty())
-	assert(not _decomposition.has(technique.get_id()),
-		"Duplicate decomposition technique id: %s" % technique.get_id())
-	_decomposition[technique.get_id()] = technique
+	assert(not bucket.has(technique.get_id()),
+		"Duplicate %s technique id: %s" % [kind, technique.get_id()])
+	bucket[technique.get_id()] = technique
+
+
+func _bucket(kind: StringName) -> Dictionary:
+	return _store.get_or_add(kind, {})
+
+
+# --- Decomposition -----------------------------------------------------------
+
+func register_decomposition(technique: DecompositionTechnique) -> void:
+	_register(KIND_DECOMPOSITION, technique)
 
 
 func get_decomposition_techniques() -> Array[DecompositionTechnique]:
 	var list: Array[DecompositionTechnique] = []
-	list.assign(_decomposition.values())
+	list.assign(_bucket(KIND_DECOMPOSITION).values())
 	return list
 
 
 func get_decomposition(id: StringName) -> DecompositionTechnique:
-	return _decomposition.get(id)
+	return _bucket(KIND_DECOMPOSITION).get(id)
 
+
+# --- Constraint ---------------------------------------------------------------
 
 func register_constraint(technique: ConstraintTechnique) -> void:
-	assert(technique is ConstraintTechnique)
-	assert(not technique.get_id().is_empty())
-	assert(not _constraint.has(technique.get_id()),
-		"Duplicate constraint technique id: %s" % technique.get_id())
-	_constraint[technique.get_id()] = technique
+	_register(KIND_CONSTRAINT, technique)
 
 
 func get_constraint_techniques() -> Array[ConstraintTechnique]:
 	var list: Array[ConstraintTechnique] = []
-	list.assign(_constraint.values())
+	list.assign(_bucket(KIND_CONSTRAINT).values())
 	return list
 
 
 func get_constraint_technique(id: StringName) -> ConstraintTechnique:
-	return _constraint.get(id)
+	return _bucket(KIND_CONSTRAINT).get(id)
 
+
+# --- Synthesizer ---------------------------------------------------------------
 
 func register_synthesizer(synth: Synthesizer) -> void:
-	assert(synth is Synthesizer)
-	assert(not synth.get_id().is_empty())
-	assert(not _synthesizers.has(synth.get_id()),
-		"Duplicate synthesizer id: %s" % synth.get_id())
-	_synthesizers[synth.get_id()] = synth
+	_register(KIND_SYNTHESIZER, synth)
 
 
 func get_synthesizer_techniques() -> Array[Synthesizer]:
 	var list: Array[Synthesizer] = []
-	list.assign(_synthesizers.values())
+	list.assign(_bucket(KIND_SYNTHESIZER).values())
 	return list
 
 
 func get_synthesizer(id: StringName) -> Synthesizer:
-	return _synthesizers.get(id)
+	return _bucket(KIND_SYNTHESIZER).get(id)

@@ -1,13 +1,20 @@
 # Refactoring Plan — Round 2: UI Standardization & Shared Core
 
-> **Status:** 📝 Approved draft — not started. Scope decided with user
-> 2026-09-24: UI standardization, shared-code extraction, plus four small UI
-> features (R19–R22) that build on the new helpers. Baseline: 11 suites /
-> 77 cases green via `./run_tests.sh` (re-verify before R9). Supersedes
-> old-R9 "optional polish" from the archived plan
-> (`docs/archive/refactoring_plan.md`): its `_mk_label` dedup (then ×8; a
-> 9th copy landed with round-1 R7's tag_rule_editor) and weighted-choice
-> dedups are absorbed here as R9 and R13.
+> **Status:** ✅ Complete (2026-09-25). R9–R23 implemented, one commit per
+> phase, suite green after every phase — final: 17 suites / 111 cases
+> (from the 11 / 77 baseline; +4 suites / +34 cases from R13/R14/R15/R23
+> backfills). Headless construction smoke (all 8 tabs build, no script
+> errors) passed after every phase. Implementation deviations from the
+> as-drafted text: R11's widget is an HBoxContainer (both source rows
+> were HBoxes — the drafted VBox would have stacked them); R10's
+> `_retain_selection` landed as an ItemList-oriented helper
+> (`_retain_selection`/`_find_by_metadata`) with the Parts grid keeping
+> its bespoke dual selection/pin restore; R16 threads `terrain_classes`
+> through `ConstraintIndex.build` into an instance stash consumed by
+> `_build_families` (build() never calls prepare()); R20's outputs
+> buttons are driven solely by the run lock (empty `buttons` arrays in
+> its RunExecutor calls). The in-editor manual smoke checklists
+> (R9/R19–R22 interactions, full E2E run) remain user-verified pending.
 >
 > 2026-09-24 review pass: every line citation re-verified against source;
 > corrections applied to R9 (scroll/preview scoping, HINT_ALPHA,

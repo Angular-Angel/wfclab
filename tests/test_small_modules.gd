@@ -76,6 +76,20 @@ func test_json_codec_edge_cases() -> void:
 	assert_dict(JsonCodec.decode(JsonCodec.encode(source))).is_equal(source)
 
 
+func test_json_codec_v2i_key_collision_is_documented() -> void:
+	# ADVERSARIAL: a user dictionary legitimately containing exactly
+	# {"__v2i": [x, y]} is indistinguishable from an encoded Vector2i, so
+	# decode() collapses it into a real Vector2i. This is the documented
+	# collision behavior: rule/param dictionaries are app-authored, the
+	# marker is reserved, and namespacing it would break every existing
+	# save file for a case nothing in the app can produce.
+	var decoded: Vector2i = JsonCodec.decode({"__v2i": [3, 4]})
+	assert_that(decoded).is_equal(Vector2i(3, 4))
+	# ...and an encoded vector round-trips through the same shape.
+	assert_that(JsonCodec.decode(JsonCodec.encode(Vector2i(3, 4)))) \
+			.is_equal(Vector2i(3, 4))
+
+
 func test_run_monitor_stage_lifecycle() -> void:
 	var monitor: Variant = auto_free(RunMonitorScript.new())
 	var plan := [{"key": "extract", "label": "Extract"},

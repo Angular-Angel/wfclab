@@ -1,7 +1,8 @@
 # Refactoring Plan
 
 > **Status:** 📝 Draft — not started. Baseline: 43 scripts, 10,627 LOC, 11 suites /
-> 77 cases green via `./run_tests.sh`.
+> 77 cases green via `./run_tests.sh`. Review corrections applied 2026-09-25
+> (test-side call sites → 1.7, terrain_mapper in-place normalize, StripUtil.class_map).
 
 Plan to address the findings of the 2026-09-24 refactoring audit. Every phase is a
 pure move, deletion, or dedup — **no behavior changes**. Where two copies of a
@@ -22,6 +23,9 @@ Conventions applied throughout:
 - Moved function bodies are verbatim unless the phase lists a delta. If a
   semantic difference between duplicate copies is discovered mid-phase, stop,
   write a pinning test, then unify.
+- When a phase deletes or moves public statics, its call-site inventory must
+  cover `tests/` as well as `scripts/` (1.7 exists because the audit only
+  grepped `scripts/`).
 - New source files follow the util convention: `class_name X extends RefCounted`
   with static funcs (see `scripts/core/util/pixel_hash.gd`). Tests never get
   `class_name`.
@@ -61,12 +65,13 @@ step/delta derivation are generic math, not solver logic.
 
 | # | Change | File(s) |
 |---|---|---|
-| 1.1 | New `scripts/core/util/bit_mask.gd`: `class_name BitMask extends RefCounted`. Move the statics **verbatim** from `tile_collapse.gd` (62–217), renamed per the mapping below. `_ctz_cache` moves with it (keep the caching comment) | new file |
+| 1.1 | New `scripts/core/util/bit_mask.gd`: `class_name BitMask extends RefCounted`. Move the statics **verbatim** from `tile_collapse.gd`'s statics block (62–217), renamed per the mapping below — the mapping table is the authoritative move list: `_derive_step`/`_derive_deltas` (64–96) go to `ConstraintIndex` per 1.2 and `_render` (100–119) stays. `_ctz_cache` moves with it (keep the caching comment) | new file |
 | 1.2 | Add instance methods `derive_step() -> Vector2i` and `derive_deltas(step: Vector2i) -> Array[Vector2i]` to `ConstraintIndex` — verbatim bodies of `_derive_step`/`_derive_deltas`, which read only `tile_size` + `get_offsets()`. Keep `@warning_ignore("integer_division")` | `constraint_index.gd` |
 | 1.3 | Update all call sites in `tile_collapse.gd` (`TileCollapse.mask_*` → `BitMask.*`, `TileCollapse._derive_step(_index)` → `_index.derive_step()`, `_derive_deltas` likewise), then delete the moved statics from `tile_collapse.gd` | `tile_collapse.gd` |
 | 1.4 | `constraint_index.gd`: `TileCollapse._ctz` → `BitMask.ctz` (2×), `TileCollapse.mask_full` → `BitMask.full` (2×) | `constraint_index.gd` (498, 590, 617, 620) |
 | 1.5 | `family_inspector.gd`: replace `TileCollapse._derive_step/_derive_deltas` with `_index.derive_step()` / `_index.derive_deltas(step)` | `family_inspector.gd` (80–81) |
-| 1.6 | Repoint `test_mask_helpers_round_trip` at the new names (it currently calls `TileCollapse.mask_full/_ctz/_kth_set_bit/…` directly) | `tests/test_tile_collapse_session.gd` (57–79) |
+| 1.6 | Repoint `test_mask_helpers_round_trip` at the new names (it currently calls `TileCollapse.mask_full/_ctz/_kth_set_bit/…` directly) | `tests/test_tile_collapse_session.gd` (54–84) |
+| 1.7 | Repoint the remaining test callers of moved statics — found by grepping `tests/`, not just `scripts/`: `test_core_algorithms.gd` `TileCollapse._derive_step/_derive_deltas` → `_index.derive_step()`/`_index.derive_deltas(step)` (147, 149); `test_constraint_index_rules.gd` `TileCollapse.mask_has` → `BitMask.has` (63, 65, 78, 79, 81) | `tests/test_core_algorithms.gd`, `tests/test_constraint_index_rules.gd` |
 
 Name mapping (1.1 / 1.6):
 
@@ -88,9 +93,9 @@ Name mapping (1.1 / 1.6):
 Do **not** keep `TileCollapse` delegates — every caller is updated in this phase
 and the suite (2.11 seed-parity, 2.1–2.11) pins the solver behavior.
 
-Acceptance: `grep -rn "TileCollapse\." scripts/` returns only
-`tile_collapse.gd`-internal `Session` references and `create_session`; suite
-green.
+Acceptance: `grep -rn "TileCollapse\." scripts/` returns only adapter/session-
+internal uses (`tile_collapse.gd` internals, `create_session`, and the
+`TileCollapse.new()` registration in `technique_registry.gd`); suite green.
 
 ---
 
@@ -118,8 +123,8 @@ is pasted across the codebase.
 
 | # | Change | File(s) |
 |---|---|---|
-| 3.1 | New `scripts/core/util/image_ops.gd`: `class_name ImageOps extends RefCounted`, `static func to_rgba8(img: Image) -> Image` — **never mutates the input**: if compressed or format ≠ RGBA8 → `duplicate()`, `decompress()` if compressed, `convert(FORMAT_RGBA8)`; otherwise return `img` unchanged. This adopts `PixelHash.of`'s semantics, the strongest of the nine (see its doc comment) | new file |
-| 3.2 | Replace the guards in: `palette_extractor.gd` (23–24), `tag_matcher.gd` (21–22), `pixel_hash.gd` (7–12, keep the quantize tail), `terrain_mapper.gd` (63–64 — verify it owns the image first; if it mutates a caller's image today, fix to the no-mutate contract), `image_asset.gd` (20–21), `synthesizers_tab.gd` `_tile_button` (694–696), `tile_collapse.gd` `_render` (112–115) | 7 files |
+| 3.1 | New `scripts/core/util/image_ops.gd`: `class_name ImageOps extends RefCounted`, `static func to_rgba8(img: Image) -> Image` — **never mutates the input**: if compressed or format ≠ RGBA8 → `duplicate()`, `decompress()` if compressed, `convert(FORMAT_RGBA8)`; otherwise return `img` unchanged. This adopts `PixelHash.of`'s semantics, the strongest of the nine (see its doc comment). Also `static func to_rgba8_in_place(img: Image) -> void` — decompress + convert directly on the caller's own image, no duplicate — for the one site whose in-place conversion is load-bearing: `TerrainMapper.apply_mapped` rewrites pixels via `set_data` ("apply() semantics"), and the byte strips callers derive from the rewritten bytes are pinned by `test_pixel_overlap.gd` 1.9 | new file |
+| 3.2 | Replace the guards in: `palette_extractor.gd` (21–24), `tag_matcher.gd` (20–22), `pixel_hash.gd` (7–12, keep the quantize tail), `terrain_mapper.gd` `apply_mapped` (63–64 → `ImageOps.to_rgba8_in_place`; verified: it mutates the caller's image by design, so it keeps in-place conversion rather than adopting the no-mutate contract), `image_asset.gd` (20–21), `synthesizers_tab.gd` `_tile_button` (694–696), `tile_collapse.gd` `_render` (113–115) | 7 files |
 | 3.3 | `constraint_index._edge_signature_key` (423–426) and `pixel_overlap.extract` (74–77) keep their own `duplicate()` (they own the copy and pass `get_data()` out of it) but route the decompress/convert through `ImageOps` — final shape decided in R4 when their shared preamble is unified | 2 files |
 
 **Called-out strictening:** sites that previously skipped `decompress()`
@@ -145,7 +150,7 @@ and RGBA8+classify preamble.
 | 4.1 | New `scripts/core/util/strip_util.gd`: `class_name StripUtil extends RefCounted` with: `static func bytes(data: PackedByteArray, img_w: int, depth: int, start: Vector2i, along: Vector2i, inward: Vector2i, span: int) -> PackedByteArray` (verbatim body of `pixel_overlap._strip` == `constraint_index._edge_bytes`), `static func classes(cls_map: PackedInt32Array, img_w: int, depth, start, along, inward, span) -> PackedInt32Array` (verbatim `_strip_classes`), and `static func side(side: String, part_size: Vector2i) -> Dictionary` returning `{start, along, inward, span}` for `"right"/"left"/"bottom"/"top"` | new file |
 | 4.2 | `pixel_overlap.extract`: build the four strips by looping `StripUtil.SIDES` + `side()` instead of the four inline `_strip`/`_strip_classes` call groups (the `strips[p.id]` dict keys stay `"right"`, `"right_cls"`, `"right_loose"`, …). Delete `_strip`/`_strip_classes`. `_strip_loose` stays (no twin) | `pixel_overlap.gd` (76–107, 297–317, 378–395) |
 | 4.3 | `constraint_index._edge_signature_key`: replace the local `sides` array + `_edge_bytes` + inline class loop with `StripUtil.side()` + `StripUtil.bytes/classes`. **Preserve the difference:** this site uses `d_eff = mini(depth, mini(size.x, size.y))` (clamped depth) while pixel_overlap skips parts smaller than depth entirely — keep each caller's own depth handling. Delete `_edge_bytes` | `constraint_index.gd` (412–480) |
-| 4.4 | Both callers' preamble (own-duplicate → `ImageOps.to_rgba8` semantics → optional `TerrainMapper.apply_mapped`) ends up identical; share it as `static func classified_rgba8(img: Image, decoded: Array) -> PackedInt32Array` on `StripUtil` (returns the cls map; empty when `decoded` is empty) | `pixel_overlap.gd` (74–80), `constraint_index.gd` (423–429) |
+| 4.4 | Post-R3 each caller already owns its preamble (`duplicate()` → `ImageOps.to_rgba8`); share only the class-map half as `static func class_map(img: Image, decoded: Array) -> PackedInt32Array` on `StripUtil` (`TerrainMapper.apply_mapped(img, decoded)`; empty when `decoded` is empty). The combined `classified_rgba8` shape from the audit was rejected in review: a helper returning only the cls map cannot also hand callers the converted image their byte strips need, and mutating its input would contradict `ImageOps` semantics | `pixel_overlap.gd` (78–80), `constraint_index.gd` (427–429) |
 
 Geometry parity is the risk here: the two copies' start/along/inward/span
 arguments were verified identical in the audit, and behavior is pinned by
@@ -220,7 +225,7 @@ persistence.
 
 | # | Change | File(s) |
 |---|---|---|
-| 8.1 | New `scripts/core/project_codec.gd`: `class_name ProjectCodec extends RefCounted`, static: `encode(images: Array, state: Dictionary) -> Dictionary` (the version-2 payload builder, 618–634), `write(path: String, data: Dictionary) -> bool`, `read(path: String) -> Dictionary` (JSON open/parse, empty on failure), `decode(payload: Variant) -> Dictionary` (JsonCodec.decode + `_decode_tag_edits` + rules/tag-rules/terrain adoption incl. the legacy `terrain_keys` fallback, 714–742 + 670–692) | new file |
+| 8.1 | New `scripts/core/project_codec.gd`: `class_name ProjectCodec extends RefCounted`, static: `encode(images: Array, state: Dictionary) -> Dictionary` (the version-2 payload builder, 618–634), `write(path: String, data: Dictionary) -> bool`, `read(path: String) -> Dictionary` (JSON open/parse, empty on failure), `decode(payload: Variant) -> Dictionary` (JsonCodec.decode + `_decode_tag_edits` (714–724) + rules/tag-rules/terrain adoption incl. the legacy `terrain_keys` fallback, 670–692; `_max_*_number` (727–742) stay in AppData — they feed the counter re-derivation 8.2 keeps) | new file |
 | 8.2 | `AppData.save_project` = gather state → `ProjectCodec.encode/write`. `load_project` = `ProjectCodec.read/decode` → **AppData keeps** the state reset, counter re-derivation, image loading, and all eight signal emissions (641–711 stays; only the decode tail moves) | `app_data.gd` (616–742) |
 
 `test_app_data_layers.gd` pins the save/load round trip (incl. version-2 format

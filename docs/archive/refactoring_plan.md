@@ -1,10 +1,9 @@
 # Refactoring Plan
 
-> **Status:** 🚧 R0–R8 implemented (2026-09-24, one commit per phase; suite
-> green 77/77 after every phase; headless boot smoke clean). **Remaining
-> before archive:** walk the R5 and R7 manual smoke checklists in-editor
-> (popups, rule CRUD, neighbors click-through, pin/compare/merge), then move
-> this file to `docs/archive/`. R9 optional, not started.
+> **Status:** ✅ Complete (2026-09-24). R0–R8 implemented, one commit per
+> phase, suite green 77/77 after every phase. R5/R7 manual smoke checklists
+> passed in-editor (user-verified). R9 optional polish was not taken; the
+> `_mk_label` ×8 and weighted-choice dedups remain available if wanted.
 > Baseline: 44 scripts, 10,627 LOC, 11 suites / 77 cases green via
 > `./run_tests.sh`. Review corrections applied 2026-09-25
 > (test-side call sites → 1.7, terrain_mapper in-place normalize, StripUtil.class_map).

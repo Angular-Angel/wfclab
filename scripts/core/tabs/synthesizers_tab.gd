@@ -125,8 +125,13 @@ func _ready() -> void:
 	_cancel_button.pressed.connect(_stop_session)
 	ctl_row.add_child(_cancel_button)
 
+	var status_row := HBoxContainer.new()
+	left.add_child(status_row)
 	_status = UiKit.status_label("")
-	left.add_child(_status)
+	status_row.add_child(_status)
+	status_row.add_child(UiKit.copy_button(
+			func() -> String: return _status.text, "Copy",
+			"Copy the run status line to the clipboard."))
 
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL

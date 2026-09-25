@@ -120,3 +120,35 @@ static func confirm(owner: Node, title: String, text: String,
 	dialog.confirmed.connect(on_confirmed)
 	owner.add_child(dialog)
 	return dialog
+
+
+## Copy-to-clipboard button (Monitor's pattern, shared): copies
+## get_text()'s result and swaps the label to "Copied ✓" briefly. An
+## empty result copies nothing and flashes empty_text instead.
+static func copy_button(get_text: Callable, label := "Copy",
+		tooltip := "Copy to the clipboard.",
+		empty_text := "Nothing to copy") -> Button:
+	var b := Button.new()
+	b.text = label
+	b.set_meta("label", label)
+	b.tooltip_text = tooltip
+	b.pressed.connect(func() -> void:
+		var text: String = get_text.call()
+		if text.is_empty():
+			_flash_button(b, empty_text)
+			return
+		DisplayServer.clipboard_set(text)
+		_flash_button(b, "Copied ✓"))
+	return b
+
+
+static func _flash_button(button: Button, feedback: String) -> void:
+	## Swap in feedback text briefly, then restore the canonical label.
+	button.text = feedback
+	var tree := button.get_tree()
+	if tree == null:
+		button.text = String(button.get_meta("label"))
+		return
+	await tree.create_timer(1.2).timeout
+	if is_instance_valid(button):
+		button.text = String(button.get_meta("label"))

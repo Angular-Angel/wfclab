@@ -40,9 +40,8 @@ func _ready() -> void:
 	left.add_child(_list)
 	var button_row := HBoxContainer.new()
 	left.add_child(button_row)
-	_copy_all_button = _mk_button("Copy All",
-			"Copy a one-line summary of every run to the clipboard.",
-			_copy_all_pressed)
+	_copy_all_button = UiKit.copy_button(_copy_all_text,
+			"Copy All", "Copy a one-line summary of every run to the clipboard.")
 	_copy_all_button.disabled = true
 	button_row.add_child(_copy_all_button)
 	button_row.add_child(_mk_button("Inspect Families",
@@ -67,14 +66,15 @@ func _ready() -> void:
 	_detail_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_detail_title.clip_text = true
 	header.add_child(_detail_title)
-	_copy_report_button = _mk_button("Copy Report",
-			"Copy the full report of the selected run to the clipboard.",
-			_copy_report_pressed)
+	_copy_report_button = UiKit.copy_button(_copy_report_text,
+			"Copy Report", "Copy the full report of the selected run to the clipboard.",
+			"No run selected")
 	_copy_report_button.disabled = true
 	header.add_child(_copy_report_button)
-	_copy_selection_button = _mk_button("Copy Selection",
-			"Copy the text currently selected in the report below.",
-			_copy_selection_pressed)
+	_copy_selection_button = UiKit.copy_button(
+			func() -> String: return _detail_text.get_selected_text(),
+			"Copy Selection", "Copy the text currently selected in the report below.",
+			"Nothing selected")
 	_copy_selection_button.disabled = true
 	header.add_child(_copy_selection_button)
 	var scroll := ScrollContainer.new()
@@ -169,40 +169,18 @@ func _rebuild_detail() -> void:
 
 # --- Clipboard -------------------------------------------------------------------
 
-func _copy_report_pressed() -> void:
+func _copy_report_text() -> String:
 	var r := RunMonitor.get_run(_selected_id)
-	if r.is_empty():
-		_flash(_copy_report_button, "No run selected")
-		return
-	DisplayServer.clipboard_set(_plain_report(r))
-	_flash(_copy_report_button, "Copied ✓")
+	return "" if r.is_empty() else _plain_report(r)
 
 
-func _copy_selection_pressed() -> void:
-	var selection := _detail_text.get_selected_text()
-	if selection.is_empty():
-		_flash(_copy_selection_button, "Nothing selected")
-		return
-	DisplayServer.clipboard_set(selection)
-	_flash(_copy_selection_button, "Copied ✓")
-
-
-func _copy_all_pressed() -> void:
+func _copy_all_text() -> String:
 	var parts := PackedStringArray()
 	var runs := RunMonitor.get_run_list()
 	parts.append("WFCLab runs (%d, newest first)" % runs.size())
 	for r: Dictionary in runs:
 		parts.append(_row_text(r))
-	DisplayServer.clipboard_set("\n".join(parts))
-	_flash(_copy_all_button, "Copied ✓")
-
-
-func _flash(button: Button, feedback: String) -> void:
-	## Swap in feedback text briefly, then restore the canonical label.
-	button.text = feedback
-	await get_tree().create_timer(1.2).timeout
-	if is_instance_valid(button):
-		button.text = String(button.get_meta("label"))
+	return "\n".join(parts)
 
 
 # --- Report building ---------------------------------------------------------------

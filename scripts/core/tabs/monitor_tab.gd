@@ -77,12 +77,7 @@ func _ready() -> void:
 			"Nothing selected")
 	_copy_selection_button.disabled = true
 	header.add_child(_copy_selection_button)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	right.add_child(scroll)
+	var detail_box := UiKit.scroll_panel(right)
 	_detail_text = RichTextLabel.new()
 	_detail_text.bbcode_enabled = true
 	_detail_text.selection_enabled = true
@@ -93,7 +88,7 @@ func _ready() -> void:
 	_detail_text.scroll_active = false   # outer ScrollContainer scrolls
 	_detail_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_detail_text.custom_minimum_size = Vector2(0.0, 40.0)
-	scroll.add_child(_detail_text)
+	detail_box.add_child(_detail_text)
 
 
 func _process(delta: float) -> void:

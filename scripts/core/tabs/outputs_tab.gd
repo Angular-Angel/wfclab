@@ -42,9 +42,7 @@ func _ready() -> void:
 	_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_preview)
 
-	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(260.0, 0.0)
-	split.add_child(right)
+	var right := UiKit.scroll_panel(split, 260.0)
 
 	right.add_child(UiKit.label("Last Synthesis"))
 	_output_list = ItemList.new()

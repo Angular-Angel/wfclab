@@ -85,12 +85,16 @@ static func note(text: String) -> Label:
 
 ## Scroll + content box. The factory adds the ScrollContainer to `parent`
 ## and returns the inner VBox (the scroll is reachable as its parent).
-## min_width == 0 anchors the scroll FULL_RECT (root-hosted case);
-## otherwise the scroll gets that minimum width and vertical expand.
+## With min_width > 0 the scroll gets that minimum width and vertical
+## expand (the split-pane inspector case); with min_width == 0 a
+## Container parent gets vertical expand, and a root-hosted scroll
+## anchors FULL_RECT.
 static func scroll_panel(parent: Control, min_width := 0.0) -> VBoxContainer:
 	var scroll := ScrollContainer.new()
 	if min_width > 0.0:
 		scroll.custom_minimum_size = Vector2(min_width, 0.0)
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	elif parent is Container:
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	else:
 		scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

@@ -61,10 +61,8 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("v_separation", 1)
 	scroll.add_child(_grid)
 
-	# --- Right: inspector -----------------------------------------------------
-	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(300.0, 0.0)
-	split.add_child(right)
+	# --- Right: inspector (scrollable, like the Parts tab's) ------------------
+	var right := UiKit.scroll_panel(split, 300.0)
 
 	right.add_child(UiKit.label("Selected Pair"))
 	var previews := HBoxContainer.new()

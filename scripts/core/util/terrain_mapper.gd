@@ -31,7 +31,7 @@ static func prepare(classes: Array) -> Array:
             continue
         if not bool((c as Dictionary).get("enabled", true)):
             continue   # toggled off: skip without deleting
-        var colors := _decode_hex((c as Dictionary).get("colors", []))
+        var colors := ColorMath.decode_hex((c as Dictionary).get("colors", []))
         if colors.is_empty():
             continue   # inert class: nothing to match or represent
         out.append({
@@ -84,25 +84,9 @@ static func apply_mapped(img: Image, decoded: Array) -> PackedInt32Array:
     img.set_data(w, h, false, Image.FORMAT_RGBA8, data)
     return out
 
-static func _decode_hex(hex_colors: Array) -> Array[PackedInt32Array]:
-    var out: Array[PackedInt32Array] = []
-    for c: Variant in hex_colors:
-        var s := String(c)
-        if not s.begins_with("#"):
-            s = "#" + s
-        if not Color.html_is_valid(s):
-            continue
-        var col := Color(s)
-        out.append(PackedInt32Array([
-            int(round(col.r * 255.0)),
-            int(round(col.g * 255.0)),
-            int(round(col.b * 255.0))]))
-    return out
-
 static func _matches(r: int, g: int, b: int, c: Dictionary) -> bool:
     var tol: int = c["tolerance"]
     for t: PackedInt32Array in c["colors"]:
-        if absi(r - t[0]) <= tol and absi(g - t[1]) <= tol \
-                and absi(b - t[2]) <= tol:
+        if ColorMath.matches(r, g, b, t, tol):
             return true
     return false

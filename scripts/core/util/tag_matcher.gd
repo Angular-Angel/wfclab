@@ -13,7 +13,7 @@ class_name TagMatcher extends RefCounted
 
 static func coverage_fraction(img: Image, hex_colors: Array,
         tolerance: int) -> float:
-    var targets := _decode(hex_colors)
+    var targets := ColorMath.decode_hex(hex_colors)
     if targets.is_empty() or img == null:
         return 0.0
     var src := ImageOps.to_rgba8(img)   # never mutate the part's pixel data
@@ -29,8 +29,7 @@ static func coverage_fraction(img: Image, hex_colors: Array,
         var g: int = data[i + 1]
         var b: int = data[i + 2]
         for t: PackedInt32Array in targets:
-            if absi(r - t[0]) <= tol and absi(g - t[1]) <= tol \
-                    and absi(b - t[2]) <= tol:
+            if ColorMath.matches(r, g, b, t, tol):
                 matched += 1
                 break
     if counted == 0:
@@ -48,19 +47,3 @@ static func rule_matches(img: Image, rule: Dictionary) -> bool:
     var fraction := coverage_fraction(img, colors,
             int(rule.get("tolerance", 16)))
     return fraction >= float(rule.get("min_fraction", 0.1))
-
-
-static func _decode(hex_colors: Array) -> Array[PackedInt32Array]:
-    var out: Array[PackedInt32Array] = []
-    for c: Variant in hex_colors:
-        var s := String(c)
-        if not s.begins_with("#"):
-            s = "#" + s
-        if not Color.html_is_valid(s):
-            continue
-        var col := Color(s)
-        out.append(PackedInt32Array([
-            int(round(col.r * 255.0)),
-            int(round(col.g * 255.0)),
-            int(round(col.b * 255.0))]))
-    return out

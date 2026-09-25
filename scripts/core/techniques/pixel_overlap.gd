@@ -260,6 +260,7 @@ func _match_aligned(sa: PackedByteArray, sb: PackedByteArray,
 	## per-pixel _satisfied() calls. Byte order (v*depth+u) matches _match()'s
 	## iteration order, so semantics — including per-pixel failure counting —
 	## are identical.
+	# kept inline (hot loop); shared logic in ColorMath.matches
 	var failures := 0
 	for p in range(0, sa.size(), 4):
 		if absi(sa[p] - sb[p]) > tolerance \
@@ -304,6 +305,7 @@ func _satisfied(sa: PackedByteArray, sb: PackedByteArray, u: int, v: int,
 		if vv < 0 or vv >= span:
 			continue
 		var bo := (vv * depth + u) * 4
+		# kept inline (hot loop); shared logic in ColorMath.matches
 		if absi(sa[ao] - sb[bo]) <= tolerance \
 				and absi(sa[ao + 1] - sb[bo + 1]) <= tolerance \
 				and absi(sa[ao + 2] - sb[bo + 2]) <= tolerance \
@@ -429,6 +431,7 @@ func _one_way(sa: PackedByteArray, ca: PackedInt32Array,
 
 func _px_match(sa: PackedByteArray, ao: int, sb: PackedByteArray, bo: int,
 		tolerance: int) -> bool:
+	# kept inline (hot loop); shared logic in ColorMath.matches
 	if tolerance == 0:
 		return sa[ao] == sb[bo] and sa[ao + 1] == sb[bo + 1] \
 				and sa[ao + 2] == sb[bo + 2] and sa[ao + 3] == sb[bo + 3]

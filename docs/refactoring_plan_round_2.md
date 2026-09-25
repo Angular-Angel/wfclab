@@ -5,21 +5,33 @@
 > features (R19–R22) that build on the new helpers. Baseline: 11 suites /
 > 77 cases green via `./run_tests.sh` (re-verify before R9). Supersedes
 > old-R9 "optional polish" from the archived plan
-> (`docs/archive/refactoring_plan.md`): its `_mk_label` ×8 and
-> weighted-choice dedups are absorbed here as R9 and R13.
+> (`docs/archive/refactoring_plan.md`): its `_mk_label` dedup (then ×8; a
+> 9th copy landed with round-1 R7's tag_rule_editor) and weighted-choice
+> dedups are absorbed here as R9 and R13.
+>
+> 2026-09-24 review pass: every line citation re-verified against source;
+> corrections applied to R9 (scroll/preview scoping, HINT_ALPHA,
+> HEADING_COLOR, label table), R10 (acceptance grep), R13 (pinning-test
+> name, second run variants), R14 (tag_matcher refs), R15 (id-scheme
+> table, sort triple), R17 (registry refs, wrapper names), R18.4 (emit
+> count), R22 (count), R23 (codec ref), and the dependency graph
+> (R10 → R22).
 
 Plan to address the findings of the 2026-09-24 second audit. Two threads,
 interleaved so features land on top of the helpers they need:
 
 - **UI standardization (R9–R13, R19–R22):** every size, spacing, and color is
   a per-site magic number; construction boilerplate (`_mk_label` ×9,
-  scroll+VBox panels ×10, preview factories ×5, FileDialogs ×3) is
-  copy-pasted across 14 files; the run-execution choreography exists in
-  three hand-rolled variants.
+  scroll+VBox panels ×5, preview factories ×7, FileDialogs ×4) is
+  copy-pasted across 12 files; the run-execution choreography exists in
+  three hand-rolled variants (plus two second variants kept out of scope —
+  see R13).
 - **Shared core (R14–R18):** verbatim-duplicated hex-color decoding,
-  id-scheme duplication across six files, an `AppData` autoload reach-in
-  from technique/data code, three parallel technique base classes, and the
-  rules-CRUD pairs the R2 generics of round 1 didn't fully close.
+  id schemes scattered across six files (only `p_` ×2 and the `c_`/`o_`
+  constraint family are true multi-copy duplicates), an `AppData` autoload
+  reach-in from technique/data code, three parallel technique base
+  classes, and the rules-CRUD pairs the R2 generics of round 1 didn't
+  fully close.
 
 Conventions carried over from round 1:
 
@@ -42,12 +54,13 @@ Conventions carried over from round 1:
 Findings index (audit → phase): `_mk_label`/scroll/preview/FileDialog
 boilerplate → **R9**; no TabBase / selection-retain / debounce duplication →
 **R10**; weight-override row ×2 → **R11**; color-list editor ×2 → **R12**;
-run choreography ×3 → **R13**; `_decode_hex` ×2 + cold color matchers →
+run choreography ×3 (+ two second variants, see R13) → **R13**;
+`_decode_hex` ×2 + cold color matchers →
 **R14**; id schemes ×6 files → **R15**; `AppData.active_terrain_classes()`
 reach-in → **R16**; technique-base trio + registry triplication → **R17**;
 AppData rules/edits leftover pairs → **R18**; unconfirmed destructive
 actions → **R19**; no global run lock → **R20**; copy affordance
-Monitor-only → **R21**; empty-state ×2-of-8 → **R22**; util/migration test
+Monitor-only → **R21**; empty-state ×3-of-8 → **R22**; util/migration test
 gaps → **R23**.
 
 ---
@@ -69,10 +82,10 @@ placed `param_builder.gd`).
 | `PREVIEW_SMALL` | `Vector2(96, 96)` | constraints_tab.gd:151 |
 | `SWATCH` | `Vector2(34, 26)` | terrain_keys_tab.gd:11, tag_rule_editor.gd:288 (36×28 → this) |
 | `SWATCH_SQUARE` | `Vector2(30, 30)` | palette_picker.gd:10 |
-| `HEADING_COLOR` | `Color("#8fa8bf")` | monitor_tab.gd:13 |
+| `HEADING_COLOR` | `Color("#8fa8bf")` | monitor_tab.gd:13 (a String today; becomes Color) |
 | `DIFF_RED` | `Color(1.0, 0.25, 0.25)` | parts_tab.gd:496 |
 | `HIGHLIGHT_AMBER` | `Color(1.0, 0.9, 0.2, …)` / cursor variant | preview_rect.gd:40-41, synthesizers_tab.gd:602-603 |
-| `HINT_ALPHA` | 0.6 | parts_tab.gd:296, synthesizers_tab.gd:160 (0.55 → this), 672 |
+| `HINT_ALPHA` | 0.6 | synthesizers_tab.gd:160, 672 (0.55 → this). parts_tab.gd:296's 0.35 is a disabled-look button modulate — a different role, stays per-site |
 | `PARAM_LABEL_W` | 110.0 | param_builder.gd:14, synthesizers_tab.gd:70 |
 | `POPUP_RATIO` | 0.7 | main.gd:125-127, images_tab, outputs_tab |
 | `DEBOUNCE_S` | 0.3 | parts_tab.gd:183-190, constraints_tab.gd:132-139 |
@@ -80,18 +93,22 @@ placed `param_builder.gd`).
 
 Grid separations (4/1/3/2/6) are left per-site: they are visually distinct
 choices, not drift — this phase documents that decision instead of
-flattening.
+flattening. Same call for the six scroll containers that host non-VBox
+content directly (parts grid :64-74, synthesizers preview :163-174 and
+tile grid :629-637, monitor detail :82-98, family members :59-65,
+palette grid :49-57): a returns-the-VBox factory can't express them
+without forcing, so they stay per-site.
 
 **Factories** (each replaces the copies listed):
 
 | Factory | Body | Replaces |
 |---|---|---|
-| `label(text)` | verbatim `_mk_label` | 9 copies: parts_tab:196, constraints_tab:143, decomposition_tab:139, monitor_tab:362, outputs_tab:98, synthesizers_tab:207, terrain_keys_tab:43, family_inspector:134, + any 9th copy found during the sweep |
+| `label(text)` | verbatim `_mk_label` | 9 copies: parts_tab:196, constraints_tab:143, decomposition_tab:139, monitor_tab:362, outputs_tab:98, synthesizers_tab:207, terrain_keys_tab:43, family_inspector:134, tag_rule_editor:169 |
 | `status_label(text)` | label + `AUTOWRAP_WORD_SMART` + expand flags | the 15+ inline autowrap sites |
 | `note(text)` | status_label with muted/heading style | terrain_keys_tab:105-114, synthesizers_tab:188-200, constraints_tab:427-430, tag_rule_editor:159-165 |
-| `scroll_panel(min_width)` | ScrollContainer (h-scroll disabled) + expand-fill VBox; returns the VBox | terrain_keys_tab:21-27, parts_tab:64-86, decomposition_tab:36-45/89-98, synthesizers_tab:45-53/163-174/629-637, monitor_tab:82-98, family_inspector:59-65, palette_picker:49-57 |
+| `scroll_panel(min_width)` | ScrollContainer (h-scroll disabled) + expand-fill VBox; returns the VBox | terrain_keys_tab:21-27, parts_tab:77-86, decomposition_tab:36-45/89-98, synthesizers_tab:45-53 |
 | `split_shell()` | HSplitContainer + FULL_RECT, returns it | parts_tab:46, constraints_tab:43, decomposition_tab:29, images_tab:16, outputs_tab:20, monitor_tab:31, synthesizers_tab:41 |
-| `preview(min_size)` | TextureRect: `EXPAND_IGNORE_SIZE` + `KEEP_ASPECT_CENTERED` + NEAREST | parts_tab:202-207, constraints_tab:149-154/237-244, outputs_tab:41-45, synthesizers_tab:167-171/694-700, family_inspector:121-127 |
+| `preview(min_size, keep_aspect := true)` | TextureRect: `EXPAND_IGNORE_SIZE` + NEAREST, plus `KEEP_ASPECT_CENTERED` unless `keep_aspect = false` | parts_tab:202-207, constraints_tab:149-154/237-244, outputs_tab:41-45 (fill, passes false), synthesizers_tab:167-171 (fill, passes false)/694-700, family_inspector:121-127 |
 | `clear_children(node)` | the free-children loop, normalized to `free()` (documented: rebuild paths run outside the container's own signal callbacks) | the ~15 clear-children sites |
 | `file_dialog(mode, filters, on_selected)` | ACCESS_FILESYSTEM + filters + wiring | main.gd:96-109 (×2 dialogs), images_tab:73-83, outputs_tab:85-90 |
 | `confirm(owner, title, text, ok_text, on_confirmed)` | ConfirmationDialog builder | main.gd:111-119; new callers in R19 |
@@ -101,9 +118,11 @@ flattening.
 sites are top-of-refresh, never inside that container's signal callbacks;
 each converted site gets a one-line smoke check in this phase.
 
-**Delta, not verbatim:** the "Fit to window" vs "Fit" checkbox label
+**Deltas, not verbatim:** the "Fit to window" vs "Fit" checkbox label
 (synthesizers_tab.gd:148) unifies to "Fit to window"; its toggle logic stays
-local.
+local. The `preview` factory adds `TEXTURE_FILTER_NEAREST` at the three
+sites that set no filter today (parts_tab:202-207,
+constraints_tab:149-154/237-244) — a slight visual change, intentional.
 
 | # | Change | File(s) |
 |---|---|---|
@@ -144,11 +163,13 @@ Control`. All 8 tabs re-derive from it. Members:
 | 10.2 | Migrate Images, Outputs, Monitor (the heaviest users of `_retain_selection`/`_find_by_metadata`) | images_tab.gd, outputs_tab.gd, monitor_tab.gd |
 | 10.3 | Migrate Decomposition, Parts, Constraints, Terrain Keys, Synthesizers | remaining tabs |
 
-Acceptance: `grep -rn "extends Control" scripts/core/tabs/` empty;
-`grep -rn "one_shot = true" scripts/core/tabs/` returns only tab_base.gd;
-suite green; smoke: rebuild paths on Parts/Constraints/Outputs/Monitor
-preserve selection across an AppData change; the Images occurrence jump
-still works.
+Acceptance: every tab's top-level base is TabBase —
+`grep -rn "extends Control" scripts/core/tabs/` returns only the inner
+`class SlotOverlay extends Control:` (synthesizers_tab.gd:576), which
+legitimately stays; `grep -rn "one_shot = true" scripts/core/tabs/`
+returns only tab_base.gd; suite green; smoke: rebuild paths on
+Parts/Constraints/Outputs/Monitor preserve selection across an AppData
+change; the Images occurrence jump still works.
 
 ---
 
@@ -193,15 +214,21 @@ uniform randi; else randf()·total walk-down" algorithm duplicated in
 tile_collapse_session.gd:636-660 (`_weighted_pick`) and 663-682
 (`_pick_member`). Both become thin loops over the util (the member variant
 maps its per-source weights into a float array first). The existing
-`test_batch_vs_stepped_equivalence` case must stay green **unmodified** —
-it pins the distribution semantics.
+`test_tile_collapse_derives_geometry_and_matches_stepped_synthesis`
+(tests/test_core_algorithms.gd:138) must stay green **unmodified** — it
+pins the batch-vs-stepped semantics.
 
 **RunExecutor** (`scripts/core/ui/run_executor.gd`): the begin_run →
 disable button → "Running…" status → `WorkerThreadPool.add_task` →
 `call_deferred` publish → re-enable → finish_run choreography hand-rolled
 in decomposition_tab.gd:236-391, synthesizers_tab.gd:228-299, and
-outputs_tab.gd:191-227. API shaped around the common skeleton, not a
-forcing of all three through one template:
+outputs_tab.gd:191-227 (outputs has no begin_run today — 13.2 adds it).
+Two further blocks are deliberately out of scope: decomposition_tab's
+auto-constraints chain (:452-490, a second begin_run/add_task/finish
+sequence — it becomes the `publish` continuation in 13.4) and
+synthesizers_tab's interactive session path (:322-401, chunked stepping
+with its own finish/fail). API shaped around the common skeleton, not a
+forcing of all variants through one template:
 
 ```gdscript
 class_name RunExecutor
@@ -233,11 +260,11 @@ end states; run buttons never stay disabled after a failure.
 New `scripts/core/util/color_math.gd`:
 
 - `decode_hex(hex_colors: Array) -> Array[PackedInt32Array]` — verbatim move
-  of the character-identical `_decode_hex` (tag_matcher.gd:242-255,
-  terrain_mapper.gd:87-100).
+  of the character-identical decoders (tag_matcher.gd:53-66, named
+  `_decode` there; terrain_mapper.gd:87-100, named `_decode_hex`).
 - `matches(r, g, b, targets: PackedInt32Array, tol: int) -> bool` — the
-  per-channel Chebyshev match from tag_matcher.gd:221-223 and
-  terrain_mapper.gd:105-106 (cold paths only).
+  per-channel Chebyshev match from tag_matcher.gd:32-33 (inline in
+  `coverage_fraction`) and terrain_mapper.gd:105-106 (cold paths only).
 
 **Deliberately NOT migrated:** the three hot-loop copies inside PixelOverlap
 (`_match_aligned` :264-268, `_satisfied` :307-310, `_px_match` :430-438) —
@@ -254,13 +281,17 @@ New `scripts/core/util/ids.gd`, single home for the id schemes:
 | Function | Scheme | Current copies |
 |---|---|---|
 | `part(hash_hex)` | `"p_" + hash.substr(0, 12)` | part.gd:26, app_data.gd:493 |
-| `image(hash_hex)` | `"img_" + hash.substr(0, 10)` | image_asset.gd:32, app_data.gd:67 |
-| `adjacency(a_id, b_id, offset)` | `"c_%s_%s_%d_%d"` with `substr(2, 6)` | constraint.gd:47-50 (rebuild_id), adjacency.gd:258-260, 280, pixel_overlap.gd:326-327 |
+| `image(hash_hex)` | `"img_" + hash.substr(0, 10)` | image_asset.gd:32 (single site) |
+| `constraint(a_id, b_id, offset, prefix := "c_")` | `"%s%s_%s_%d_%d" % [prefix, short(a_id), short(b_id), offset.x, offset.y]` with `short(x) = x.substr(2, 6)` | constraint.gd:47-50 (rebuild_id), adjacency.gd:258-260, pixel_overlap.gd:326-327 (prefix `"o_"`) |
 
 `constraint.gd:42-45`'s "Must stay in sync with AdjacencyExtractor's id
-scheme" comment is deleted — the sync is enforced by construction. The
+scheme" comment is deleted — the sync is enforced by construction. Two
+schemes stay per-site as single copies: the output id (`"out_%d_%s"`,
+app_data.gd:67) and adjacency's to-outside variant (`"c_%s_out_%d_%d"`,
+adjacency.gd:280 — a different format string), which routes its hash
+through `Ids.short` so the substr discipline still has one home. The
 deterministic `sort_custom(by id)` triples (grid_tiles.gd:56-58,
-pixel_overlap.gd:59-61, adjacency.gd:334-336) move to a `Sort.by_id(arr)`
+pixel_overlap.gd:59-61, adjacency.gd:193-194) move to a `Sort.by_id(arr)`
 static in the same file — one home for both determinism disciplines.
 
 New test `tests/test_ids.gd`: golden strings pin every format — the
@@ -289,8 +320,8 @@ cases pin behavior).
 `get_id()`/`get_display_name()`/`get_parameter_specs()` are declared
 verbatim in all three abstract bases (constraint_technique.gd:5-9,
 decomposition_technique.gd:5-11, synthesizer.gd:5-7), and
-`TechniqueRegistry` keeps three structurally identical dict + register/get/
-get_list triplets (technique_registry.gd:253-316).
+`TechniqueRegistry` keeps three structurally identical dict + register/
+get/get_list triplets (technique_registry.gd:4-6, 16-67).
 
 - New `scripts/core/techniques/technique_base.gd`:
   `@abstract class_name TechniqueBase extends RefCounted` with the trio
@@ -299,8 +330,9 @@ get_list triplets (technique_registry.gd:253-316).
   implement the methods).
 - `TechniqueRegistry`: the three parallel blocks collapse to one generic
   store; `register_decomposition`, `get_decomposition`,
-  `get_decomposition_list` etc. stay as thin kind-parameterized wrappers —
-  the public API is unchanged so tabs don't move.
+  `get_decomposition_techniques` (and the constraint/synthesizer
+  equivalents) stay as thin kind-parameterized wrappers — the public API
+  is unchanged so tabs don't move.
 
 Acceptance: suite green (existing `TechniqueRegistry` cases in
 test_state_and_components.gd untouched and green).
@@ -314,7 +346,7 @@ Leftovers of round-1 R2 inside app_data.gd (708 lines):
 | 18.1 | Inner class `NumberedRuleList` (array + next-number + changed signal; `add/update/remove/get/max_number_scan/take_number`); rules ("rule_") and tagging_rules ("tagrule_") become two instances. The public `add_rule`/`update_rule`/… API is unchanged (thin delegates) so tabs and tests don't move | app_data.gd:289-367, 694-708 |
 | 18.2 | `_edit_in(store, edits, id, key, value, signal)` merges `edit_part` (:162-168) and `edit_constraint` (:203-209) — byte-identical modulo fields | app_data.gd |
 | 18.3 | `apply_tagging_rules` (:374-394) and `apply_terrain_key_tags` (:448-472) collapse into `_apply_tag_predicate(predicate: Callable, report_key: String)` — only the match predicate differs (`TagMatcher.rule_matches` vs coverage ≥ minf). Per-rule/per-class report dicts keep their existing shapes exactly (tests pin them) | app_data.gd |
-| 18.4 | `load_project` emits from an enumerated `_ALL_CHANGED_SIGNALS` list (app_data.gd:683-690 — the hand-rolled nine-emit sequence that once forgot `tagging_rules_changed`) | app_data.gd |
+| 18.4 | `load_project` emits from an enumerated `_ALL_CHANGED_SIGNALS` list (app_data.gd:683-690 — the hand-rolled eight-emit sequence that once forgot `tagging_rules_changed`) | app_data.gd |
 
 Acceptance: suite green — test_app_data_layers.gd's CRUD/numbering/
 idempotency/report-shape cases must pass **unmodified** (they are the pin);
@@ -364,11 +396,12 @@ text editor.
 
 `TabBase._set_empty_state` (from R10) applied everywhere: Parts
 ("No parts. Run a decomposition first." — exists, moves to the helper),
-Constraints (exists, same), and new for Images ("No images loaded."), Terrain
-Keys, Decomposition (pre-run), Synthesizers (pre-run), Outputs ("No outputs
-yet. Run a synthesis."). Monitor is exempt (it has its own empty-history
-table row). Smoke: fresh project shows a hint on every tab; hints clear on
-first data.
+Constraints (exists, same), Synthesizers (its parts-empty message at
+synthesizers_tab.gd:233 moves to the helper), and new for Images ("No
+images loaded."), Terrain Keys, Decomposition (pre-run), Outputs ("No
+outputs yet. Run a synthesis."). Monitor is exempt (it has its own
+empty-history table row). Smoke: fresh project shows a hint on every tab;
+hints clear on first data.
 
 ---
 
@@ -377,7 +410,7 @@ first data.
 ### R23 — Test backfill + docs (small)
 
 - `tests/test_project_codec.gd` (new): round-trip plus the **legacy
-  terrain_keys migration** (project_codec.gd:228-234) — real v1-save logic
+  terrain_keys migration** (project_codec.gd:60-72) — real v1-save logic
   currently untested.
 - Direct suites for `BitMask` (`kth`/`only`/`first`/ctz-cache edges) and
   `StripUtil` (`side()` on non-square parts, `classes()` with empty map).
@@ -398,7 +431,8 @@ first data.
 ```
 R9 ──► R10 ──► R11, R12 (independent of each other)
 R9, R10 ──► R13 ──► R20, R21
-R9 ──► R19, R22
+R9 ──► R19
+R10 ──► R22
 R14, R15, R16, R17 (independent of UI phases)
 R18 (independent)
 R23 last

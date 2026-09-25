@@ -6,3 +6,4 @@
 # gdUnit4 discovery cache — machine-generated, silently skips stale tests
 addons/gdUnit4/GdUnitRunner.cfg
 /reports/**
+.zcodeignore

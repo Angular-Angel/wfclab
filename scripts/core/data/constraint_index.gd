@@ -495,7 +495,7 @@ func _compile_family_tags() -> void:
 			while v != 0:
 				var low := v & -v
 				v ^= low
-				var pi := (w << 6) + TileCollapse._ctz(low)
+				var pi := (w << 6) + BitMask.ctz(low)
 				var fi := family_of_part[pi]
 				m[fi >> 6] |= 1 << (fi & 63)
 		_fam_tag_bits[tag] = m
@@ -587,7 +587,7 @@ func _append_delta(o: Vector2i, pix: Vector2i) -> int:
 	delta_pixel.append(pix)
 	_pixel_to_di[pix] = di
 	delta_has_outside.append(false)
-	var full := TileCollapse.mask_full(family_nwords, family_count)
+	var full := BitMask.full(family_nwords, family_count)
 	for fi in family_count:
 		nb_mask[fi].append(full)   # COW-shared; exclusion writes copy lazily
 		nb_empty[fi].append(false)
@@ -614,10 +614,10 @@ func _exclude_at(di: int, src_tag: String, dst_tag: String) -> void:
 		while v != 0:
 			var low := v & -v
 			v ^= low
-			var fi := (w << 6) + TileCollapse._ctz(low)
+			var fi := (w << 6) + BitMask.ctz(low)
 			var m: PackedInt64Array
 			if nb_empty[fi][di]:
-				m = TileCollapse.mask_full(family_nwords, family_count)
+				m = BitMask.full(family_nwords, family_count)
 			else:
 				m = (nb_mask[fi][di] as PackedInt64Array).duplicate()
 			for k in m.size():
@@ -650,6 +650,41 @@ func get_offsets() -> Array[Vector2i]:
 	var list: Array[Vector2i] = []
 	list.assign(_offsets.keys())
 	return list
+
+
+func derive_step() -> Vector2i:
+	## Pixel distance between adjacent slots: smallest positive constraint
+	## offset per axis, falling back to the tile size.
+	var step := tile_size
+	var min_x := -1
+	var min_y := -1
+	for off: Vector2i in get_offsets():
+		if off.x > 0 and (min_x == -1 or off.x < min_x):
+			min_x = off.x
+		if off.y > 0 and (min_y == -1 or off.y < min_y):
+			min_y = off.y
+	if min_x > 0:
+		step.x = min_x
+	if min_y > 0:
+		step.y = min_y
+	if step.x <= 0:
+		step.x = 1
+	if step.y <= 0:
+		step.y = 1
+	return step
+
+
+@warning_ignore("integer_division")
+func derive_deltas(step: Vector2i) -> Array[Vector2i]:
+	## Constraint offsets converted to slot units; non-grid offsets skipped.
+	var deltas: Array[Vector2i] = []
+	for off: Vector2i in get_offsets():
+		if off.x % step.x != 0 or off.y % step.y != 0:
+			continue
+		var d := Vector2i(off.x / step.x, off.y / step.y)
+		if d != Vector2i.ZERO and not deltas.has(d):
+			deltas.append(d)
+	return deltas
 
 
 func get_part_ids() -> Array[String]:

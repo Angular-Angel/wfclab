@@ -144,9 +144,9 @@ func test_tile_collapse_derives_geometry_and_matches_stepped_synthesis() -> void
 		Builders.make_constraint(part.id, part.id, Vector2i(0, 3)),
 		Builders.make_constraint(part.id, part.id, Vector2i(5, 5)),
 	])
-	var step := TileCollapse._derive_step(geometry_index)
+	var step := geometry_index.derive_step()
 	assert_that(step).is_equal(Vector2i(2, 3))
-	assert_that(TileCollapse._derive_deltas(geometry_index, step)).contains_exactly([
+	assert_that(geometry_index.derive_deltas(step)).contains_exactly([
 		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
 	])
 

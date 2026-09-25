@@ -61,41 +61,6 @@ func create_session(index: ConstraintIndex, params: Dictionary,
 
 # --- Internals (static so Session can drive them) -------------------------------
 
-static func _derive_step(index: ConstraintIndex) -> Vector2i:
-	## Pixel distance between adjacent slots: smallest positive constraint
-	## offset per axis, falling back to the tile size.
-	var step := index.tile_size
-	var min_x := -1
-	var min_y := -1
-	for off: Vector2i in index.get_offsets():
-		if off.x > 0 and (min_x == -1 or off.x < min_x):
-			min_x = off.x
-		if off.y > 0 and (min_y == -1 or off.y < min_y):
-			min_y = off.y
-	if min_x > 0:
-		step.x = min_x
-	if min_y > 0:
-		step.y = min_y
-	if step.x <= 0:
-		step.x = 1
-	if step.y <= 0:
-		step.y = 1
-	return step
-
-
-@warning_ignore("integer_division")
-static func _derive_deltas(index: ConstraintIndex, step: Vector2i) -> Array[Vector2i]:
-	## Constraint offsets converted to slot units; non-grid offsets skipped.
-	var deltas: Array[Vector2i] = []
-	for off: Vector2i in index.get_offsets():
-		if off.x % step.x != 0 or off.y % step.y != 0:
-			continue
-		var d := Vector2i(off.x / step.x, off.y / step.y)
-		if d != Vector2i.ZERO and not deltas.has(d):
-			deltas.append(d)
-	return deltas
-
-
 @warning_ignore("integer_division")
 static func _render(index: ConstraintIndex, assigned: Array[String],
 		out_w: int, out_h: int, step: Vector2i) -> Image:
@@ -117,104 +82,6 @@ static func _render(index: ConstraintIndex, assigned: Array[String],
 		var y := (i / out_w) * step.y
 		img.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), Vector2i(x, y))
 	return img
-
-
-static var _ctz_cache: Dictionary = {}
-
-static func _ctz(low: int) -> int:
-	## low must be an isolated bit (v & -v). Position lookup is cached:
-	## a dictionary hit replaces the 64-position scan on every hot path.
-	var hit: Variant = _ctz_cache.get(low)
-	if hit != null:
-		return int(hit)
-	for b in 64:
-		if (low >> b) & 1 == 1:
-			_ctz_cache[low] = b
-			return b
-	return 64
-
-
-static func mask_full(nwords: int, nparts: int) -> PackedInt64Array:
-	var m := PackedInt64Array(); m.resize(nwords)
-	for w in nwords:
-		var bits := 0
-		for b in 64:
-			if (w << 6) + b < nparts:
-				bits |= 1 << b
-		m[w] = bits
-	return m
-
-
-static func mask_empty(nwords: int) -> PackedInt64Array:
-	var m := PackedInt64Array(); m.resize(nwords)
-	return m
-
-
-static func mask_is_empty(m: PackedInt64Array) -> bool:
-	for w in m.size():
-		if m[w] != 0:
-			return false
-	return true
-
-
-static func mask_count(m: PackedInt64Array) -> int:
-	var n := 0
-	for w in m.size():
-		var v := m[w]
-		while v != 0:
-			v &= v - 1
-			n += 1
-	return n
-
-
-static func mask_has(m: PackedInt64Array, i: int) -> bool:
-	return (m[i >> 6] >> (i & 63)) & 1 == 1
-
-
-static func mask_set(m: PackedInt64Array, i: int) -> void:
-	m[i >> 6] |= 1 << (i & 63)
-
-
-static func mask_clear(m: PackedInt64Array, i: int) -> void:
-	m[i >> 6] &= ~(1 << (i & 63))
-
-
-static func mask_only(m: PackedInt64Array, i: int) -> void:
-	for w in m.size():
-		m[w] = 0
-	m[i >> 6] = 1 << (i & 63)
-
-
-static func mask_first(m: PackedInt64Array) -> int:
-	for w in m.size():
-		var v := m[w]
-		if v != 0:
-			return (w << 6) + _ctz(v & -v)
-	return -1
-
-
-static func _kth_set_bit(m: PackedInt64Array, k: int) -> int:
-	var seen := 0
-	for w in m.size():
-		var v := m[w]
-		while v != 0:
-			var low := v & -v
-			if seen == k:
-				return (w << 6) + _ctz(low)
-			seen += 1
-			v ^= low
-	return -1
-
-
-static func mask_iter(m: PackedInt64Array) -> Array[int]:
-	var out: Array[int] = []
-	for w in m.size():
-		var v := m[w]
-		while v != 0:
-			var low := v & -v
-			out.append((w << 6) + _ctz(low))
-			v ^= low
-	return out
 
 
 class Session extends SynthesisSession:
@@ -276,8 +143,8 @@ class Session extends SynthesisSession:
 			push_error("TileCollapse: no enabled parts.")
 			phase = Phase.FAILED
 			return
-		_cell = TileCollapse._derive_step(_index)
-		_deltas = TileCollapse._derive_deltas(_index, _cell)
+		_cell = _index.derive_step()
+		_deltas = _index.derive_deltas(_cell)
 		_index.prepare(_deltas, _cell, {
 			"terrain_merge": params.get("terrain_merge", false),
 			"terrain_merge_depth": params.get("terrain_merge_depth", 1),
@@ -293,7 +160,7 @@ class Session extends SynthesisSession:
 	func _reset_attempt() -> bool:
 		nparts = _index.family_count
 		nwords = _index.family_nwords
-		var full := TileCollapse.mask_full(nwords, nparts)
+		var full := BitMask.full(nwords, nparts)
 		_full_mask = full
 		dom.clear(); assigned.clear()
 		dom.resize(_out_w * _out_h)
@@ -318,8 +185,8 @@ class Session extends SynthesisSession:
 				push_warning("TileCollapse: pinned part %s left the index; pin dropped." % pid)
 				_pinned.erase(slot)
 				continue
-			var m := TileCollapse.mask_empty(nwords)
-			TileCollapse.mask_set(m, fi)
+			var m := BitMask.empty(nwords)
+			BitMask.set_bit(m, fi)
 			assigned[slot] = pid
 			_collapsed += 1
 			_set_dom(slot, m)               # bucket 0 (assigned)
@@ -369,7 +236,7 @@ class Session extends SynthesisSession:
 			var fi := _weighted_pick(dom[slot])
 			var mi := _pick_member(fi)
 			var removed := dom[slot].duplicate()
-			TileCollapse.mask_clear(removed, fi)
+			BitMask.clear_bit(removed, fi)
 			_decisions.append({
 				"slot": slot,
 				"rejected_fi": fi,
@@ -378,7 +245,7 @@ class Session extends SynthesisSession:
 			})
 			_trail.append({"slot": slot, "removed": removed})
 			var m := dom[slot]
-			TileCollapse.mask_only(m, fi)
+			BitMask.only(m, fi)
 			_set_dom(slot, m)
 			assigned[slot] = _index.part_ids[mi]
 			last_slot = slot
@@ -421,11 +288,11 @@ class Session extends SynthesisSession:
 			var slot: int = d["slot"]
 			assigned[slot] = ""
 			var m := dom[slot]               # now the restored pre-decision domain
-			TileCollapse.mask_clear(m, int(d["rejected_fi"]))
+			BitMask.clear_bit(m, int(d["rejected_fi"]))
 			_set_dom(slot, m)
 			_collapsed = int(d["collapsed"])
 			_queue_clear_all()               # drop stale entries from the failed cascade
-			if TileCollapse.mask_is_empty(dom[slot]):
+			if BitMask.is_empty(dom[slot]):
 				continue
 			_queue_append(slot)
 			backtracks += 1
@@ -617,7 +484,7 @@ class Session extends SynthesisSession:
 		var done := false
 		if _size[s] == 1:
 			# singleton fast path
-			var sfi := TileCollapse.mask_first(sdom)
+			var sfi := BitMask.first(sdom)
 			var snb: PackedInt64Array = _index.f_nb_mask[sfi][di]
 			for w in nwords:
 				allowed[w] = snb[w]
@@ -633,7 +500,7 @@ class Session extends SynthesisSession:
 				while v != 0:
 					var low := v & -v
 					v ^= low
-					var fi := (w << 6) + TileCollapse._ctz(low)
+					var fi := (w << 6) + BitMask.ctz(low)
 					if _index.f_nb_empty[fi][di]:
 						if _unknown_free:
 							unconstrained = true
@@ -678,7 +545,7 @@ class Session extends SynthesisSession:
 			if new_w != old_w:
 				qdom[w] = new_w
 				removed[w] = old_w & ~new_w
-		if TileCollapse.mask_is_empty(qdom):
+		if BitMask.is_empty(qdom):
 			_record_wipe(q, s, di, allowed, trace, pre)
 			return false
 		_set_dom(q, qdom)                       # COW write-back + buckets
@@ -702,7 +569,7 @@ class Session extends SynthesisSession:
 			while m != 0:
 				var low := m & -m
 				m ^= low
-				var fi := (w << 6) + TileCollapse._ctz(low)
+				var fi := (w << 6) + BitMask.ctz(low)
 				if not _index.f_border_ok[fi][di]:
 					keep &= ~low
 			if keep != v:
@@ -711,7 +578,7 @@ class Session extends SynthesisSession:
 				removed[w] = v & ~keep
 		if not changed:
 			return true
-		if TileCollapse.mask_is_empty(sdom):
+		if BitMask.is_empty(sdom):
 			trace.append({
 				"at": s, "border": true,
 				"delta": _index.delta_pixel[di],
@@ -733,7 +600,7 @@ class Session extends SynthesisSession:
 			return {}
 		if assigned[slot] == "":
 			var out := {}
-			for fi in TileCollapse.mask_iter(dom[slot]):
+			for fi in BitMask.iter(dom[slot]):
 				out[_index.family_ids[fi]] = true
 			return out
 		var d := _domain_excluding_self(slot)
@@ -748,7 +615,7 @@ class Session extends SynthesisSession:
 			last_rejection = "slot out of range"
 			return false
 		var fi := _index.family_of_part_id(part_id)
-		if fi < 0 or not TileCollapse.mask_has(dom[slot], fi):
+		if fi < 0 or not BitMask.has(dom[slot], fi):
 			last_rejection = describe_pin(slot, part_id)
 			return false
 		var trail_mark := _trail.size()
@@ -758,11 +625,11 @@ class Session extends SynthesisSession:
 		var was_pinned := old_assigned != ""
 
 		var removed := dom[slot].duplicate()
-		TileCollapse.mask_clear(removed, fi)
+		BitMask.clear_bit(removed, fi)
 		_trail.append({"slot": slot, "removed": removed})
 
 		var m := dom[slot]
-		TileCollapse.mask_only(m, fi)
+		BitMask.only(m, fi)
 		_set_dom(slot, m)
 		assigned[slot] = part_id
 		if not was_pinned:
@@ -862,21 +729,21 @@ class Session extends SynthesisSession:
 			while v != 0:
 				var low := v & -v
 				v ^= low
-				total += _index.family_weights[(w << 6) + TileCollapse._ctz(low)]
+				total += _index.family_weights[(w << 6) + BitMask.ctz(low)]
 		if total <= 0.0:
-			var k := _rng.randi_range(0, TileCollapse.mask_count(m) - 1)
-			return TileCollapse._kth_set_bit(m, k)
+			var k := _rng.randi_range(0, BitMask.count(m) - 1)
+			return BitMask.kth(m, k)
 		var r := _rng.randf() * total
 		for w in nwords:
 			var v: int = m[w]
 			while v != 0:
 				var low := v & -v
 				v ^= low
-				var fi := (w << 6) + TileCollapse._ctz(low)
+				var fi := (w << 6) + BitMask.ctz(low)
 				r -= _index.family_weights[fi]
 				if r <= 0.0:
 					return fi
-		return TileCollapse._kth_set_bit(m, TileCollapse.mask_count(m) - 1)
+		return BitMask.kth(m, BitMask.count(m) - 1)
 
 
 	func _pick_member(fi: int) -> int:
@@ -942,12 +809,12 @@ class Session extends SynthesisSession:
 				if assigned[q] != "":
 					value_fi = _index.family_of_part_id(assigned[q])
 				elif _size[q] == 1:
-					value_fi = TileCollapse.mask_first(dom[q])
+					value_fi = BitMask.first(dom[q])
 				if value_fi < 0:
 					continue   # multi-candidate neighbor: no hard constraint
 				var nb: PackedInt64Array = _index.f_mask_neighbors(value_fi, pix * -sgn)
 				var keep := {}
-				for fi in TileCollapse.mask_iter(nb):
+				for fi in BitMask.iter(nb):
 					var fid: String = _index.family_ids[fi]
 					if out.has(fid):
 						keep[fid] = true
@@ -982,14 +849,14 @@ class Session extends SynthesisSession:
 			return "unknown or disabled part"
 		if assigned[slot] == part_id:
 			return ""
-		if not TileCollapse.mask_has(dom[slot], fi):
+		if not BitMask.has(dom[slot], fi):
 			return "not in the slot's current domain"
 		var pos := Vector2i(slot % _out_w, slot / _out_w)
 		for d: Vector2i in _deltas:
 			var n := pos + d
 			if n.x < 0 or n.x >= _out_w or n.y < 0 or n.y >= _out_h:
 				continue
-			if TileCollapse.mask_is_empty(_index.f_mask_neighbors(fi, d * _cell)):
+			if BitMask.is_empty(_index.f_mask_neighbors(fi, d * _cell)):
 				return "no observed neighbor at offset %s" % [d * _cell]
 		return ""
 
@@ -1011,8 +878,8 @@ class Session extends SynthesisSession:
 	func _ids_of(m: PackedInt64Array, cap := 12) -> Array:
 		## Masks are family-indexed; diagnostics list representative ids.
 		var out: Array = []
-		var total := TileCollapse.mask_count(m)
-		for fi in TileCollapse.mask_iter(m):
+		var total := BitMask.count(m)
+		for fi in BitMask.iter(m):
 			if out.size() >= cap:
 				out.append("…+%d more" % (total - cap))
 				break
@@ -1077,7 +944,7 @@ class Session extends SynthesisSession:
 
 	func _set_dom(slot: int, m: PackedInt64Array) -> void:
 		var old_size := _size[slot]
-		var new_size := TileCollapse.mask_count(m)
+		var new_size := BitMask.count(m)
 		dom[slot] = m                       # COW write-back — required
 		_size[slot] = new_size
 		var old_bucket := 0 if assigned[slot] != "" else old_size

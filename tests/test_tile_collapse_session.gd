@@ -54,34 +54,34 @@ func _impossible_index() -> ConstraintIndex:
 func test_mask_helpers_round_trip() -> void:
 	# Multiword masks: 2 words, bits in word 1. Only mask_full/mask_empty
 	# take nwords; the rest read the mask's own length.
-	var full := TileCollapse.mask_full(2, 70)
-	assert_int(TileCollapse.mask_count(full)).is_equal(70)
-	assert_bool(TileCollapse.mask_is_empty(full)).is_false()
+	var full := BitMask.full(2, 70)
+	assert_int(BitMask.count(full)).is_equal(70)
+	assert_bool(BitMask.is_empty(full)).is_false()
 
-	var m := TileCollapse.mask_empty(2)
-	assert_bool(TileCollapse.mask_is_empty(m)).is_true()
-	assert_int(TileCollapse.mask_count(m)).is_equal(0)
+	var m := BitMask.empty(2)
+	assert_bool(BitMask.is_empty(m)).is_true()
+	assert_int(BitMask.count(m)).is_equal(0)
 
-	TileCollapse.mask_set(m, 64)
-	TileCollapse.mask_set(m, 13)
-	assert_int(TileCollapse.mask_count(m)).is_equal(2)
-	assert_bool(TileCollapse.mask_has(m, 64)).is_true()
-	assert_bool(TileCollapse.mask_has(m, 13)).is_true()
-	assert_bool(TileCollapse.mask_has(m, 12)).is_false()
-	assert_int(TileCollapse.mask_first(m)).is_equal(13)
-	assert_array(TileCollapse.mask_iter(m)).is_equal([13, 64] as Array[int])
-	assert_int(TileCollapse._kth_set_bit(m, 0)).is_equal(13)
-	assert_int(TileCollapse._kth_set_bit(m, 1)).is_equal(64)
-	assert_int(TileCollapse._kth_set_bit(m, 2)).is_equal(-1)
-	assert_int(TileCollapse._ctz(64)).is_equal(6)
+	BitMask.set_bit(m, 64)
+	BitMask.set_bit(m, 13)
+	assert_int(BitMask.count(m)).is_equal(2)
+	assert_bool(BitMask.has(m, 64)).is_true()
+	assert_bool(BitMask.has(m, 13)).is_true()
+	assert_bool(BitMask.has(m, 12)).is_false()
+	assert_int(BitMask.first(m)).is_equal(13)
+	assert_array(BitMask.iter(m)).is_equal([13, 64] as Array[int])
+	assert_int(BitMask.kth(m, 0)).is_equal(13)
+	assert_int(BitMask.kth(m, 1)).is_equal(64)
+	assert_int(BitMask.kth(m, 2)).is_equal(-1)
+	assert_int(BitMask.ctz(64)).is_equal(6)
 
-	TileCollapse.mask_clear(m, 64)
-	assert_bool(TileCollapse.mask_has(m, 64)).is_false()
-	assert_int(TileCollapse.mask_first(m)).is_equal(13)
+	BitMask.clear_bit(m, 64)
+	assert_bool(BitMask.has(m, 64)).is_false()
+	assert_int(BitMask.first(m)).is_equal(13)
 
-	TileCollapse.mask_only(m, 64)
-	assert_array(TileCollapse.mask_iter(m)).is_equal([64] as Array[int])
-	assert_bool(TileCollapse.mask_is_empty(m)).is_false()
+	BitMask.only(m, 64)
+	assert_array(BitMask.iter(m)).is_equal([64] as Array[int])
+	assert_bool(BitMask.is_empty(m)).is_false()
 
 
 func test_stop_strategy_fails_fast_on_impossible_index() -> void:

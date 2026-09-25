@@ -77,8 +77,8 @@ func _compute() -> void:
         _index = null
         return
     var t0 := Time.get_ticks_msec()
-    var step := TileCollapse._derive_step(_index)
-    var deltas := TileCollapse._derive_deltas(_index, step)
+    var step := _index.derive_step()
+    var deltas := _index.derive_deltas(step)
     _index.prepare(deltas, step, {
         "terrain_merge": _merge_check.button_pressed,
         "terrain_merge_depth": int(_depth.value),

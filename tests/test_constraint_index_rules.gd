@@ -60,9 +60,9 @@ func test_exclusion_prunes_both_directions() -> void:
 	var fi := idx.int_of("p_forest")
 	var li := idx.int_of("p_lava")
 	var di = idx._pixel_to_di[Vector2i(1, 0)]
-	assert_bool(TileCollapse.mask_has(idx.nb_mask[fi][di], li)).is_false()
+	assert_bool(BitMask.has(idx.nb_mask[fi][di], li)).is_false()
 	var di_rev = idx._pixel_to_di[Vector2i(-1, 0)]
-	assert_bool(TileCollapse.mask_has(idx.nb_mask[li][di_rev], fi)).is_false()
+	assert_bool(BitMask.has(idx.nb_mask[li][di_rev], fi)).is_false()
 
 
 func test_exclusion_overrides_unknown_free() -> void:
@@ -75,10 +75,10 @@ func test_exclusion_overrides_unknown_free() -> void:
 	var d2 = idx._pixel_to_di[Vector2i(2, 0)]
 	assert_bool(idx.nb_empty[fi][d2]).is_false()   # authored: never "free"
 	var mf: PackedInt64Array = idx.nb_mask[fi][d2]
-	assert_bool(TileCollapse.mask_has(mf, li)).is_false()
-	assert_bool(TileCollapse.mask_has(mf, pi)).is_true()
+	assert_bool(BitMask.has(mf, li)).is_false()
+	assert_bool(BitMask.has(mf, pi)).is_true()
 	var mp: PackedInt64Array = idx.nb_mask[pi][d2]
-	assert_bool(TileCollapse.mask_has(mp, li)).is_true()   # untagged: unaffected
+	assert_bool(BitMask.has(mp, li)).is_true()   # untagged: unaffected
 
 
 func test_tags_on_disabled_part_are_inert() -> void:

@@ -1,7 +1,12 @@
 # Refactoring Plan
 
-> **Status:** 📝 Draft — not started. Baseline: 44 scripts, 10,627 LOC, 11 suites /
-> 77 cases green via `./run_tests.sh`. Review corrections applied 2026-09-25
+> **Status:** 🚧 R0–R8 implemented (2026-09-24, one commit per phase; suite
+> green 77/77 after every phase; headless boot smoke clean). **Remaining
+> before archive:** walk the R5 and R7 manual smoke checklists in-editor
+> (popups, rule CRUD, neighbors click-through, pin/compare/merge), then move
+> this file to `docs/archive/`. R9 optional, not started.
+> Baseline: 44 scripts, 10,627 LOC, 11 suites / 77 cases green via
+> `./run_tests.sh`. Review corrections applied 2026-09-25
 > (test-side call sites → 1.7, terrain_mapper in-place normalize, StripUtil.class_map).
 > Readiness-check corrections: script count 43 → 44 (`tests/builders.gd`
 > uncounted), R8 test call site → 8.3, R6 class-cycle fallback note,

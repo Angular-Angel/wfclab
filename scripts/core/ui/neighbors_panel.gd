@@ -10,8 +10,7 @@ const MAX_NEIGHBORS_PER_OFFSET := 24
 
 
 func show_part(part: Part) -> void:
-	for child in get_children():
-		child.free()
+	UiKit.clear_children(self)
 	if part == null or AppData.parts.is_empty():
 		return
 

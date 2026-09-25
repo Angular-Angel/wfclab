@@ -37,8 +37,8 @@ func _draw() -> void:
 	# Grow so tiny regions (a 4x4 tile at fit-downscale) stay visible.
 	var expanded := r.grow(2.0)
 	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 150.0)
-	draw_rect(expanded, Color(1.0, 0.9, 0.2, 0.15), true)
-	draw_rect(expanded, Color(1.0, 0.9, 0.2, 0.4 + 0.6 * pulse), false, 2.0)
+	draw_rect(expanded, Color(UiKit.HIGHLIGHT_AMBER, 0.15), true)
+	draw_rect(expanded, Color(UiKit.HIGHLIGHT_AMBER, 0.4 + 0.6 * pulse), false, 2.0)
 
 
 func _image_to_control(rect: Rect2i) -> Rect2:

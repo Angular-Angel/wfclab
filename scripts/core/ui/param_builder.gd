@@ -11,7 +11,7 @@ static func build(specs: Array[Dictionary], values: Dictionary,
 		var row := HBoxContainer.new()
 		var label := Label.new()
 		label.text = spec["label"]
-		label.custom_minimum_size = Vector2(110.0, 0.0)
+		label.custom_minimum_size = Vector2(UiKit.PARAM_LABEL_W, 0.0)
 		row.add_child(label)
 
 		match spec["type"]:

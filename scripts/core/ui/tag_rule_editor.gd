@@ -62,8 +62,7 @@ func _ready() -> void:
 
 
 func refresh_rules() -> void:
-	for child in _rules_box.get_children():
-		child.free()
+	UiKit.clear_children(_rules_box)
 	var all_rules := AppData.get_tagging_rules()
 	if all_rules.is_empty():
 		status_message.emit("No auto-tag rules.")
@@ -77,10 +76,7 @@ func refresh_rules() -> void:
 		check.set_pressed_no_signal(bool(r.get("enabled", true)))
 		check.toggled.connect(_on_rule_enabled.bind(id))
 		row.add_child(check)
-		var label := Label.new()
-		label.text = _rule_summary(r)
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var label := UiKit.status_label(_rule_summary(r))
 		row.add_child(label)
 		var edit := Button.new()
 		edit.text = "Edit"
@@ -101,13 +97,13 @@ func _build_editor() -> VBoxContainer:
 	var box := VBoxContainer.new()
 	var tag_row := HBoxContainer.new()
 	box.add_child(tag_row)
-	tag_row.add_child(_mk_label("Tag"))
+	tag_row.add_child(UiKit.label("Tag"))
 	_tag_input = LineEdit.new()
 	_tag_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tag_row.add_child(_tag_input)
 	var colors_head := HBoxContainer.new()
 	box.add_child(colors_head)
-	colors_head.add_child(_mk_label("Target colors"))
+	colors_head.add_child(UiKit.label("Target colors"))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	colors_head.add_child(spacer)
@@ -129,7 +125,7 @@ func _build_editor() -> VBoxContainer:
 	color_btns.add_child(del_color)
 	var tol_row := HBoxContainer.new()
 	box.add_child(tol_row)
-	tol_row.add_child(_mk_label("Per-channel tolerance"))
+	tol_row.add_child(UiKit.label("Per-channel tolerance"))
 	_tolerance = SpinBox.new()
 	_tolerance.min_value = 0
 	_tolerance.max_value = 255
@@ -138,7 +134,7 @@ func _build_editor() -> VBoxContainer:
 	tol_row.add_child(_tolerance)
 	var frac_row := HBoxContainer.new()
 	box.add_child(frac_row)
-	frac_row.add_child(_mk_label("Min coverage %"))
+	frac_row.add_child(UiKit.label("Min coverage %"))
 	_min_fraction = SpinBox.new()
 	_min_fraction.min_value = 0.0
 	_min_fraction.max_value = 100.0
@@ -156,20 +152,12 @@ func _build_editor() -> VBoxContainer:
 	cancel.text = "Cancel"
 	cancel.pressed.connect(_on_rule_cancel)
 	btn_row.add_child(cancel)
-	var note := Label.new()
-	note.text = ("A part gets the tag when at least the coverage fraction of its " \
+	box.add_child(UiKit.note(
+		"A part gets the tag when at least the coverage fraction of its " \
 		+ "non-transparent pixels sit within tolerance (per channel) of ANY " \
 		+ "target color. Transparent pixels are ignored entirely. " \
-		+ "Use Apply all rules to (re-)tag; Strip removes the tag everywhere.")
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(note)
+		+ "Use Apply all rules to (re-)tag; Strip removes the tag everywhere."))
 	return box
-
-
-func _mk_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	return l
 
 
 func _rule_summary(r: Dictionary) -> String:
@@ -285,7 +273,8 @@ func _on_remove_color_pressed() -> void:
 
 func _mk_color_button(c: Color) -> ColorPickerButton:
 	var b := ColorPickerButton.new()
-	b.custom_minimum_size = Vector2(36.0, 28.0)
+	# Unified with the terrain-key swatch size (was 36×28).
+	b.custom_minimum_size = UiKit.SWATCH
 	b.color = c
 	_color_buttons.append(b)
 	_colors_box.add_child(b)

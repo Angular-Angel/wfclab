@@ -17,8 +17,7 @@ var _save_png_dialog: FileDialog
 
 
 func _ready() -> void:
-	var split := HSplitContainer.new()
-	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var split := UiKit.split_shell()
 	add_child(split)
 
 	var left := VBoxContainer.new()
@@ -32,24 +31,22 @@ func _ready() -> void:
 	_fit_check.button_pressed = true
 	_fit_check.toggled.connect(func(_p: bool) -> void: _apply_view_mode())
 	toolbar.add_child(_fit_check)
-	_dims = Label.new()
+	_dims = UiKit.label("")
 	toolbar.add_child(_dims)
 
 	_scroll = ScrollContainer.new()
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left.add_child(_scroll)
-	_preview = TextureRect.new()
-	_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_preview = UiKit.preview(Vector2.ZERO, false)
 	_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_scroll.add_child(_preview)
 
 	var right := VBoxContainer.new()
 	right.custom_minimum_size = Vector2(260.0, 0.0)
 	split.add_child(right)
 
-	right.add_child(_mk_label("Last Synthesis"))
+	right.add_child(UiKit.label("Last Synthesis"))
 	_output_list = ItemList.new()
 	_output_list.custom_minimum_size = Vector2(0.0, 160.0)
 	_output_list.fixed_icon_size = Vector2i(96, 96)
@@ -60,9 +57,7 @@ func _ready() -> void:
 	_discard_button.disabled = true
 	_discard_button.pressed.connect(_discard_selected_output)
 	right.add_child(_discard_button)
-	_meta_label = Label.new()
-	_meta_label.text = "No synthesis yet.\nRun one from the Synthesizers tab."
-	_meta_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_meta_label = UiKit.status_label("No synthesis yet.\nRun one from the Synthesizers tab.")
 	right.add_child(_meta_label)
 
 	_rerun_button = Button.new()
@@ -82,23 +77,14 @@ func _ready() -> void:
 	_save_button.pressed.connect(_on_save_png_pressed)
 	right.add_child(_save_button)
 
-	_save_png_dialog = FileDialog.new()
-	_save_png_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-	_save_png_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	_save_png_dialog.filters = ["*.png ; PNG images"]
-	_save_png_dialog.file_selected.connect(_on_save_png)
+	_save_png_dialog = UiKit.file_dialog(FileDialog.FILE_MODE_SAVE_FILE,
+			["*.png ; PNG images"], _on_save_png)
 	add_child(_save_png_dialog)
 
 	AppData.synthesis_changed.connect(_update)
 	AppData.outputs_changed.connect(_rebuild_output_list)
 	_rebuild_output_list()
 	_update()
-
-
-func _mk_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	return l
 
 
 func _update() -> void:
@@ -231,7 +217,7 @@ func _on_save_png_pressed() -> void:
 	if asset == null:
 		return
 	_save_png_dialog.current_file = "%s.png" % asset.name.to_lower().replace(" ", "_")
-	_save_png_dialog.popup_centered_ratio(0.7)
+	_save_png_dialog.popup_centered_ratio(UiKit.POPUP_RATIO)
 
 
 func _on_save_png(path: String) -> void:

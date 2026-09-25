@@ -38,21 +38,12 @@ var _last_monitor_push := 0
 
 
 func _ready() -> void:
-	var split := HSplitContainer.new()
-	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var split := UiKit.split_shell()
 	add_child(split)
 
-	var left_scroll := ScrollContainer.new()
-	left_scroll.custom_minimum_size = Vector2(320.0, 0.0)
-	left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	split.add_child(left_scroll)
+	var left := UiKit.scroll_panel(split, 320.0)
 
-	var left := VBoxContainer.new()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_scroll.add_child(left)
-
-	left.add_child(_mk_label("Synthesizer"))
+	left.add_child(UiKit.label("Synthesizer"))
 	_technique_option = OptionButton.new()
 	for s: Synthesizer in TechniqueRegistry.get_synthesizer_techniques():
 		_technique_option.add_item(s.get_display_name())
@@ -60,14 +51,14 @@ func _ready() -> void:
 	_technique_option.item_selected.connect(_on_technique_selected)
 	left.add_child(_technique_option)
 
-	left.add_child(_mk_label("Parameters"))
+	left.add_child(UiKit.label("Parameters"))
 	_params_box = VBoxContainer.new()
 	left.add_child(_params_box)
 
 	var seed_row := HBoxContainer.new()
 	left.add_child(seed_row)
-	var seed_label := _mk_label("Seed")
-	seed_label.custom_minimum_size = Vector2(110.0, 0.0)
+	var seed_label := UiKit.label("Seed")
+	seed_label.custom_minimum_size = Vector2(UiKit.PARAM_LABEL_W, 0.0)
 	seed_row.add_child(seed_label)
 	_seed_spin = SpinBox.new()
 	_seed_spin.min_value = 0
@@ -134,18 +125,18 @@ func _ready() -> void:
 	_cancel_button.pressed.connect(_stop_session)
 	ctl_row.add_child(_cancel_button)
 
-	_status = Label.new()
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status = UiKit.status_label("")
 	left.add_child(_status)
 
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(right)
-	right.add_child(_mk_label("Live Preview"))
+	right.add_child(UiKit.label("Live Preview"))
 	var view_row := HBoxContainer.new()
 	right.add_child(view_row)
 	_fit_check = CheckButton.new()
-	_fit_check.text = "Fit"
+	# Unified with the Images/Outputs checkbox label (was just "Fit").
+	_fit_check.text = "Fit to window"
 	_fit_check.button_pressed = true
 	_fit_check.toggled.connect(func(_p: bool) -> void: _apply_view_mode())
 	view_row.add_child(_fit_check)
@@ -157,18 +148,16 @@ func _ready() -> void:
 	view_row.add_child(_dims)
 	var hint := Label.new()
 	hint.text = "Click a slot to place/clear · Arrows move · Enter picks"
-	hint.modulate = Color(1.0, 1.0, 1.0, 0.6)
+	hint.modulate = Color(1.0, 1.0, 1.0, UiKit.HINT_ALPHA)
 	view_row.add_child(hint)
 
 	var preview_scroll := ScrollContainer.new()
 	preview_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	preview_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	right.add_child(preview_scroll)
-	_preview = TextureRect.new()
-	_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_preview = UiKit.preview(Vector2.ZERO, false)
 	_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_preview.focus_mode = Control.FOCUS_ALL
 	_preview.gui_input.connect(_on_preview_input)
 	preview_scroll.add_child(_preview)
@@ -185,9 +174,9 @@ func _ready() -> void:
 	_picker.clear_requested.connect(_on_picker_cleared)
 	add_child(_picker)
 
-	right.add_child(_mk_label("Notes"))
-	var notes := Label.new()
-	notes.text = ("Synthesis consumes the materialized parts and constraints, "
+	right.add_child(UiKit.label("Notes"))
+	right.add_child(UiKit.note(
+		"Synthesis consumes the materialized parts and constraints, "
 		+ "including all manual edits — disable a part or reweight a "
 		+ "constraint, re-synthesize, and see the difference.\n\n"
 		+ "Interactive mode steps the algorithm on the main thread: watch "
@@ -195,27 +184,18 @@ func _ready() -> void:
 		+ "whether contradictions stop, restart, or backtrack.\n\n"
 		+ "While a run is active, click a slot (or arrow onto it and press "
 		+ "Enter) to see its candidate tiles and pin one; propagation ripples "
-		+ "from your edit. Edits that contradict neighbors are rejected.")
-	notes.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	right.add_child(notes)
+		+ "from your edit. Edits that contradict neighbors are rejected."))
 
 	if _technique_option.item_count > 0:
 		_technique_option.select(0)
 		_on_technique_selected(0)
 
 
-func _mk_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	return l
-
-
 func _on_technique_selected(index: int) -> void:
 	_stop_session()
 	var id: StringName = _technique_option.get_item_metadata(index)
 	_current = TechniqueRegistry.get_synthesizer(id)
-	for child in _params_box.get_children():
-		child.free()
+	UiKit.clear_children(_params_box)
 	_param_values = {}
 	var steppable := _current != null and _current.supports_stepping()
 	_interactive.disabled = not steppable
@@ -599,8 +579,8 @@ class SlotOverlay extends Control:
 			draw_line(Vector2(0.0, y), Vector2(size_px.x, y), grid_col)
 		if _tab._cursor_slot >= 0:
 			var rect := Rect2(sess.slot_rect(_tab._cursor_slot))
-			draw_rect(rect, Color(1.0, 0.9, 0.3, 0.18), true)
-			draw_rect(rect, Color(1.0, 0.9, 0.3, 0.95), false, 1.0)
+			draw_rect(rect, Color(UiKit.HIGHLIGHT_AMBER_CURSOR, 0.18), true)
+			draw_rect(rect, Color(UiKit.HIGHLIGHT_AMBER_CURSOR, 0.95), false, 1.0)
 
 
 class SlotPicker extends PopupPanel:
@@ -614,9 +594,7 @@ class SlotPicker extends PopupPanel:
 
 	func open(slot_pos: Vector2i, current: String, domain: Dictionary,
 			index: ConstraintIndex) -> void:
-		for c in get_children():
-			remove_child(c)
-			c.free()
+		UiKit.clear_children(self)
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 6)
 		add_child(box)
@@ -669,7 +647,7 @@ class SlotPicker extends PopupPanel:
 
 		var hint := Label.new()
 		hint.text = "Arrows: move focus · Enter: choose · Esc: close"
-		hint.modulate = Color(1.0, 1.0, 1.0, 0.55)
+		hint.modulate = Color(1.0, 1.0, 1.0, UiKit.HINT_ALPHA)
 		box.add_child(hint)
 
 		popup_centered()
@@ -681,7 +659,7 @@ class SlotPicker extends PopupPanel:
 
 	func _tile_button(id: String, index: ConstraintIndex) -> Button:
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(72, 72)
+		b.custom_minimum_size = UiKit.THUMB
 		var fi := index.family_of_part_id(id)
 		var fsize := 0 if fi < 0 \
 				else (index.family_members[fi] as PackedInt32Array).size()
@@ -691,11 +669,8 @@ class SlotPicker extends PopupPanel:
 		else:
 			b.tooltip_text = "%s\nweight: %.2f" % [id, index.get_weight(id)]
 		var img := ImageOps.to_rgba8(index.get_part(id).pixel_data)
-		var tr := TextureRect.new()
+		var tr := UiKit.preview(Vector2.ZERO)
 		tr.texture = ImageTexture.create_from_image(img)
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE   # clicks go to the button
 		b.add_child(tr)

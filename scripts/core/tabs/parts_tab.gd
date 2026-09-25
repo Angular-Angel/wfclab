@@ -3,8 +3,6 @@ class_name PartsTab extends Control
 
 signal occurrence_selected(image_id: String, position: Vector2i, size: Vector2i)
 
-const THUMB := Vector2(72.0, 72.0)
-const PREVIEW := Vector2(160.0, 160.0)
 const MAX_SHOWN := 500
 
 var _grid: GridContainer
@@ -43,8 +41,7 @@ var _neighbors: NeighborsPanel
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
-	var split := HSplitContainer.new()
-	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var split := UiKit.split_shell()
 	add_child(split)
 
 	# --- Left: parts grid ---------------------------------------------------
@@ -52,10 +49,10 @@ func _ready() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(left)
 
-	_grid_status = Label.new()
+	_grid_status = UiKit.status_label("")
 	var filter_row := HBoxContainer.new()
 	left.add_child(filter_row)
-	filter_row.add_child(_mk_label("Tag filter:"))
+	filter_row.add_child(UiKit.label("Tag filter:"))
 	_tag_filter = OptionButton.new()
 	_tag_filter.item_selected.connect(func(_i: int) -> void: _rebuild())
 	filter_row.add_child(_tag_filter)
@@ -74,22 +71,10 @@ func _ready() -> void:
 	scroll.add_child(_grid)
 
 	# --- Right: inspector (scrollable) -------------------------------------
-	var right_scroll := ScrollContainer.new()
-	right_scroll.custom_minimum_size = Vector2(320.0, 0.0)
-	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	split.add_child(right_scroll)
+	var right := UiKit.scroll_panel(split, 320.0)
 
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_scroll.add_child(right)
-
-	right.add_child(_mk_label("Selected Part"))
-	_preview = TextureRect.new()
-	_preview.custom_minimum_size = PREVIEW
-	_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	right.add_child(UiKit.label("Selected Part"))
+	_preview = UiKit.preview(UiKit.PREVIEW)
 	right.add_child(_preview)
 
 	_info = Label.new()
@@ -101,17 +86,16 @@ func _ready() -> void:
 	_enabled_check.toggled.connect(_on_enabled_toggled)
 	right.add_child(_enabled_check)
 	
-	right.add_child(_mk_label("Tags"))
+	right.add_child(UiKit.label("Tags"))
 	_tag_input = LineEdit.new()
 	_tag_input.placeholder_text = "New tag + Enter"
 	_tag_input.text_submitted.connect(_on_tag_submitted)
 	right.add_child(_tag_input)
 	_tags_box = VBoxContainer.new()
 	right.add_child(_tags_box)
-	
-	right.add_child(_mk_label("Auto-Tag Rules"))
-	_auto_tag_status = Label.new()
-	_auto_tag_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+	right.add_child(UiKit.label("Auto-Tag Rules"))
+	_auto_tag_status = UiKit.status_label("")
 	right.add_child(_auto_tag_status)
 	_tag_rules = TagRuleEditor.new()
 	_tag_rules.setup(_selected_tile_images, func() -> bool: return _selected != null)
@@ -119,7 +103,7 @@ func _ready() -> void:
 			func(text: String) -> void: _auto_tag_status.text = text)
 	right.add_child(_tag_rules)
 
-	right.add_child(_mk_label("Transforms for source part"))
+	right.add_child(UiKit.label("Transforms for source part"))
 	_transforms_box = VBoxContainer.new()
 	right.add_child(_transforms_box)
 	for transform_key: String in ["rot90", "rot180", "rot270", "flip_h", "flip_v"]:
@@ -128,8 +112,7 @@ func _ready() -> void:
 		check.toggled.connect(_on_transform_toggled.bind(transform_key))
 		_transforms_box.add_child(check)
 		_transform_checks[transform_key] = check
-	_transform_note = Label.new()
-	_transform_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_transform_note = UiKit.status_label("")
 	_transforms_box.add_child(_transform_note)
 
 	var weight_row := HBoxContainer.new()
@@ -151,12 +134,12 @@ func _ready() -> void:
 
 	_compare_box = VBoxContainer.new()
 	right.add_child(_compare_box)
-	_compare_box.add_child(_mk_label("Comparison: pinned vs selected"))
+	_compare_box.add_child(UiKit.label("Comparison: pinned vs selected"))
 	var cmp_row := HBoxContainer.new()
 	_compare_box.add_child(cmp_row)
-	_cmp_pinned = _mk_cmp_preview()
-	_cmp_selected = _mk_cmp_preview()
-	_cmp_diff = _mk_cmp_preview()
+	_cmp_pinned = UiKit.preview(UiKit.PREVIEW)
+	_cmp_selected = UiKit.preview(UiKit.PREVIEW)
+	_cmp_diff = UiKit.preview(UiKit.PREVIEW)
 	cmp_row.add_child(_cmp_pinned)
 	cmp_row.add_child(_cmp_selected)
 	cmp_row.add_child(_cmp_diff)
@@ -168,12 +151,12 @@ func _ready() -> void:
 	_compare_box.add_child(_merge_button)
 	_compare_box.visible = false
 	
-	right.add_child(_mk_label("Neighbors"))
+	right.add_child(UiKit.label("Neighbors"))
 	_neighbors = NeighborsPanel.new()
 	_neighbors.part_selected.connect(_show_part)
 	right.add_child(_neighbors)
 
-	right.add_child(_mk_label("Occurrences"))
+	right.add_child(UiKit.label("Occurrences"))
 	_occurrences = ItemList.new()
 	_occurrences.custom_minimum_size = Vector2(0.0, 160.0)
 	_occurrences.item_selected.connect(_on_occurrence_selected)
@@ -183,7 +166,7 @@ func _ready() -> void:
 	# edits per second, and each would otherwise rebuild the whole grid.
 	var edits_timer := Timer.new()
 	edits_timer.one_shot = true
-	edits_timer.wait_time = 0.3
+	edits_timer.wait_time = UiKit.DEBOUNCE_S
 	edits_timer.timeout.connect(_rebuild)
 	add_child(edits_timer)
 	AppData.edits_changed.connect(func() -> void: edits_timer.start())
@@ -191,20 +174,6 @@ func _ready() -> void:
 
 	AppData.parts_changed.connect(_rebuild)
 	_rebuild()
-
-
-func _mk_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	return l
-
-
-func _mk_cmp_preview() -> TextureRect:
-	var t := TextureRect.new()
-	t.custom_minimum_size = PREVIEW
-	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	return t
 
 
 func _selected_tile_images() -> Array[Image]:
@@ -221,8 +190,7 @@ func _rebuild() -> void:
 	var selected_id := _selected.id if _selected != null else ""
 	var pinned_id := _pinned.id if _pinned != null else ""
 
-	for child in _grid.get_children():
-		child.free()
+	UiKit.clear_children(_grid)
 	_occurrences.clear()
 	_occurrence_data = []
 
@@ -282,7 +250,7 @@ func _rebuild() -> void:
 
 func _add_part_button(part: Part) -> void:
 	var button := Button.new()
-	button.custom_minimum_size = THUMB
+	button.custom_minimum_size = UiKit.THUMB
 	button.icon = part.get_texture()
 	button.expand_icon = true
 	var tags := AppData.get_tags(part.id)
@@ -392,8 +360,7 @@ func _on_weight_changed(value: float) -> void:
 
 
 func _refresh_tags() -> void:
-	for child in _tags_box.get_children():
-		child.free()
+	UiKit.clear_children(_tags_box)
 	_tag_input.editable = _selected != null
 	if _selected == null:
 		return
@@ -493,7 +460,7 @@ func _make_diff_image(a: Image, b: Image) -> Image:
 			if ca == cb:
 				img.set_pixel(x, y, Color(ca.r, ca.g, ca.b, 0.30))
 			else:
-				img.set_pixel(x, y, Color(1.0, 0.25, 0.25))
+				img.set_pixel(x, y, UiKit.DIFF_RED)
 				_diff_count += 1
 	return img
 

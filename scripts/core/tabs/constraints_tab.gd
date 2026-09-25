@@ -40,8 +40,7 @@ var _editing_rule_id := ""
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
-	var split := HSplitContainer.new()
-	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var split := UiKit.split_shell()
 	add_child(split)
 
 	# --- Left: matrix ---------------------------------------------------------
@@ -49,7 +48,7 @@ func _ready() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(left)
 
-	_status = Label.new()
+	_status = UiKit.status_label("")
 	left.add_child(_status)
 
 	var scroll := ScrollContainer.new()
@@ -67,7 +66,7 @@ func _ready() -> void:
 	right.custom_minimum_size = Vector2(300.0, 0.0)
 	split.add_child(right)
 
-	right.add_child(_mk_label("Selected Pair"))
+	right.add_child(UiKit.label("Selected Pair"))
 	var previews := HBoxContainer.new()
 	right.add_child(previews)
 	_preview_a = _mk_preview()
@@ -75,24 +74,22 @@ func _ready() -> void:
 	previews.add_child(_preview_a)
 	previews.add_child(_preview_b)
 
-	_pair_info = Label.new()
-	_pair_info.text = "Click a matrix cell"
-	_pair_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_pair_info = UiKit.status_label("Click a matrix cell")
 	right.add_child(_pair_info)
 
-	right.add_child(_mk_label("Constraints"))
+	right.add_child(UiKit.label("Constraints"))
 	_constraint_list = ItemList.new()
 	_constraint_list.custom_minimum_size = Vector2(0.0, 100.0)
 	_constraint_list.item_selected.connect(_on_constraint_selected)
 	right.add_child(_constraint_list)
 
-	right.add_child(_mk_label("Evidence"))
+	right.add_child(UiKit.label("Evidence"))
 	_evidence_list = ItemList.new()
 	_evidence_list.custom_minimum_size = Vector2(0.0, 160.0)
 	_evidence_list.item_selected.connect(_on_evidence_selected)
 	right.add_child(_evidence_list)
 
-	right.add_child(_mk_label("Edit Constraint"))
+	right.add_child(UiKit.label("Edit Constraint"))
 	_c_enabled_check = CheckButton.new()
 	_c_enabled_check.text = "Enabled"
 	_c_enabled_check.toggled.connect(_on_c_enabled_toggled)
@@ -109,9 +106,8 @@ func _ready() -> void:
 	_c_weight_spin.value_changed.connect(_on_c_weight_changed)
 	weight_row.add_child(_c_weight_spin)
 
-	right.add_child(_mk_label("Authored Rules"))
-	_rules_status = Label.new()
-	_rules_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	right.add_child(UiKit.label("Authored Rules"))
+	_rules_status = UiKit.status_label("")
 	right.add_child(_rules_status)
 	_rules_box = VBoxContainer.new()
 	right.add_child(_rules_box)
@@ -131,7 +127,7 @@ func _ready() -> void:
 	# of two full synchronous walks inside set_parts/set_constraints.
 	var rebuild_timer := Timer.new()
 	rebuild_timer.one_shot = true
-	rebuild_timer.wait_time = 0.3
+	rebuild_timer.wait_time = UiKit.DEBOUNCE_S
 	rebuild_timer.timeout.connect(_rebuild)
 	add_child(rebuild_timer)
 	AppData.edits_changed.connect(func() -> void: rebuild_timer.start())
@@ -140,26 +136,15 @@ func _ready() -> void:
 	_rebuild()
 
 
-func _mk_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	return l
-
-
 func _mk_preview() -> TextureRect:
-	var t := TextureRect.new()
-	t.custom_minimum_size = Vector2(96.0, 96.0)
-	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	return t
+	return UiKit.preview(UiKit.PREVIEW_SMALL)
 
 
 func _rebuild() -> void:
 	_selected_pair = []
 	_selected_constraints = []
 	_pair_map = {}
-	for child in _grid.get_children():
-		child.free()
+	UiKit.clear_children(_grid)
 	_constraint_list.clear()
 	_evidence_list.clear()
 	_preview_a.texture = null
@@ -235,11 +220,8 @@ func _rebuild() -> void:
 
 
 func _mk_header_thumb(part: Part) -> TextureRect:
-	var t := TextureRect.new()
-	t.custom_minimum_size = HEADER
+	var t := UiKit.preview(HEADER)
 	t.texture = part.get_texture()
-	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	t.tooltip_text = part.id
 	return t
 
@@ -386,19 +368,19 @@ func _build_rule_editor() -> VBoxContainer:
 	var box := VBoxContainer.new()
 	var row_a := HBoxContainer.new()
 	box.add_child(row_a)
-	row_a.add_child(_mk_label("Tag A"))
+	row_a.add_child(UiKit.label("Tag A"))
 	_re_tag_a = OptionButton.new()
 	_re_tag_a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row_a.add_child(_re_tag_a)
 	var row_b := HBoxContainer.new()
 	box.add_child(row_b)
-	row_b.add_child(_mk_label("Tag B"))
+	row_b.add_child(UiKit.label("Tag B"))
 	_re_tag_b = OptionButton.new()
 	_re_tag_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row_b.add_child(_re_tag_b)
 	var row_d := HBoxContainer.new()
 	box.add_child(row_d)
-	row_d.add_child(_mk_label("Exclusion radius"))
+	row_d.add_child(UiKit.label("Exclusion radius"))
 	_re_distance = SpinBox.new()
 	_re_distance.min_value = 1
 	_re_distance.max_value = 12
@@ -408,7 +390,7 @@ func _build_rule_editor() -> VBoxContainer:
 	row_d.add_child(_re_distance)
 	var row_m := HBoxContainer.new()
 	box.add_child(row_m)
-	row_m.add_child(_mk_label("Metric"))
+	row_m.add_child(UiKit.label("Metric"))
 	_re_metric = OptionButton.new()
 	for m: String in ["chebyshev", "euclidean", "manhattan"]:
 		_re_metric.add_item(m)
@@ -424,10 +406,8 @@ func _build_rule_editor() -> VBoxContainer:
 	cancel.text = "Cancel"
 	cancel.pressed.connect(_on_rule_cancel)
 	btn_row.add_child(cancel)
-	var note := Label.new()
-	note.text = "Slot units, inclusive. Applied at synthesis time; takes effect on the next run."
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(note)
+	box.add_child(UiKit.note(
+			"Slot units, inclusive. Applied at synthesis time; takes effect on the next run."))
 	return box
 
 
@@ -514,8 +494,7 @@ func _on_rule_enabled_toggled(pressed: bool, id: String) -> void:
 
 
 func _refresh_rules() -> void:
-	for child in _rules_box.get_children():
-		child.free()
+	UiKit.clear_children(_rules_box)
 	var all_rules := AppData.get_rules()
 	if all_rules.is_empty():
 		_rules_status.text = "No authored rules."
@@ -534,10 +513,7 @@ func _refresh_rules() -> void:
 		check.set_pressed_no_signal(bool(r.get("enabled", true)))
 		check.toggled.connect(_on_rule_enabled_toggled.bind(id))
 		row.add_child(check)
-		var label := Label.new()
-		label.text = _rule_summary(r)
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var label := UiKit.status_label(_rule_summary(r))
 		row.add_child(label)
 		var edit := Button.new()
 		edit.text = "Edit"

@@ -10,7 +10,6 @@ class_name MonitorTab extends Control
 ## handler runs (see deselect_on_focus_loss_enabled below).
 
 const POLL_SECONDS := 0.1
-const HEADING_COLOR := "#8fa8bf"
 
 var _list: ItemList
 var _detail_title: Label
@@ -28,14 +27,13 @@ var _family_inspector: FamilyInspector = null
 
 
 func _ready() -> void:
-	var split := HSplitContainer.new()
-	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var split := UiKit.split_shell()
 	add_child(split)
 
 	var left := VBoxContainer.new()
 	left.custom_minimum_size = Vector2(360.0, 0.0)
 	split.add_child(left)
-	left.add_child(_mk_label("Runs (newest first)"))
+	left.add_child(UiKit.label("Runs (newest first)"))
 	_list = ItemList.new()
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.item_selected.connect(_on_item_selected.bind(true))
@@ -226,7 +224,7 @@ func _report_bbcode(r: Dictionary) -> String:
 	for line: Array in _build_report(r):
 		var text := _esc(String(line[0]))
 		if bool(line[1]):
-			text = "[color=%s]%s[/color]" % [HEADING_COLOR, text]
+			text = "[color=#%s]%s[/color]" % [UiKit.HEADING_COLOR.to_html(false), text]
 		parts.append(text)
 	return "[code]%s[/code]" % "\n".join(parts)
 
@@ -357,12 +355,6 @@ func _fmt_stat(v: Variant) -> String:
 	if text.length() > 120:
 		text = text.substr(0, 117) + "..."
 	return text
-
-
-func _mk_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	return l
 
 
 func _mk_button(label: String, tooltip: String, handler: Callable) -> Button:

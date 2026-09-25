@@ -94,37 +94,27 @@ func _build_menu(bar: MenuBar) -> void:
 
 
 func _build_dialogs() -> void:
-	_save_dialog = FileDialog.new()
-	_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-	_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	_save_dialog.filters = ["*.wfcproj ; WFC Lab project"]
-	_save_dialog.file_selected.connect(_on_save_project)
+	_save_dialog = UiKit.file_dialog(FileDialog.FILE_MODE_SAVE_FILE,
+			["*.wfcproj ; WFC Lab project"], _on_save_project)
 	add_child(_save_dialog)
 
-	_load_dialog = FileDialog.new()
-	_load_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	_load_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	_load_dialog.filters = ["*.wfcproj ; WFC Lab project"]
-	_load_dialog.file_selected.connect(_on_load_project)
+	_load_dialog = UiKit.file_dialog(FileDialog.FILE_MODE_OPEN_FILE,
+			["*.wfcproj ; WFC Lab project"], _on_load_project)
 	add_child(_load_dialog)
 
-	_clear_confirm = ConfirmationDialog.new()
-	_clear_confirm.title = "Clear All Edits"
-	_clear_confirm.dialog_text = (
-        "Discard all manual edits (enabled flags, weight overrides) "
+	_clear_confirm = UiKit.confirm(self, "Clear All Edits",
+		"Discard all manual edits (enabled flags, weight overrides) "
 		+ "and part merges?\n\n"
-		+ "The last extraction will be re-materialized without them.")
-	_clear_confirm.ok_button_text = "Clear Edits"
-	_clear_confirm.confirmed.connect(func() -> void: AppData.clear_all_edits())
-	add_child(_clear_confirm)
+		+ "The last extraction will be re-materialized without them.",
+		"Clear Edits", func() -> void: AppData.clear_all_edits())
 
 
 func _on_menu_id(id: int) -> void:
 	match id:
 		MENU_SAVE:
-			_save_dialog.popup_centered_ratio(0.7)
+			_save_dialog.popup_centered_ratio(UiKit.POPUP_RATIO)
 		MENU_LOAD:
-			_load_dialog.popup_centered_ratio(0.7)
+			_load_dialog.popup_centered_ratio(UiKit.POPUP_RATIO)
 		MENU_CLEAR_EDITS:
 			_clear_confirm.popup_centered()
 

@@ -8578,49 +8578,7 @@
 			"Shrooms"
 		]
 	},
-	"tagging_rules": [
-		{
-			"colors": [
-				"00a2e8"
-			],
-			"enabled": true,
-			"id": "tagrule_1",
-			"min_fraction": 0.01,
-			"tag": "Water",
-			"tolerance": 8
-		},
-		{
-			"colors": [
-				"ed1c24"
-			],
-			"enabled": true,
-			"id": "tagrule_2",
-			"min_fraction": 0.01,
-			"tag": "Lava",
-			"tolerance": 8
-		},
-		{
-			"colors": [
-				"2ec27e",
-				"008000"
-			],
-			"enabled": true,
-			"id": "tagrule_3",
-			"min_fraction": 0.01,
-			"tag": "Shrooms",
-			"tolerance": 8
-		},
-		{
-			"colors": [
-				"ffffff"
-			],
-			"enabled": true,
-			"id": "tagrule_4",
-			"min_fraction": 0.01,
-			"tag": "Open",
-			"tolerance": 8
-		}
-	],
+	"tagging_rules": [],
 	"terrain_key": [
 		{
 			"colors": [

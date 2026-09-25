@@ -25,7 +25,7 @@ func _ready() -> void:
     _merge_check.tooltip_text = "Preview of the Synthesizers option: parts " \
         + "with equal tags and equal edge terrain combine their constraints."
     cfg_row.add_child(_merge_check)
-    cfg_row.add_child(_mk_label("Edge Depth"))
+    cfg_row.add_child(UiKit.label("Edge Depth"))
     _depth = SpinBox.new()
     _depth.min_value = 1
     _depth.max_value = 8
@@ -35,9 +35,7 @@ func _ready() -> void:
     compute.text = "Compute"
     compute.pressed.connect(_compute)
     cfg_row.add_child(compute)
-    _status = _mk_label("Builds a throwaway index; safe during a run.")
-    _status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    _status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    _status = UiKit.status_label("Builds a throwaway index; safe during a run.")
     cfg_row.add_child(_status)
 
     var split := HSplitContainer.new()
@@ -53,8 +51,7 @@ func _ready() -> void:
     var right := VBoxContainer.new()
     right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     split.add_child(right)
-    _info = _mk_label("Select a family.")
-    _info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    _info = UiKit.note("Select a family.")
     right.add_child(_info)
     var scroll := ScrollContainer.new()
     scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -67,8 +64,7 @@ func _ready() -> void:
 
 func _compute() -> void:
     _list.clear()
-    for child in _members_box.get_children():
-        child.free()
+    UiKit.clear_children(_members_box)
     _index = ConstraintIndex.build(AppData.get_part_list(),
             AppData.get_constraint_list(), AppData.tag_edits,
             AppData.get_rules())
@@ -105,8 +101,7 @@ func _compute() -> void:
 func _on_family_selected(index: int) -> void:
     if _index == null:
         return
-    for child in _members_box.get_children():
-        child.free()
+    UiKit.clear_children(_members_box)
     var fi: int = _list.get_item_metadata(index)
     var members: PackedInt32Array = _index.family_members[fi]
     _info.text = "Family #%d — representative %s — %d member(s), weight %.0f" % [
@@ -118,20 +113,9 @@ func _on_family_selected(index: int) -> void:
         var part := _index.get_part(pid)
         if part == null:
             continue
-        var t := TextureRect.new()
+        var t := UiKit.preview(Vector2(32.0, 32.0))
         t.texture = part.get_texture()
-        t.custom_minimum_size = Vector2(32.0, 32.0)
-        t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-        t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-        t.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
         t.tooltip_text = pid
         _members_box.add_child(t)
     if members.size() > CAP:
-        var more := _mk_label("…+%d more" % (members.size() - CAP))
-        _members_box.add_child(more)
-
-
-func _mk_label(text: String) -> Label:
-    var l := Label.new()
-    l.text = text
-    return l
+        _members_box.add_child(UiKit.label("…+%d more" % (members.size() - CAP)))

@@ -26,25 +26,15 @@ var _ct_boxes: Dictionary = {}     # id -> VBoxContainer (param widgets)
 
 
 func _ready() -> void:
-	var split := HSplitContainer.new()
-	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var split := UiKit.split_shell()
 	add_child(split)
 
 	# Left panel scrolls vertically: its content (technique + params +
 	# constraint section + image list + run button) exceeds the window
 	# at small window sizes.
-	var left_scroll := ScrollContainer.new()
-	left_scroll.custom_minimum_size = Vector2(320.0, 0.0)
-	left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	left_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	split.add_child(left_scroll)
+	var left := UiKit.scroll_panel(split, 320.0)
 
-	var left := VBoxContainer.new()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_scroll.add_child(left)
-
-	left.add_child(_mk_label("Technique"))
+	left.add_child(UiKit.label("Technique"))
 	_technique_option = OptionButton.new()
 	for technique: DecompositionTechnique in TechniqueRegistry.get_decomposition_techniques():
 		_technique_option.add_item(technique.get_display_name())
@@ -52,7 +42,7 @@ func _ready() -> void:
 	_technique_option.item_selected.connect(_on_technique_selected)
 	left.add_child(_technique_option)
 
-	left.add_child(_mk_label("Parameters"))
+	left.add_child(UiKit.label("Parameters"))
 	_params_box = VBoxContainer.new()
 	left.add_child(_params_box)
 
@@ -63,7 +53,7 @@ func _ready() -> void:
 		+ "executes the constraint techniques against the fresh parts.")
 	left.add_child(_auto_constraints)
 
-	left.add_child(_mk_label("Images (click to toggle inclusion)"))
+	left.add_child(UiKit.label("Images (click to toggle inclusion)"))
 	_image_list = ItemList.new()
 	_image_list.select_mode = ItemList.SELECT_MULTI
 	_image_list.custom_minimum_size = Vector2(0.0, 120.0)
@@ -76,28 +66,17 @@ func _ready() -> void:
 	_run_button.pressed.connect(_on_run_pressed)
 	left.add_child(_run_button)
 
-	_status = Label.new()
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status = UiKit.status_label("")
 	left.add_child(_status)
 
-	_edits_label = Label.new()
-	_edits_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_edits_label = UiKit.status_label("")
 	left.add_child(_edits_label)
 	AppData.edits_changed.connect(_update_edits_label)
 	_update_edits_label()
 
-	var middle_scroll := ScrollContainer.new()
-	middle_scroll.custom_minimum_size = Vector2(320.0, 0.0)
-	middle_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	middle_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	middle_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	split.add_child(middle_scroll)
+	var middle := UiKit.scroll_panel(split, 320.0)
 
-	var middle := VBoxContainer.new()
-	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	middle_scroll.add_child(middle)
-
-	middle.add_child(_mk_label("Constraint Extraction"))
+	middle.add_child(UiKit.label("Constraint Extraction"))
 	_ct_section = VBoxContainer.new()
 	middle.add_child(_ct_section)
 	for ct: ConstraintTechnique in TechniqueRegistry.get_constraint_techniques():
@@ -107,7 +86,7 @@ func _ready() -> void:
 		check.toggled.connect(_on_ct_toggled.bind(ct.get_id()))
 		_ct_section.add_child(check)
 		var box := VBoxContainer.new()
-		box.add_theme_constant_override("margin_left", 16)
+		box.add_theme_constant_override("margin_left", int(UiKit.INDENT))
 		_ct_section.add_child(box)
 		_ct_checks[ct.get_id()] = check
 		_ct_boxes[ct.get_id()] = box
@@ -120,8 +99,7 @@ func _ready() -> void:
 	_find_button.disabled = true
 	_find_button.pressed.connect(_on_find_constraints_pressed)
 	middle.add_child(_find_button)
-	_ct_status = Label.new()
-	_ct_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_ct_status = UiKit.status_label("")
 	middle.add_child(_ct_status)
 	AppData.parts_changed.connect(_update_find_button)
 	_update_find_button()
@@ -129,17 +107,11 @@ func _ready() -> void:
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(right)
-	right.add_child(_mk_label("Last Run"))
+	right.add_child(UiKit.label("Last Run"))
 
 	if _technique_option.item_count > 0:
 		_technique_option.select(0)
 		_on_technique_selected(0)
-
-
-func _mk_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	return l
 
 
 func _update_edits_label() -> void:
@@ -158,8 +130,7 @@ func _on_ct_toggled(pressed: bool, tech_id: StringName) -> void:
 func _on_technique_selected(index: int, initial_params: Dictionary = {}) -> void:
 	var id: StringName = _technique_option.get_item_metadata(index)
 	_current_technique = TechniqueRegistry.get_decomposition(id)
-	for child in _params_box.get_children():
-		child.free()
+	UiKit.clear_children(_params_box)
 	_param_values = {}
 	ParamBuilder.build(_current_technique.get_parameter_specs(), _param_values, _params_box, initial_params)
 
@@ -199,8 +170,7 @@ func apply_config(config: Dictionary) -> void:
 		(_ct_checks[ct.get_id()] as CheckButton).set_pressed_no_signal(is_on)
 		_ct_enabled[ct.get_id()] = is_on
 		var box: VBoxContainer = _ct_boxes[ct.get_id()]
-		for child in box.get_children():
-			child.free()
+		UiKit.clear_children(box)
 		_ct_values[ct.get_id()] = {}
 		ParamBuilder.build(ct.get_parameter_specs(), _ct_values[ct.get_id()], box, job_params.get(ct_id, {}))
 

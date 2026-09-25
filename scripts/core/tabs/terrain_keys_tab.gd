@@ -8,7 +8,6 @@ class_name TerrainKeysTab extends Control
 ## extraction and tagging without deleting it.
 ## Edits are explicit ("Save Key") so AppData regenerates constraints once
 ## per save rather than per widget tweak.
-const SWATCH := Vector2(34.0, 26.0)
 const MAX_CLASS_COLORS := 8
 var _editor_box: VBoxContainer
 var _status: Label
@@ -18,13 +17,7 @@ var _draft: Array = []   # working copy; pushed to AppData on Save
 var _palette_popup: PalettePicker
 var _palette_target_ci := -1
 func _ready() -> void:
-	var scroll := ScrollContainer.new()
-	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
-	_editor_box = VBoxContainer.new()
-	_editor_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_editor_box)
+	_editor_box = UiKit.scroll_panel(self)
 	# Popup lives on the tab root: _rebuild_editor() clears _editor_box's
 	# children, and the popup must survive that.
 	# No selected-part context in this tab, so the tagging editor's
@@ -40,10 +33,6 @@ func _ready() -> void:
 	add_child(_palette_popup)
 	AppData.terrain_key_changed.connect(_refresh)
 	_refresh()
-func _mk_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	return l
 func _to_hex(c: Color) -> String:
 	return "#%02x%02x%02x" % [
 		int(round(c.r * 255.0)),
@@ -74,14 +63,12 @@ func _update_status() -> void:
 func _rebuild_editor() -> void:
 	for child in _editor_box.get_children():
 		child.queue_free()
-	_editor_box.add_child(_mk_label("Terrain Key"))
+	_editor_box.add_child(UiKit.label("Terrain Key"))
 	if _draft.is_empty():
-		var empty := Label.new()
-		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		empty.text = ("No classes defined. Add a class, pick its colors, "
+		_editor_box.add_child(UiKit.note(
+			"No classes defined. Add a class, pick its colors, "
 			+ "and Save Key to make terrain colors interchangeable in "
-			+ "Pixel Overlap extraction.")
-		_editor_box.add_child(empty)
+			+ "Pixel Overlap extraction."))
 	_classes_box = VBoxContainer.new()
 	_editor_box.add_child(_classes_box)
 	_rebuild_classes()
@@ -99,19 +86,16 @@ func _rebuild_editor() -> void:
 	apply_btn.text = "Apply Class Tags to Parts"
 	apply_btn.pressed.connect(_on_apply_tags_pressed)
 	btn_row.add_child(apply_btn)
-	_status = Label.new()
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status = UiKit.status_label("")
 	_editor_box.add_child(_status)
-	var note := Label.new()
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.text = ("Saving regenerates constraints so stored relations reflect "
+	_editor_box.add_child(UiKit.note(
+		"Saving regenerates constraints so stored relations reflect "
 		+ "these classes. A pixel matching a class (any listed color within "
 		+ "per-channel tolerance) compares as that class's first color; "
 		+ "alpha is never changed; unclassed pixels keep their own colors. "
 		+ "Keep each class's first color well away from other classes'. "
 		+ "A class with a tag name tags parts at Apply time when at least "
-		+ "Min % of their non-transparent pixels fall within the class.")
-	_editor_box.add_child(note)
+		+ "Min % of their non-transparent pixels fall within the class."))
 	_update_status()
 
 
@@ -131,20 +115,20 @@ func _build_class_editor(ci: int, cls: Dictionary) -> VBoxContainer:
 	enabled_check.tooltip_text = "Off: skipped by extraction and tagging."
 	enabled_check.toggled.connect(_on_class_enabled_toggled.bind(ci))
 	head.add_child(enabled_check)
-	head.add_child(_mk_label("Name"))
+	head.add_child(UiKit.label("Name"))
 	var name_input := LineEdit.new()
 	name_input.text = String(cls.get("name", ""))
 	name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_input.text_changed.connect(_on_class_name_changed.bind(ci))
 	head.add_child(name_input)
-	head.add_child(_mk_label("Tolerance"))
+	head.add_child(UiKit.label("Tolerance"))
 	var tol := SpinBox.new()
 	tol.min_value = 0
 	tol.max_value = 255
 	tol.value = int(cls.get("tolerance", 0))
 	tol.value_changed.connect(_on_class_tolerance_changed.bind(ci))
 	head.add_child(tol)
-	head.add_child(_mk_label("Flex"))
+	head.add_child(UiKit.label("Flex"))
 	var flex := SpinBox.new()
 	flex.min_value = 0
 	flex.max_value = 64
@@ -160,7 +144,7 @@ func _build_class_editor(ci: int, cls: Dictionary) -> VBoxContainer:
 	head.add_child(del_class)
 	var colors_row := HBoxContainer.new()
 	box.add_child(colors_row)
-	colors_row.add_child(_mk_label("Colors"))
+	colors_row.add_child(UiKit.label("Colors"))
 	var pick := Button.new()
 	pick.text = "Pick from tiles…"
 	pick.pressed.connect(_open_palette_popup.bind(ci))
@@ -168,7 +152,7 @@ func _build_class_editor(ci: int, cls: Dictionary) -> VBoxContainer:
 	var colors: Array = cls.get("colors", [])
 	for j in colors.size():
 		var btn := ColorPickerButton.new()
-		btn.custom_minimum_size = SWATCH
+		btn.custom_minimum_size = UiKit.SWATCH
 		btn.color = _from_hex(String(colors[j]))
 		btn.color_changed.connect(_on_class_color_changed.bind(ci, j))
 		colors_row.add_child(btn)
@@ -182,14 +166,14 @@ func _build_class_editor(ci: int, cls: Dictionary) -> VBoxContainer:
 	colors_row.add_child(del_color)
 	var tag_row := HBoxContainer.new()
 	box.add_child(tag_row)
-	tag_row.add_child(_mk_label("Tag parts as"))
+	tag_row.add_child(UiKit.label("Tag parts as"))
 	var tag_input := LineEdit.new()
 	tag_input.text = String(cls.get("tag", ""))
 	tag_input.placeholder_text = "(no tagging)"
 	tag_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tag_input.text_changed.connect(_on_class_tag_changed.bind(ci))
 	tag_row.add_child(tag_input)
-	tag_row.add_child(_mk_label("Min %"))
+	tag_row.add_child(UiKit.label("Min %"))
 	var minf := SpinBox.new()
 	minf.min_value = 0.0
 	minf.max_value = 100.0

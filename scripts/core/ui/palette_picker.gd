@@ -7,7 +7,6 @@ class_name PalettePicker extends PopupPanel
 
 signal color_picked(hex: String)
 
-const SWATCH_SIZE := Vector2(30.0, 30.0)
 const POPUP_SIZE := Vector2i(360, 440)
 const BUCKET_BITS := 4
 const CAP := 64
@@ -17,7 +16,7 @@ var _cached_index := -1
 var _cache: Dictionary = {}
 var _cache_valid := false
 var _source_button := OptionButton.new()
-var _status := Label.new()
+var _status := UiKit.status_label("")
 var _grid := GridContainer.new()
 
 
@@ -43,8 +42,6 @@ func setup(sources: Array, cached_index := -1,
 		_source_button.add_item(String(s["label"]))
 	_source_button.item_selected.connect(func(_i: int) -> void: _populate())
 	head.add_child(_source_button)
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(_status)
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(320.0, 320.0)
@@ -55,10 +52,7 @@ func setup(sources: Array, cached_index := -1,
 	_grid.add_theme_constant_override("h_separation", 3)
 	_grid.add_theme_constant_override("v_separation", 3)
 	scroll.add_child(_grid)
-	var hint_label := Label.new()
-	hint_label.text = hint
-	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(hint_label)
+	box.add_child(UiKit.note(hint))
 
 
 ## Opens centered. initial >= 0 pre-selects that source (programmatically,
@@ -84,8 +78,10 @@ static func all_tile_images() -> Array[Image]:
 
 
 func _populate() -> void:
-	for child in _grid.get_children():
-		child.queue_free()
+	# Smoke check (R9): this was queue_free; the grid is only rebuilt from
+	# open()/source changes — never inside a swatch's own signal — so free()
+	# is safe here.
+	UiKit.clear_children(_grid)
 	var idx := _source_button.selected
 	if idx < 0:
 		# Nothing selected yet (first open): behave like the last source,
@@ -116,7 +112,7 @@ func _populate() -> void:
 			total, entries.size()]
 	for e: Dictionary in entries:
 		var swatch := Button.new()
-		swatch.custom_minimum_size = SWATCH_SIZE
+		swatch.custom_minimum_size = UiKit.SWATCH_SQUARE
 		swatch.focus_mode = Control.FOCUS_NONE
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = e["color"]

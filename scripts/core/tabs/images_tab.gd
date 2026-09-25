@@ -13,8 +13,7 @@ var _discard_button: Button
 
 
 func _ready() -> void:
-	var split := HSplitContainer.new()
-	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var split := UiKit.split_shell()
 	add_child(split)
 
 	var left := VBoxContainer.new()
@@ -70,16 +69,12 @@ func _ready() -> void:
 	_scroll.add_child(_preview)
 	_apply_view_mode()
 
-	_file_dialog = FileDialog.new()
-	_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILES
-	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	_file_dialog.filters = [
+	_file_dialog = UiKit.file_dialog(FileDialog.FILE_MODE_OPEN_FILES, [
 		"*.png ; PNG images",
 		"*.jpg, *.jpeg ; JPEG images",
 		"*.webp ; WebP images",
 		"*.bmp ; BMP images",
-	]
-	_file_dialog.files_selected.connect(_on_files_selected)
+	], _on_files_selected)
 	add_child(_file_dialog)
 
 	AppData.images_changed.connect(_rebuild_list)
@@ -87,7 +82,7 @@ func _ready() -> void:
 
 
 func _open_file_dialog() -> void:
-	_file_dialog.popup_centered_ratio(0.7)
+	_file_dialog.popup_centered_ratio(UiKit.POPUP_RATIO)
 
 
 func _on_files_selected(paths: PackedStringArray) -> void:

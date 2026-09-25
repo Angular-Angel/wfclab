@@ -625,9 +625,7 @@ func save_project(path: String) -> bool:
 	var image_records: Array = []
 	for asset: ImageAssetData in get_image_list():
 		image_records.append({"path": asset.path, "id": asset.id})
-	var data := {
-		"version": 2,
-		"images": image_records,
+	var data := ProjectCodec.encode(image_records, {
 		"run": last_run_config,
 		"part_edits": part_edits,
 		"transform_edits": transform_edits,
@@ -637,25 +635,15 @@ func save_project(path: String) -> bool:
 		"rules": rules,
 		"tagging_rules": tagging_rules,
 		"terrain_key": terrain_key_classes,
-	}
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	if f == null:
-		push_error("Cannot write project file: %s" % path)
-		return false
-	f.store_string(JSON.stringify(JsonCodec.encode(data), "\t"))
-	return true
+	})
+	return ProjectCodec.write(path, data)
+
 ## Loads images and edit tables, returns the decoded project Dictionary
 ## (its "run" entry drives the auto re-run; empty Dictionary on failure).
 func load_project(path: String) -> Dictionary:
-	var f := FileAccess.open(path, FileAccess.READ)
-	if f == null:
-		push_error("Cannot open project file: %s" % path)
+	var data := ProjectCodec.read(path)
+	if data.is_empty():
 		return {}
-	var parsed: Variant = JSON.parse_string(f.get_as_text())
-	if parsed == null or not (parsed is Dictionary):
-		push_error("Invalid project file: %s" % path)
-		return {}
-	var data: Dictionary = JsonCodec.decode(parsed)
 	# Reset state.
 	images = {}
 	outputs = {}
@@ -673,29 +661,15 @@ func load_project(path: String) -> Dictionary:
 	constraint_edits = data.get("constraint_edits", {})
 	alias_records = []
 	alias_records.assign(data.get("alias_records", []))
-	tag_edits = _decode_tag_edits(data.get("tag_edits", {}))
+	tag_edits = data["tag_edits"]
 	rules = []
-	var loaded_rules: Variant = data.get("rules", [])
-	if loaded_rules is Array:
-		rules.assign(loaded_rules)
+	rules.assign(data["rules"])
 	_next_rule_number = _max_rule_number() + 1
 	tagging_rules = []
-	var loaded_tag_rules: Variant = data.get("tagging_rules", [])
-	if loaded_tag_rules is Array:
-		tagging_rules.assign(loaded_tag_rules)
+	tagging_rules.assign(data["tagging_rules"])
 	_next_tag_rule_number = _max_tag_rule_number() + 1
 	terrain_key_classes = []
-	var loaded_key: Variant = data.get("terrain_key", null)
-	if loaded_key is Array:
-		terrain_key_classes.assign(loaded_key)
-	else:
-		# Legacy multi-key projects: adopt the first enabled key's classes.
-		for k: Variant in data.get("terrain_keys", []):
-			if k is Dictionary and bool((k as Dictionary).get("enabled", true)):
-				var classes: Variant = (k as Dictionary).get("classes", [])
-				if classes is Array:
-					terrain_key_classes.assign(classes)
-					break
+	terrain_key_classes.assign(data["terrain_key"])
 	for rec: Dictionary in data.get("images", []):
 		var asset := ImageAssetData.load_from_path(rec["path"])
 		if asset == null:
@@ -715,19 +689,6 @@ func load_project(path: String) -> Dictionary:
 	edits_changed.emit()
 	terrain_key_changed.emit()
 	return data
-
-
-func _decode_tag_edits(src: Variant) -> Dictionary:
-	var out := {}
-	if src is Dictionary:
-		for k: Variant in src:
-			var arr: Array[String] = []
-			for t: Variant in src[k]:
-				if t is String and not (t as String).is_empty():
-					arr.append(t)
-			if not arr.is_empty():
-				out[String(k)] = arr
-	return out
 
 
 func _max_rule_number() -> int:

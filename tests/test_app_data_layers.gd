@@ -327,7 +327,7 @@ func test_save_and_load_project_round_trip() -> void:
 	assert_dict(fresh.load_project("user://definitely_missing.wfcproj")).is_empty()
 
 	# _decode_tag_edits drops empty and non-string entries.
-	var decoded: Dictionary = fresh._decode_tag_edits({
+	var decoded: Dictionary = ProjectCodec._decode_tag_edits({
 		"id": ["ok", "", 42, null, "also_ok"],
 		"empty": [],
 	})

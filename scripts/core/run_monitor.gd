@@ -6,11 +6,16 @@ extends Node
 ## return the live records — treat them as read-only.
 
 signal runs_changed
+## Emitted when has_running() flips (a run begins, or the last active run
+## reaches a terminal state) — the R20 global run-lock and the main-window
+## banner hang off this instead of polling.
+signal busy_changed
 
 var revision := 0                 # bumped on every record mutation
 
 var _runs: Dictionary = {}        # int id -> record Dictionary
 var _next_id := 1
+var _last_busy := false
 
 
 # --- Lifecycle (main thread) ---------------------------------------------------
@@ -43,7 +48,16 @@ func begin_run(kind: String, title: String, technique_id: String,
 		"started_ms": Time.get_ticks_msec(), "ended_ms": 0, "rev": 1,
 	}
 	_bump()
+	_notify_busy()
 	return id
+
+
+## True while any monitored run is in the "running" state.
+func has_running() -> bool:
+	for r: Dictionary in _runs.values():
+		if String(r["status"]) == "running":
+			return true
+	return false
 
 
 ## A thread-safe report_progress(fraction) Callable bound to one stage.
@@ -178,6 +192,7 @@ func _finish_run(run_id: int, stats: Dictionary, summary: String) -> void:
 		r["summary"] = summary
 	r["ended_ms"] = now
 	_touch(r)
+	_notify_busy()
 
 
 func _fail_run(run_id: int, error: String) -> void:
@@ -197,6 +212,7 @@ func _fail_run(run_id: int, error: String) -> void:
 	r["error"] = error
 	r["ended_ms"] = now
 	_touch(r)
+	_notify_busy()
 
 
 func _cancel_run(run_id: int) -> void:
@@ -215,6 +231,7 @@ func _cancel_run(run_id: int) -> void:
 	r["current_stage"] = ""
 	r["ended_ms"] = now
 	_touch(r)
+	_notify_busy()
 
 
 func _update_session(run_id: int, status_text: String, progress: float,
@@ -269,3 +286,10 @@ func _touch(r: Dictionary) -> void:
 func _bump() -> void:
 	revision += 1
 	runs_changed.emit()
+
+
+func _notify_busy() -> void:
+	var busy := has_running()
+	if busy != _last_busy:
+		_last_busy = busy
+		busy_changed.emit()

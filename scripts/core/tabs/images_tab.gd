@@ -77,6 +77,7 @@ func _ready() -> void:
 	], _on_files_selected)
 	add_child(_file_dialog)
 
+	_bind_run_lock([_discard_button])
 	AppData.images_changed.connect(_rebuild_list)
 	_rebuild_list()
 
@@ -116,7 +117,7 @@ func _on_item_selected(index: int) -> void:
 	_preview.texture = asset.texture
 	_apply_view_mode()
 	_info.text = "%s  (%d × %d)" % [asset.name, asset.image.get_width(), asset.image.get_height()]
-	_discard_button.disabled = false
+	_discard_button.disabled = RunMonitor.has_running()
 
 
 func _discard_selected_image() -> void:

@@ -109,6 +109,8 @@ func _ready() -> void:
 	_rule_editor = _build_rule_editor()
 	_rule_editor.visible = false
 	right.add_child(_rule_editor)
+	_bind_run_lock([_add_rule_button])
+	RunMonitor.busy_changed.connect(_refresh_rules)
 	AppData.rules_changed.connect(_refresh_rules, CONNECT_DEFERRED)
 	_refresh_rules()
 
@@ -484,21 +486,25 @@ func _refresh_rules() -> void:
 				enabled_count += 1
 		_rules_status.text = "%d rule(s), %d enabled — applied at synthesis time." % [
 			all_rules.size(), enabled_count]
+	var locked := RunMonitor.has_running()
 	for r: Dictionary in all_rules:
 		var id := String(r.get("id", ""))
 		var row := HBoxContainer.new()
 		_rules_box.add_child(row)
 		var check := CheckButton.new()
+		check.disabled = locked
 		check.set_pressed_no_signal(bool(r.get("enabled", true)))
 		check.toggled.connect(_on_rule_enabled_toggled.bind(id))
 		row.add_child(check)
 		var label := UiKit.status_label(_rule_summary(r))
 		row.add_child(label)
 		var edit := Button.new()
+		edit.disabled = locked
 		edit.text = "Edit"
 		edit.pressed.connect(_on_edit_rule_pressed.bind(id))
 		row.add_child(edit)
 		var del := Button.new()
+		del.disabled = locked
 		del.text = "×"
 		del.pressed.connect(_on_rule_delete.bind(id))
 		row.add_child(del)

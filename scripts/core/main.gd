@@ -24,6 +24,7 @@ var _decomp_tab: DecompositionTab = null
 var _save_dialog: FileDialog
 var _load_dialog: FileDialog
 var _clear_confirm: ConfirmationDialog
+var _run_banner: Label
 
 
 func _ready() -> void:
@@ -34,6 +35,14 @@ func _ready() -> void:
 	var bar := MenuBar.new()
 	root.add_child(bar)
 	_build_menu(bar)
+
+	# Run-in-progress banner (R20): hidden when idle; shows the active
+	# run's title. Event-driven via RunMonitor.busy_changed — no polling.
+	_run_banner = Label.new()
+	_run_banner.hide()
+	root.add_child(_run_banner)
+	RunMonitor.busy_changed.connect(_update_run_banner)
+	_update_run_banner()
 
 	var tabs := TabContainer.new()
 	tabs.name = "MainTabs"
@@ -132,6 +141,19 @@ func _on_load_project(path: String) -> void:
 	if _decomp_tab != null and run.has("technique_id"):
 		# Re-runs the stored config; materialization re-applies the edits.
 		_decomp_tab.run_config(run)
+
+
+func _update_run_banner() -> void:
+	var running: Dictionary = {}
+	for r: Dictionary in RunMonitor.get_run_list():
+		if String(r["status"]) == "running":
+			running = r
+			break
+	if running.is_empty():
+		_run_banner.hide()
+		return
+	_run_banner.text = "⟳ Running: %s…" % running["title"]
+	_run_banner.show()
 
 
 func _jump_to_occurrence(image_id: String, position: Vector2i, size: Vector2i,

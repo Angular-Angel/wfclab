@@ -12,6 +12,7 @@ var status: Label
 
 var _rebuild_timer: Timer
 var _empty_label: Label
+var _run_lock_buttons: Array[Button] = []
 
 
 func _ready() -> void:
@@ -78,3 +79,20 @@ func _set_empty_state(text: String) -> Label:
 func _clear_empty_state() -> void:
 	if _empty_label != null:
 		_empty_label.hide()
+
+
+## R20 global run lock: the given AppData-mutating buttons are disabled
+## while ANY monitored run is active. Bind once in _ready, after the
+## buttons exist. Non-button widgets (SpinBox/LineEdit, per-row dynamic
+## buttons) consult RunMonitor.has_running() at their refresh sites.
+func _bind_run_lock(buttons: Array[Button]) -> void:
+	_run_lock_buttons.append_array(buttons)
+	if not RunMonitor.busy_changed.is_connected(_apply_run_lock):
+		RunMonitor.busy_changed.connect(_apply_run_lock)
+	_apply_run_lock()
+
+
+func _apply_run_lock() -> void:
+	var busy := RunMonitor.has_running()
+	for button in _run_lock_buttons:
+		button.disabled = busy

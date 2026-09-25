@@ -24,6 +24,12 @@ func _init() -> void:
 	add_child(_spin)
 
 
+## R20 run lock: block interaction without touching the shown values.
+func set_locked(locked: bool) -> void:
+	_check.disabled = locked
+	_spin.editable = not locked
+
+
 func set_enabled_silent(enabled: bool) -> void:
 	_check.set_pressed_no_signal(enabled)
 

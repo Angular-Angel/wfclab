@@ -81,6 +81,7 @@ func _ready() -> void:
 			["*.png ; PNG images"], _on_save_png)
 	add_child(_save_png_dialog)
 
+	_bind_run_lock([_discard_button, _rerun_button, _newseed_button])
 	AppData.synthesis_changed.connect(_update)
 	AppData.outputs_changed.connect(_rebuild_output_list)
 	_rebuild_output_list()
@@ -123,9 +124,10 @@ func _select_output(output_id: String) -> void:
 func _show_active_output() -> void:
 	var s := AppData.get_output(_active_output_id)
 	var has_result := not s.is_empty()
-	_rerun_button.disabled = not has_result
-	_newseed_button.disabled = not has_result
-	_discard_button.disabled = not has_result
+	var locked := RunMonitor.has_running()
+	_rerun_button.disabled = not has_result or locked
+	_newseed_button.disabled = not has_result or locked
+	_discard_button.disabled = not has_result or locked
 	_save_button.disabled = not has_result
 	if not has_result:
 		_preview.texture = null
@@ -202,7 +204,9 @@ func _resynthesize(new_seed: bool) -> void:
 			String(synth.get_id()), params, [],
 			[{"key": "synthesize", "label": "Synthesize"},
 			 {"key": "publish", "label": "Publish"}])
-	RunExecutor.launch(self, [_rerun_button, _newseed_button], null, spec,
+	# The run lock (bound in _ready) drives these buttons: this run is
+	# registered in RunMonitor, so has_running() covers it too.
+	RunExecutor.launch(self, [], null, spec,
 		func(run_id: int) -> Dictionary:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = seed
@@ -220,8 +224,7 @@ func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
 		seed: int, run_id: int) -> void:
 	if result.is_empty():
 		_meta_label.text = "Synthesis failed (see console)."
-		RunExecutor.fail([_rerun_button, _newseed_button], run_id,
-				"synthesize() returned no result.")
+		RunExecutor.fail([], run_id, "synthesize() returned no result.")
 		_update()   # re-enables buttons, keeps last good image
 		return
 	var t0 := Time.get_ticks_msec()
@@ -234,8 +237,8 @@ func _publish(result: Dictionary, synth: Synthesizer, params: Dictionary,
 	var t_end := Time.get_ticks_msec()
 	RunMonitor.end_stage(run_id, "publish",
 			"set_synthesis %d ms" % (t_end - t0), t_end)
-	RunExecutor.complete([_rerun_button, _newseed_button], run_id,
-			result["stats"], "Re-synthesized: %d restarts" %
+	RunExecutor.complete([], run_id, result["stats"],
+			"Re-synthesized: %d restarts" %
 					int(result["stats"].get("restarts", 0)))
 
 

@@ -158,6 +158,12 @@ func _ready() -> void:
 	AppData.edits_changed.connect(func() -> void: _debounce_rebuild(_rebuild))
 	AppData.constraints_changed.connect(func() -> void: _debounce_rebuild(_rebuild))
 
+	_bind_run_lock([_merge_button])
+	RunMonitor.busy_changed.connect(func() -> void:
+		var busy: bool = RunMonitor.has_running()
+		_override_row.set_locked(busy)
+		_refresh_tag_widgets_lock(busy))
+
 	AppData.parts_changed.connect(_rebuild)
 	_rebuild()
 
@@ -341,7 +347,7 @@ func _on_override_changed(enabled: bool, value: float) -> void:
 
 func _refresh_tags() -> void:
 	UiKit.clear_children(_tags_box)
-	_tag_input.editable = _selected != null
+	_refresh_tag_widgets_lock(RunMonitor.has_running())
 	if _selected == null:
 		return
 	var tags := AppData.get_tags(_selected.id)
@@ -359,9 +365,17 @@ func _refresh_tags() -> void:
 		var remove := Button.new()
 		remove.text = "×"
 		remove.focus_mode = Control.FOCUS_NONE
+		remove.disabled = RunMonitor.has_running()
 		# Bind the id, not the Part: rows can outlive a re-materialization.
 		remove.pressed.connect(_on_tag_remove.bind(_selected.id, tag))
 		row.add_child(remove)
+
+
+## The tag input + per-tag remove buttons are rebuilt on every refresh,
+## so their run-lock state is applied at refresh time instead of via the
+## static _bind_run_lock list.
+func _refresh_tag_widgets_lock(busy: bool) -> void:
+	_tag_input.editable = _selected != null and not busy
 
 
 func _on_tag_submitted(text: String) -> void:

@@ -28,6 +28,18 @@
 > outside-variant residual), R16 (full call-site inventory + acceptance
 > grep), R20 (outputs self-disables its run buttons too), R22 (exists/new
 > classification, Monitor exemption rationale).
+>
+> 2026-09-24 implementation-readiness pass (full re-audit; baseline
+> re-run green, 11 suites / 77 cases): R9 note() styling dropped (the
+> four sites are plain autowrap labels — factory stays verbatim) and
+> file_dialog signature spelled out for the OPEN_FILES plural-signal
+> case; R10 status-name count corrected to four (`_status` ×4 tabs,
+> `_grid_status`, `_info`, `_meta_label` — secondary labels stay
+> per-tab); R15 sort helper lands as `Ids.by_id` (one class per file);
+> R18.1 range corrected to :289-371 and R18.4 scoped to all nine change
+> signals with the `synthesis_changed` delta documented; R19 range
+> corrected to :134-141; R20 documents the run-lock/RunExecutor button
+> interplay; findings index empty-state count clarified.
 
 Plan to address the findings of the 2026-09-24 second audit. Two threads,
 interleaved so features land on top of the helpers they need:
@@ -72,7 +84,8 @@ run choreography ×3 (+ two second variants, see R13) → **R13**;
 reach-in → **R16**; technique-base trio + registry triplication → **R17**;
 AppData rules/edits leftover pairs → **R18**; unconfirmed destructive
 actions → **R19**; no global run lock → **R20**; copy affordance
-Monitor-only → **R21**; empty-state ×3-of-8 → **R22**; util/migration test
+Monitor-only → **R21**; empty-state hints (×3 identical "No parts." +
+Terrain Keys' variant) → **R22**; util/migration test
 gaps → **R23**.
 
 ---
@@ -117,12 +130,12 @@ without forcing, so they stay per-site.
 |---|---|---|
 | `label(text)` | verbatim `_mk_label` | 9 copies: parts_tab:196, constraints_tab:143, decomposition_tab:139, monitor_tab:362, outputs_tab:98, synthesizers_tab:207, terrain_keys_tab:43, family_inspector:134, tag_rule_editor:169 |
 | `status_label(text)` | label + `AUTOWRAP_WORD_SMART` + expand flags | the 15+ inline autowrap sites |
-| `note(text)` | status_label with muted/heading style | terrain_keys_tab:105-114, synthesizers_tab:188-200, constraints_tab:427-430, tag_rule_editor:159-165 |
-| `scroll_panel(min_width)` | ScrollContainer (h-scroll disabled) + expand-fill VBox; returns the VBox | terrain_keys_tab:21-27, parts_tab:77-86, decomposition_tab:36-45/89-98, synthesizers_tab:45-53 |
+| `note(text)` | label + `AUTOWRAP_WORD_SMART`, plain (same look as today — no new styling; for longer explanatory text vs. `status_label`) | terrain_keys_tab:105-114, synthesizers_tab:188-200, constraints_tab:427-430, tag_rule_editor:159-165 |
+| `scroll_panel(parent, min_width := 0.0)` | ScrollContainer (h-scroll disabled) + expand-fill VBox; factory adds the ScrollContainer to `parent` and returns the VBox; `min_width == 0` anchors the scroll FULL_RECT (terrain_keys case), otherwise sets the min width + vertical expand | terrain_keys_tab:21-27, parts_tab:77-86, decomposition_tab:36-45/89-98, synthesizers_tab:45-53 |
 | `split_shell()` | HSplitContainer + FULL_RECT, returns it | parts_tab:46, constraints_tab:43, decomposition_tab:29, images_tab:16, outputs_tab:20, monitor_tab:31, synthesizers_tab:41 |
-| `preview(min_size, keep_aspect := true)` | TextureRect: `EXPAND_IGNORE_SIZE` + NEAREST, plus `KEEP_ASPECT_CENTERED` unless `keep_aspect = false` | parts_tab:89-93/202-207, constraints_tab:149-154/237-244, outputs_tab:41-45 (fill, passes false), synthesizers_tab:167-171 (fill, passes false)/694-700, family_inspector:121-127 |
+| `preview(min_size, keep_aspect := true)` | TextureRect: `EXPAND_IGNORE_SIZE` + NEAREST, plus `KEEP_ASPECT_CENTERED` unless `keep_aspect = false` (then `STRETCH_SCALE`) | parts_tab:89-93/202-207, constraints_tab:149-154/237-244, outputs_tab:41-45 (fill, passes false), synthesizers_tab:167-171 (fill, passes false)/694-700, family_inspector:121-127 |
 | `clear_children(node)` | the free-children loop, normalized to `free()` (documented: rebuild paths run outside the container's own signal callbacks) | the ~15 clear-children sites except the two terrain_keys_tab sites (exemption in the note below) |
-| `file_dialog(mode, filters, on_selected)` | ACCESS_FILESYSTEM + filters + wiring | main.gd:96-109 (×2 dialogs), images_tab:73-83, outputs_tab:85-90 |
+| `file_dialog(mode, filters, on_selected)` | ACCESS_FILESYSTEM + filters + wiring; wires `file_selected`, except `FILE_MODE_OPEN_FILES` wires `files_selected` (payload: PackedStringArray of paths) | main.gd:96-109 (×2 dialogs), images_tab:73-83, outputs_tab:85-90 |
 | `confirm(owner, title, text, ok_text, on_confirmed)` | ConfirmationDialog builder | main.gd:111-119; new callers in R19 |
 
 `clear_children` normalization note: sites currently using `queue_free()`
@@ -167,10 +180,15 @@ New `scripts/core/ui/tab_base.gd`: `@abstract class_name TabBase extends
 Control`. All 8 tabs re-derive from it. Members:
 
 - `var status: Label` — the per-tab status line, created by `TabBase`,
-  styled via `UiKit.status_label`. Tabs currently hand-roll `_status` under
-  6 different names — this names it once. (Delta: each tab's `_ready` calls
-  `super._ready()` first, then builds content; the base provides
-  `_build_shell() -> HSplitContainer` wrapping `UiKit.split_shell()`.)
+  styled via `UiKit.status_label`. Tabs currently hand-roll it under four
+  different names (`_status` in Constraints/Decomposition/Synthesizers/
+  Terrain Keys, `_grid_status`, `_info`, `_meta_label`; Monitor has none)
+  — this names it once. Secondary status labels (`_auto_tag_status`,
+  `_rules_status`, `_ct_status`) stay per-tab. (Delta: each tab's
+  `_ready` calls `super._ready()` first, then builds content; the base
+  provides `_build_shell() -> HSplitContainer` wrapping
+  `UiKit.split_shell()`; the base creates `status` but each tab places it
+  in its own layout, so Monitor simply never adds it.)
 - `func _debounce_rebuild(fn: Callable)` — the 0.3 s one-shot Timer
   (parts_tab.gd:183-190, constraints_tab.gd:132-139 — identical code; the
   rationale comments differ per tab and stay local), created once in the
@@ -341,8 +359,10 @@ extractor's `"c_<short>_out_…"`. It stays a unique dictionary key, so it
 is harmless today; fixing it would alter which ids `constraint_edits`
 bind to after merges, so it stays out of scope. The
 deterministic `sort_custom(by id)` triples (grid_tiles.gd:56-58,
-pixel_overlap.gd:59-61, adjacency.gd:193-194) move to a `Sort.by_id(arr)`
-static in the same file — one home for both determinism disciplines.
+pixel_overlap.gd:59-61, adjacency.gd:193-194) move to an `Ids.by_id(arr)`
+static in the same file — one home for both determinism disciplines
+(one `class_name` per GDScript file, so the helper lives on `Ids`
+rather than a separate `Sort` class).
 
 New test `tests/test_ids.gd`: golden strings pin every format — the
 guarantee behind the no-save-format-change promise.
@@ -396,10 +416,10 @@ Leftovers of round-1 R2 inside app_data.gd (708 lines):
 
 | # | Change | File(s) |
 |---|---|---|
-| 18.1 | Inner class `NumberedRuleList` (array + next-number + changed signal; `add/update/remove/get/max_number_scan/take_number`); rules ("rule_") and tagging_rules ("tagrule_") become two instances. The public `add_rule`/`update_rule`/… API is unchanged (thin delegates) so tabs and tests don't move | app_data.gd:289-367, 694-708 |
+| 18.1 | Inner class `NumberedRuleList` (array + next-number + changed signal; `add/update/remove/get/max_number_scan/take_number`); rules ("rule_") and tagging_rules ("tagrule_") become two instances. The public `add_rule`/`update_rule`/… API is unchanged (thin delegates) so tabs and tests don't move | app_data.gd:289-371, 694-708 |
 | 18.2 | `_edit_in(store, edits, id, key, value, signal)` merges `edit_part` (:162-168) and `edit_constraint` (:203-209) — byte-identical modulo fields | app_data.gd |
 | 18.3 | `apply_tagging_rules` (:374-394) and `apply_terrain_key_tags` (:448-472) collapse into `_apply_tag_predicate(predicate: Callable, report_key: String)` — only the match predicate differs (`TagMatcher.rule_matches` vs coverage ≥ minf). Per-rule/per-class report dicts keep their existing shapes exactly (tests pin them) | app_data.gd |
-| 18.4 | `load_project` emits from an enumerated `_ALL_CHANGED_SIGNALS` list (app_data.gd:683-690 — the hand-rolled eight-emit sequence that once forgot `tagging_rules_changed`) | app_data.gd |
+| 18.4 | `load_project` emits from an enumerated `_ALL_CHANGED_SIGNALS` list (app_data.gd:683-690 — the hand-rolled eight-emit sequence that once forgot `tagging_rules_changed`). **Delta, deliberate:** the list holds all nine change signals, so load newly emits `synthesis_changed`. Today's omission leaves the outputs tab's "Last Synthesis" pane stale after a load (load wipes `last_synthesis` at app_data.gd:648 and never tells the tab — only outputs_tab.gd:92 listens for that signal). Smoke: after load, the outputs pane shows "No synthesis yet." instead of the pre-load image | app_data.gd |
 
 Acceptance: suite green — test_app_data_layers.gd's CRUD/numbering/
 idempotency/report-shape cases must pass **unmodified** (they are the pin);
@@ -413,7 +433,7 @@ tagging + terrain keys, save/load round-trip.
 ### R19 — Confirm destructive actions (small)
 
 `UiKit.confirm` (from R9) applied to the three unconfirmed destructive
-actions: Discard Selected Image (images_tab.gd:134-140), Discard Selected
+actions: Discard Selected Image (images_tab.gd:134-141), Discard Selected
 Output (outputs_tab.gd:160-166), Merge Parts (parts_tab.gd:501-506). Dialog
 texts state what is discarded and that it is not undoable (no undo system
 exists — AppData has only `clear_all_edits`). Smoke: each dialog cancels
@@ -435,7 +455,11 @@ Tabs with AppData-mutating buttons (Parts override/tag/merge, Constraints
 rule edits, Images discard, Outputs discard/resynthesize) bind their
 buttons' `disabled` state via a `TabBase` helper
 `_bind_run_lock(buttons)`; decomposition/synthesizers keep their existing
-run-button choreography (already covered by RunExecutor). Smoke: start a
+run-button choreography (already covered by RunExecutor). For Outputs' two
+re-synthesize buttons the run lock *subsumes* the RunExecutor disable:
+their run is registered in RunMonitor (R13.2), so `has_running()` covers
+the tab's own run too — launch them with an empty `buttons` array and let
+the lock alone drive `disabled`. Smoke: start a
 decomposition, verify the banner shows and edit buttons disable; finish and
 verify re-enable.
 

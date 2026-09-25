@@ -113,6 +113,8 @@ func _ready() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(right)
 	right.add_child(UiKit.label("Last Run"))
+	right.add_child(_set_empty_state(
+			"No run yet — configure a decomposition and press Run."))
 
 	if _technique_option.item_count > 0:
 		_technique_option.select(0)
@@ -338,6 +340,7 @@ func _publish_decomposition(all_constraints: Array[Constraint],
 	RunMonitor.end_stage(run_id, "publish",
 			"%d constraints materialized in %d ms" % [
 				AppData.constraints.size(), t_end - t0], t_end)
+	_clear_empty_state()
 	RunExecutor.complete([_run_button], run_id, {
 		"raw_parts": int(AppData.last_run_stats.get("part_count", 0)),
 		"materialized_parts": AppData.parts.size(),

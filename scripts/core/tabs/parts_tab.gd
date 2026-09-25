@@ -69,6 +69,8 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("v_separation", 4)
 	scroll.add_child(_grid)
 
+	left.add_child(_set_empty_state("No parts. Run a decomposition first."))
+
 	# --- Right: inspector (scrollable) -------------------------------------
 	var right := UiKit.scroll_panel(split, 320.0)
 
@@ -202,8 +204,9 @@ func _rebuild() -> void:
 		_pinned = AppData.parts.get(pinned_id)
 		if tag_filter != "":
 			_grid_status.text = "No parts tagged \"%s\"." % tag_filter
+			_clear_empty_state()   # parts exist; the filter just hid them
 		else:
-			_grid_status.text = "No parts. Run a decomposition first."
+			_set_empty_state("No parts. Run a decomposition first.")
 		_preview.texture = null
 		_info.text = "Nothing selected"
 		_refresh_tags()
@@ -215,6 +218,7 @@ func _rebuild() -> void:
 	parts.sort_custom(func(a: Part, b: Part) -> bool:
 		return a.occurrence_count() > b.occurrence_count())
 
+	_clear_empty_state()
 	var stats: Dictionary = AppData.last_run_stats
 	_grid_status.text = "%s parts (%s tiles extracted, %s ms)" % [
 		parts.size(), stats.get("total_tiles", 0), stats.get("elapsed_ms", 0)]

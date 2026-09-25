@@ -49,6 +49,7 @@ func _ready() -> void:
 
 	_status = UiKit.status_label("")
 	left.add_child(_status)
+	left.add_child(_set_empty_state("No parts. Run a decomposition first."))
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -144,8 +145,10 @@ func _rebuild() -> void:
 
 	var parts := AppData.get_part_list()
 	if parts.is_empty():
-		_status.text = "No parts. Run a decomposition first."
+		_set_empty_state("No parts. Run a decomposition first.")
 		return
+
+	_clear_empty_state()
 
 	# Pick the matrix parts FIRST, then gate the constraint walk by
 	# membership: two Dictionary lookups per constraint before any string

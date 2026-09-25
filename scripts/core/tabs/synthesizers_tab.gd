@@ -132,6 +132,9 @@ func _ready() -> void:
 	status_row.add_child(UiKit.copy_button(
 			func() -> String: return _status.text, "Copy",
 			"Copy the run status line to the clipboard."))
+	left.add_child(_set_empty_state("No parts. Run a decomposition first."))
+	AppData.parts_changed.connect(_update_empty_hint)
+	_update_empty_hint()
 
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -215,7 +218,7 @@ func _on_run_pressed() -> void:
 		return
 	var index := AppData.get_constraint_index()
 	if index.get_part_ids().is_empty():
-		_status.text = "No parts. Run a decomposition first."
+		_update_empty_hint()   # the standardized hint carries the message
 		return
 	if _interactive.button_pressed and _current.supports_stepping():
 		_start_session()
@@ -241,6 +244,13 @@ func _on_run_pressed() -> void:
 			return result,
 		func(result: Dictionary, run_id: int) -> void:
 			_publish(result, synth, params, seed, run_id))
+
+
+func _update_empty_hint() -> void:
+	if AppData.get_constraint_index().get_part_ids().is_empty():
+		_set_empty_state("No parts. Run a decomposition first.")
+	else:
+		_clear_empty_state()
 
 
 func _synth_inputs(index: ConstraintIndex) -> Array:

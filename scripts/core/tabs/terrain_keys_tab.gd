@@ -53,14 +53,19 @@ func _update_status() -> void:
 # --- Editor ----------------------------------------------------------------------
 
 func _rebuild_editor() -> void:
+	# This container rebuilds from scratch (queue_free), so drop the
+	# shared empty-state label and get a fresh one when empty.
+	_release_empty_state()
 	for child in _editor_box.get_children():
 		child.queue_free()
 	_editor_box.add_child(UiKit.label("Terrain Key"))
 	if _draft.is_empty():
-		_editor_box.add_child(UiKit.note(
+		_editor_box.add_child(_set_empty_state(
 			"No classes defined. Add a class, pick its colors, "
 			+ "and Save Key to make terrain colors interchangeable in "
 			+ "Pixel Overlap extraction."))
+	else:
+		_clear_empty_state()
 	_classes_box = VBoxContainer.new()
 	_editor_box.add_child(_classes_box)
 	_rebuild_classes()

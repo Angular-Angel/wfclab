@@ -29,6 +29,7 @@ func _ready() -> void:
 	_discard_button.disabled = true
 	_discard_button.pressed.connect(_discard_selected_image)
 	left.add_child(_discard_button)
+	left.add_child(_set_empty_state("No images loaded."))
 
 	_list = ItemList.new()
 	_list.custom_minimum_size = Vector2(240.0, 200.0)
@@ -104,7 +105,12 @@ func _on_files_selected(paths: PackedStringArray) -> void:
 
 func _rebuild_list() -> void:
 	_list.clear()
-	for asset: ImageAssetData in AppData.get_image_list():
+	var assets := AppData.get_image_list()
+	if assets.is_empty():
+		_set_empty_state("No images loaded.")
+	else:
+		_clear_empty_state()
+	for asset: ImageAssetData in assets:
 		var index := _list.add_icon_item(asset.thumb)
 		_list.set_item_text(index, asset.name)
 		_list.set_item_metadata(index, asset.id)

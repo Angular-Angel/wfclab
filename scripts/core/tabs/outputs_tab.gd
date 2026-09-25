@@ -59,6 +59,7 @@ func _ready() -> void:
 	right.add_child(_discard_button)
 	_meta_label = UiKit.status_label("No synthesis yet.\nRun one from the Synthesizers tab.")
 	right.add_child(_meta_label)
+	right.add_child(_set_empty_state("No outputs yet. Run a synthesis."))
 
 	_rerun_button = Button.new()
 	_rerun_button.text = "Re-synthesize (same seed)"
@@ -98,6 +99,10 @@ func _update() -> void:
 
 func _rebuild_output_list() -> void:
 	_retain_selection(_output_list, _fill_output_list)
+	if AppData.get_output_list().is_empty():
+		_set_empty_state("No outputs yet. Run a synthesis.")
+	else:
+		_clear_empty_state()
 	_discard_button.disabled = _active_output_id.is_empty()
 
 

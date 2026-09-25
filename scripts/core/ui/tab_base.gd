@@ -64,21 +64,28 @@ func _retain_selection(list: ItemList, rebuild: Callable) -> void:
 		list.select(index)
 
 
-## Standardized empty-state hint (used by the R22 hints). Created lazily;
-## the tab adds the returned label to its layout where the hint belongs
-## and later hides it via _clear_empty_state.
+## Standardized empty-state hint. The label is created lazily and reused:
+## place it in the layout once (add_child of the returned label) where the
+## hint belongs; later calls update its text in place. Hosts that rebuild
+## their containers and free the label call _release_empty_state() first,
+## then re-add the fresh label returned here.
 func _set_empty_state(text: String) -> Label:
-	if _empty_label == null:
+	if _empty_label == null or not is_instance_valid(_empty_label):
 		_empty_label = UiKit.note(text)
-	else:
-		_empty_label.text = text
+	_empty_label.text = text
 	_empty_label.show()
 	return _empty_label
 
 
 func _clear_empty_state() -> void:
-	if _empty_label != null:
+	if _empty_label != null and is_instance_valid(_empty_label):
 		_empty_label.hide()
+
+
+## Forgets the cached empty-state label (it lives inside a container the
+## host is about to rebuild).
+func _release_empty_state() -> void:
+	_empty_label = null
 
 
 ## R20 global run lock: the given AppData-mutating buttons are disabled

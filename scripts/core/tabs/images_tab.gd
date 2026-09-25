@@ -123,9 +123,15 @@ func _discard_selected_image() -> void:
 	var selected := _list.get_selected_items()
 	if selected.is_empty():
 		return
-	AppData.remove_image(_list.get_item_metadata(selected[0]))
-	_preview.texture = null
-	_info.text = "No image selected"
+	var image_id: String = _list.get_item_metadata(selected[0])
+	UiKit.confirm(self, "Discard Image",
+			"Discard \"%s\"?\n\nThe image is removed from the project. "
+			+ "This cannot be undone." % AppData.image_name(image_id),
+			"Discard", func() -> void:
+				AppData.remove_image(image_id)
+				_preview.texture = null
+				_info.text = "No image selected"
+	).popup_centered()
 
 
 func _apply_view_mode() -> void:

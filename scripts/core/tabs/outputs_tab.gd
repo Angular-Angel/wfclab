@@ -147,9 +147,16 @@ func _discard_selected_output() -> void:
 	if _active_output_id.is_empty():
 		return
 	var discarded_id := _active_output_id
-	_active_output_id = ""
-	AppData.remove_output(discarded_id)
-	_show_active_output()
+	var asset: ImageAssetData = AppData.get_output(discarded_id).get("asset")
+	var name := asset.name if asset != null else discarded_id
+	UiKit.confirm(self, "Discard Output",
+			"Discard \"%s\"?\n\nThe output is removed from the project. "
+			+ "This cannot be undone." % name,
+			"Discard", func() -> void:
+				_active_output_id = ""
+				AppData.remove_output(discarded_id)
+				_show_active_output()
+	).popup_centered()
 
 
 func _apply_view_mode() -> void:

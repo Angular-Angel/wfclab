@@ -448,9 +448,18 @@ func _make_diff_image(a: Image, b: Image) -> Image:
 func _on_merge_pressed() -> void:
 	if _pinned == null or _selected == null or _pinned.id == _selected.id:
 		return
+	var selected_id := _selected.id
+	var pinned_id := _pinned.id
 	# parts_changed fires from the re-materialization; _rebuild restores the
 	# pin by id. The merged-away part's selection clears (it no longer exists).
-	AppData.merge_parts(_selected.id, _pinned.id)
+	UiKit.confirm(self, "Merge Parts",
+			"Merge \"%s\" INTO \"%s\"?\n\nThe selected part is removed and its "
+			+ "occurrences are attributed to the pinned part. There is no "
+			+ "per-merge undo: the only way back is Clear All Edits, which "
+			+ "also discards every other manual edit." % [selected_id, pinned_id],
+			"Merge", func() -> void:
+				AppData.merge_parts(selected_id, pinned_id)
+	).popup_centered()
 
 
 # --- Occurrences --------------------------------------------------------------------

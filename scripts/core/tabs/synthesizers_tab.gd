@@ -18,11 +18,9 @@ var _speed: OptionButton
 var _restart_button: Button
 var _cancel_button: Button
 
-var _preview: TextureRect
+var _pane: PreviewPane
 var _overlay: SlotOverlay
-var _fit_check: CheckButton
 var _entropy_check: CheckButton
-var _dims: Label
 var _picker: SlotPicker
 
 var _param_values: Dictionary = {}
@@ -124,42 +122,27 @@ func _ready() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(right)
 	right.add_child(UiKit.label("Live Preview"))
-	var view_row := HBoxContainer.new()
-	right.add_child(view_row)
-	_fit_check = CheckButton.new()
-	# Unified with the Images/Outputs checkbox label (was just "Fit").
-	_fit_check.text = "Fit to window"
-	_fit_check.button_pressed = true
-	_fit_check.toggled.connect(func(_p: bool) -> void: _apply_view_mode())
-	view_row.add_child(_fit_check)
+
+	_pane = PreviewPane.new()
+	right.add_child(_pane)
 	_entropy_check = CheckButton.new()
 	_entropy_check.text = "Entropy view"
 	_entropy_check.toggled.connect(func(_p: bool) -> void: _update_session_ui())
-	view_row.add_child(_entropy_check)
-	_dims = Label.new()
-	view_row.add_child(_dims)
+	_pane.toolbar.add_child(_entropy_check)
 	var hint := Label.new()
 	hint.text = "Click a slot to place/clear · Arrows move · Enter picks"
 	hint.modulate = Color(1.0, 1.0, 1.0, UiKit.HINT_ALPHA)
-	view_row.add_child(hint)
-
-	var preview_scroll := ScrollContainer.new()
-	preview_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	preview_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right.add_child(preview_scroll)
-	_preview = UiKit.preview(Vector2.ZERO, false)
-	_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_preview.focus_mode = Control.FOCUS_ALL
-	_preview.gui_input.connect(_on_preview_input)
-	preview_scroll.add_child(_preview)
+	_pane.toolbar.add_child(hint)
 
 	_overlay = SlotOverlay.new()
 	_overlay._tab = self
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_preview.add_child(_overlay)
-	_preview.resized.connect(_overlay.queue_redraw)
+	_pane.preview.add_child(_overlay)
+	_pane.preview.resized.connect(_overlay.queue_redraw)
+	_pane.view_changed.connect(_overlay.queue_redraw)
+	_pane.preview.focus_mode = Control.FOCUS_ALL
+	_pane.preview.gui_input.connect(_on_preview_input)
 
 	_picker = SlotPicker.new()
 	_picker.picked.connect(_on_picker_picked)
@@ -316,8 +299,8 @@ func _stop_session() -> void:
 	_cursor_slot = -1
 	_session_box.visible = false
 	_run_button.disabled = false
-	_preview.texture = null
-	_dims.text = ""
+	_pane.show_texture(null)
+	_pane.info_label.text = ""
 	_overlay.queue_redraw()
 
 
@@ -401,13 +384,12 @@ func _update_session_ui() -> void:
 	else:
 		img = _session.get_preview()
 	if img != null:
-		_preview.texture = ImageTexture.create_from_image(img)
-		_apply_view_mode()
-	if _preview.texture != null:
-		var sz := _preview.texture.get_size()
-		_dims.text = "%d × %d" % [int(sz.x), int(sz.y)]
+		_pane.show_texture(ImageTexture.create_from_image(img))
+	if _pane.preview.texture != null:
+		var sz := _pane.preview.texture.get_size()
+		_pane.info_label.text = "%d × %d" % [int(sz.x), int(sz.y)]
 	else:
-		_dims.text = ""
+		_pane.info_label.text = ""
 	_status.text = _session.get_status()
 	_overlay.queue_redraw()
 	if _monitor_run_id != -1 \
@@ -415,19 +397,6 @@ func _update_session_ui() -> void:
 		_last_monitor_push = Time.get_ticks_msec()
 		RunMonitor.update_session(_monitor_run_id, _session.get_status(),
 				_session.get_progress(), _steps)
-
-
-func _apply_view_mode() -> void:
-	if _fit_check.button_pressed:
-		_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		_preview.custom_minimum_size = Vector2.ZERO
-	else:
-		_preview.stretch_mode = TextureRect.STRETCH_KEEP
-		if _preview.texture != null:
-			_preview.custom_minimum_size = _preview.texture.get_size()
-		else:
-			_preview.custom_minimum_size = Vector2.ZERO
-	_overlay.queue_redraw()
 
 
 # --- Slot cursor & manual editing ------------------------------------------------
@@ -442,7 +411,7 @@ func _on_preview_input(event: InputEvent) -> void:
 			if slot != -1:
 				_cursor_slot = slot
 				_overlay.queue_redraw()
-				_preview.accept_event()
+				_pane.preview.accept_event()
 				_open_picker()
 		return
 	if event is InputEventMouseMotion and not _playing:
@@ -464,16 +433,16 @@ func _on_preview_input(event: InputEvent) -> void:
 			_open_picker()
 		else:
 			return
-		_preview.accept_event()
+		_pane.preview.accept_event()
 
 
 func _preview_xform() -> Transform2D:
 	## Texture-pixel space -> preview control space for the current mode.
-	if _preview.texture == null:
+	if _pane.preview.texture == null:
 		return Transform2D()
-	var ts := _preview.texture.get_size()
-	if _fit_check.button_pressed:
-		var cs := _preview.size
+	var ts := _pane.preview.texture.get_size()
+	if _pane.fit_active():
+		var cs := _pane.preview.size
 		if ts.x <= 0.0 or ts.y <= 0.0 or cs.x <= 0.0 or cs.y <= 0.0:
 			return Transform2D()
 		var s := minf(cs.x / ts.x, cs.y / ts.y)
@@ -558,11 +527,11 @@ class SlotOverlay extends Control:
 
 
 	func _draw() -> void:
-		if _tab == null or _tab._session == null or _tab._preview.texture == null:
+		if _tab == null or _tab._session == null or _tab._pane.preview.texture == null:
 			return
 		var sess := _tab._session
 		var size_px := sess.get_render_size()
-		if size_px.x <= 0 or size_px.y <= 0 or _tab._preview.size.x <= 0.0:
+		if size_px.x <= 0 or size_px.y <= 0 or _tab._pane.preview.size.x <= 0.0:
 			return
 		draw_set_transform_matrix(_tab._preview_xform())
 		var dims := sess.get_slot_dims()

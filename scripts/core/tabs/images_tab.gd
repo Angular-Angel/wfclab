@@ -5,10 +5,7 @@ extends TabBase
 
 var _file_dialog: FileDialog
 var _list: ItemList
-var _scroll: ScrollContainer
-var _preview: PreviewRect
-var _info: Label
-var _fit_check: CheckButton
+var _pane: PreviewPane
 var _discard_button: Button
 
 
@@ -38,29 +35,9 @@ func _ready() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(right)
 
-	var toolbar := HBoxContainer.new()
-	right.add_child(toolbar)
-
-	_fit_check = CheckButton.new()
-	_fit_check.text = "Fit to window"
-	_fit_check.button_pressed = true
-	_fit_check.toggled.connect(func(_p: bool) -> void: _apply_view_mode())
-	toolbar.add_child(_fit_check)
-
-	_info = Label.new()
-	_info.text = "No image selected"
-	toolbar.add_child(_info)
-
-	_scroll = ScrollContainer.new()
-	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right.add_child(_scroll)
-
-	_preview = PreviewRect.new()
-	_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_scroll.add_child(_preview)
-	_apply_view_mode()
+	_pane = PreviewPane.new()
+	_pane.info_label.text = "No image selected"
+	right.add_child(_pane)
 
 	_file_dialog = UiKit.file_dialog(FileDialog.FILE_MODE_OPEN_FILES, [
 		"*.png ; PNG images",
@@ -110,11 +87,11 @@ func _rebuild_list() -> void:
 
 
 func _on_item_selected(index: int) -> void:
-	_preview.clear_highlight()
+	_pane.preview.clear_highlight()
 	var asset: ImageAssetData = AppData.images[_list.get_item_metadata(index)]
-	_preview.texture = asset.texture
-	_apply_view_mode()
-	_info.text = "%s  (%d × %d)" % [asset.name, asset.image.get_width(), asset.image.get_height()]
+	_pane.show_texture(asset.texture)
+	_pane.info_label.text = "%s  (%d × %d)" % [
+		asset.name, asset.image.get_width(), asset.image.get_height()]
 	_discard_button.disabled = RunMonitor.has_running()
 
 
@@ -128,34 +105,11 @@ func _discard_selected_image() -> void:
 			+ "This cannot be undone." % AppData.image_name(image_id),
 			"Discard", func() -> void:
 				AppData.remove_image(image_id)
-				_preview.texture = null
-				_info.text = "No image selected"
+				_pane.show_texture(null)
+				_pane.info_label.text = "No image selected"
 	).popup_centered()
 
 
-func _apply_view_mode() -> void:
-	if _fit_check.button_pressed:
-		_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		_preview.custom_minimum_size = Vector2.ZERO
-	else:
-		_preview.stretch_mode = TextureRect.STRETCH_KEEP
-		if _preview.texture != null:
-			_preview.custom_minimum_size = _preview.texture.get_size()
-	_apply_filter_mode()
-
-
-func _apply_filter_mode() -> void:
-	if _preview.texture == null:
-		return
-	var tex_size := _preview.texture.get_size()
-	var view_size := get_viewport_rect().size
-	var upscaled := tex_size.x < view_size.x or tex_size.y < view_size.y
-	_preview.texture_filter = (
-		CanvasItem.TEXTURE_FILTER_NEAREST if upscaled
-		else CanvasItem.TEXTURE_FILTER_LINEAR
-	)
-
-	
 ## Cross-tab API: show this image and flash-highlight a region of it,
 ## in image pixel coordinates. Returns false if the image isn't loaded.
 func show_occurrence(image_id: String, position: Vector2i, region_size: Vector2i) -> bool:
@@ -164,12 +118,8 @@ func show_occurrence(image_id: String, position: Vector2i, region_size: Vector2i
 		return false
 	_list.select(index)
 	_on_item_selected(index)
-	_preview.flash_highlight(Rect2i(position, region_size))
-
+	_pane.preview.flash_highlight(Rect2i(position, region_size))
 	# In 1:1 mode the image is bigger than the viewport; scroll the
 	# highlighted region roughly to center.
-	if not _fit_check.button_pressed:
-		var view := _scroll.size
-		_scroll.scroll_horizontal = maxi(0, int(position.x - view.x * 0.5))
-		_scroll.scroll_vertical = maxi(0, int(position.y - view.y * 0.5))
+	_pane.scroll_to_region(Rect2i(position, region_size))
 	return true

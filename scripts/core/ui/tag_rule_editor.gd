@@ -7,13 +7,10 @@ class_name TagRuleEditor extends VBoxContainer
 
 signal status_message(text: String)
 
-const MAX_RULE_COLORS := 8
-
 var _rules_box: VBoxContainer
 var _editor_box: VBoxContainer
 var _tag_input: LineEdit
-var _colors_box: HBoxContainer
-var _color_buttons: Array[ColorPickerButton] = []
+var _colors: ColorListEditor
 var _tolerance: SpinBox
 var _min_fraction: SpinBox
 var _editing_rule_id := ""
@@ -111,18 +108,8 @@ func _build_editor() -> VBoxContainer:
 	pick.text = "Pick from tiles…"
 	pick.pressed.connect(_open_palette)
 	colors_head.add_child(pick)
-	_colors_box = HBoxContainer.new()
-	box.add_child(_colors_box)
-	var color_btns := HBoxContainer.new()
-	box.add_child(color_btns)
-	var add_color := Button.new()
-	add_color.text = "+ color"
-	add_color.pressed.connect(_on_add_color_pressed)
-	color_btns.add_child(add_color)
-	var del_color := Button.new()
-	del_color.text = "− color"
-	del_color.pressed.connect(_on_remove_color_pressed)
-	color_btns.add_child(del_color)
+	_colors = ColorListEditor.new()
+	box.add_child(_colors)
 	var tol_row := HBoxContainer.new()
 	box.add_child(tol_row)
 	tol_row.add_child(UiKit.label("Per-channel tolerance"))
@@ -193,7 +180,7 @@ func _on_apply_tagging_rules() -> void:
 func _on_add_tag_rule_pressed() -> void:
 	_editing_rule_id = ""
 	_tag_input.text = ""
-	_reset_color_buttons(1)
+	_colors.set_colors(["ffffff"])
 	_tolerance.set_value_no_signal(16)
 	_min_fraction.set_value_no_signal(10.0)
 	_editor_box.visible = true
@@ -206,13 +193,9 @@ func _on_edit_rule_pressed(id: String) -> void:
 		_editing_rule_id = id
 		_tag_input.text = String(r.get("tag", ""))
 		var colors: Array = r.get("colors", [])
-		_reset_color_buttons(clampi(colors.size(), 1, MAX_RULE_COLORS))
-		for i in mini(colors.size(), _color_buttons.size()):
-			var s := String(colors[i])
-			if not s.begins_with("#"):
-				s = "#" + s
-			if Color.html_is_valid(s):
-				_color_buttons[i].color = Color(s)
+		if colors.is_empty():
+			colors = ["ffffff"]
+		_colors.set_colors(colors.slice(0, ColorListEditor.MAX_COLORS))
 		_tolerance.set_value_no_signal(float(r.get("tolerance", 16)))
 		_min_fraction.set_value_no_signal(float(r.get("min_fraction", 0.1)) * 100.0)
 		_editor_box.visible = true
@@ -224,9 +207,7 @@ func _on_rule_save() -> void:
 	if tag.is_empty():
 		status_message.emit("Enter a tag name.")
 		return
-	var colors: Array = []
-	for b: ColorPickerButton in _color_buttons:
-		colors.append(b.color.to_html(false))
+	var colors: Array = _colors.colors()
 	if colors.is_empty():
 		status_message.emit("Add at least one target color.")
 		return
@@ -248,46 +229,10 @@ func _on_rule_cancel() -> void:
 	_editing_rule_id = ""
 
 
-func _reset_color_buttons(n: int) -> void:
-	while _color_buttons.size() > n:
-		var b: ColorPickerButton = _color_buttons.pop_back()
-		_colors_box.remove_child(b)
-		b.queue_free()
-	while _color_buttons.size() < n:
-		_on_add_color_pressed()
-
-
-func _on_add_color_pressed() -> void:
-	if _color_buttons.size() >= MAX_RULE_COLORS:
-		return
-	_mk_color_button(Color.WHITE)
-
-
-func _on_remove_color_pressed() -> void:
-	if _color_buttons.is_empty():
-		return
-	var b: ColorPickerButton = _color_buttons.pop_back()
-	_colors_box.remove_child(b)
-	b.queue_free()
-
-
-func _mk_color_button(c: Color) -> ColorPickerButton:
-	var b := ColorPickerButton.new()
-	# Unified with the terrain-key swatch size (was 36×28).
-	b.custom_minimum_size = UiKit.SWATCH
-	b.color = c
-	_color_buttons.append(b)
-	_colors_box.add_child(b)
-	return b
-
-
 func _open_palette() -> void:
 	_palette.open(0 if _has_selection.call() else 1)
 
 
 func _on_palette_color_picked(hex: String) -> void:
-	if _color_buttons.size() >= MAX_RULE_COLORS:
-		_palette.set_status(
-				"Rule color limit (8) reached — remove one first.")
-		return
-	_mk_color_button(Color(hex))
+	if not _colors.add_color(Color(hex)):
+		_palette.set_status(ColorListEditor.LIMIT_TEXT)

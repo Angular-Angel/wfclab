@@ -8,7 +8,6 @@ class_name TerrainKeysTab extends TabBase
 ## extraction and tagging without deleting it.
 ## Edits are explicit ("Save Key") so AppData regenerates constraints once
 ## per save rather than per widget tweak.
-const MAX_CLASS_COLORS := 8
 var _editor_box: VBoxContainer
 var _status: Label
 var _classes_box: VBoxContainer
@@ -34,14 +33,6 @@ func _ready() -> void:
 	add_child(_palette_popup)
 	AppData.terrain_key_changed.connect(_refresh)
 	_refresh()
-func _to_hex(c: Color) -> String:
-	return "#%02x%02x%02x" % [
-		int(round(c.r * 255.0)),
-		int(round(c.g * 255.0)),
-		int(round(c.b * 255.0))]
-func _from_hex(s: String) -> Color:
-	var t := s if s.begins_with("#") else "#" + s
-	return Color(t) if Color.html_is_valid(t) else Color.WHITE
 
 
 # --- Refresh -----------------------------------------------------------------
@@ -150,21 +141,10 @@ func _build_class_editor(ci: int, cls: Dictionary) -> VBoxContainer:
 	pick.text = "Pick from tiles…"
 	pick.pressed.connect(_open_palette_popup.bind(ci))
 	colors_row.add_child(pick)
-	var colors: Array = cls.get("colors", [])
-	for j in colors.size():
-		var btn := ColorPickerButton.new()
-		btn.custom_minimum_size = UiKit.SWATCH
-		btn.color = _from_hex(String(colors[j]))
-		btn.color_changed.connect(_on_class_color_changed.bind(ci, j))
-		colors_row.add_child(btn)
-	var add_color := Button.new()
-	add_color.text = "+ color"
-	add_color.pressed.connect(_on_add_color_pressed.bind(ci))
-	colors_row.add_child(add_color)
-	var del_color := Button.new()
-	del_color.text = "− color"
-	del_color.pressed.connect(_on_remove_color_pressed.bind(ci))
-	colors_row.add_child(del_color)
+	var editor := ColorListEditor.new()
+	editor.set_colors(cls.get("colors", []))
+	editor.colors_changed.connect(_on_class_colors_changed.bind(ci))
+	colors_row.add_child(editor)
 	var tag_row := HBoxContainer.new()
 	box.add_child(tag_row)
 	tag_row.add_child(UiKit.label("Tag parts as"))
@@ -207,12 +187,9 @@ func _on_class_tolerance_changed(value: float, ci: int) -> void:
 		(_draft[ci] as Dictionary)["tolerance"] = int(value)
 
 
-func _on_class_color_changed(color: Color, ci: int, j: int) -> void:
-	if ci >= _draft.size():
-		return
-	var colors: Array = (_draft[ci] as Dictionary).get("colors", [])
-	if j < colors.size():
-		colors[j] = _to_hex(color)
+func _on_class_colors_changed(colors: Array, ci: int) -> void:
+	if ci < _draft.size():
+		(_draft[ci] as Dictionary)["colors"] = colors
 
 
 func _on_class_tag_changed(text: String, ci: int) -> void:
@@ -225,32 +202,9 @@ func _on_class_min_fraction_changed(value: float, ci: int) -> void:
 		(_draft[ci] as Dictionary)["min_fraction"] = value / 100.0
 
 
-func _on_add_color_pressed(ci: int) -> void:
-	if ci >= _draft.size():
-		return
-	var cls := _draft[ci] as Dictionary
-	var colors: Array = cls.get("colors", [])
-	if colors.size() >= MAX_CLASS_COLORS:
-		return
-	colors.append("#ffffff")
-	cls["colors"] = colors
-	_rebuild_classes()
-
-
-func _on_remove_color_pressed(ci: int) -> void:
-	if ci >= _draft.size():
-		return
-	var cls := _draft[ci] as Dictionary
-	var colors: Array = cls.get("colors", [])
-	if not colors.is_empty():
-		colors.pop_back()
-		cls["colors"] = colors
-		_rebuild_classes()
-
-
 func _on_add_class_pressed() -> void:
 	_draft.append({"name": "class %d" % (_draft.size() + 1),
-		"colors": ["#ffffff"], "tolerance": 0, "enabled": true,
+		"colors": ["ffffff"], "tolerance": 0, "enabled": true,
 		"tag": "", "min_fraction": 0.1, "flex": 0})
 	_rebuild_classes()
 
@@ -291,10 +245,8 @@ func _on_palette_swatch_pressed(hex: String) -> void:
 		return
 	var cls := _draft[_palette_target_ci] as Dictionary
 	var colors: Array = cls.get("colors", [])
-	if colors.size() >= MAX_CLASS_COLORS:
-		_palette_popup.set_status(
-				"Class color limit (%d) reached — remove one first."
-				% MAX_CLASS_COLORS)
+	if colors.size() >= ColorListEditor.MAX_COLORS:
+		_palette_popup.set_status(ColorListEditor.LIMIT_TEXT)
 		return
 	if colors.has(hex):
 		_palette_popup.set_status("Color already in this class.")

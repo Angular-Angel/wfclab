@@ -1,8 +1,11 @@
 # Refactoring Plan
 
-> **Status:** 📝 Draft — not started. Baseline: 43 scripts, 10,627 LOC, 11 suites /
+> **Status:** 📝 Draft — not started. Baseline: 44 scripts, 10,627 LOC, 11 suites /
 > 77 cases green via `./run_tests.sh`. Review corrections applied 2026-09-25
 > (test-side call sites → 1.7, terrain_mapper in-place normalize, StripUtil.class_map).
+> Readiness-check corrections: script count 43 → 44 (`tests/builders.gd`
+> uncounted), R8 test call site → 8.3, R6 class-cycle fallback note,
+> `StripUtil.SIDES` added to 4.1.
 
 Plan to address the findings of the 2026-09-24 refactoring audit. Every phase is a
 pure move, deletion, or dedup — **no behavior changes**. Where two copies of a
@@ -23,9 +26,9 @@ Conventions applied throughout:
 - Moved function bodies are verbatim unless the phase lists a delta. If a
   semantic difference between duplicate copies is discovered mid-phase, stop,
   write a pinning test, then unify.
-- When a phase deletes or moves public statics, its call-site inventory must
-  cover `tests/` as well as `scripts/` (1.7 exists because the audit only
-  grepped `scripts/`).
+- When a phase deletes or moves functions — public statics or underscore
+  privates — its call-site inventory must cover `tests/` as well as `scripts/`
+  (1.7 and 8.3 exist because the audit only grepped `scripts/`).
 - New source files follow the util convention: `class_name X extends RefCounted`
   with static funcs (see `scripts/core/util/pixel_hash.gd`). Tests never get
   `class_name`.
@@ -147,7 +150,7 @@ and RGBA8+classify preamble.
 
 | # | Change | File(s) |
 |---|---|---|
-| 4.1 | New `scripts/core/util/strip_util.gd`: `class_name StripUtil extends RefCounted` with: `static func bytes(data: PackedByteArray, img_w: int, depth: int, start: Vector2i, along: Vector2i, inward: Vector2i, span: int) -> PackedByteArray` (verbatim body of `pixel_overlap._strip` == `constraint_index._edge_bytes`), `static func classes(cls_map: PackedInt32Array, img_w: int, depth, start, along, inward, span) -> PackedInt32Array` (verbatim `_strip_classes`), and `static func side(side: String, part_size: Vector2i) -> Dictionary` returning `{start, along, inward, span}` for `"right"/"left"/"bottom"/"top"` | new file |
+| 4.1 | New `scripts/core/util/strip_util.gd`: `class_name StripUtil extends RefCounted` with: `static func bytes(data: PackedByteArray, img_w: int, depth: int, start: Vector2i, along: Vector2i, inward: Vector2i, span: int) -> PackedByteArray` (verbatim body of `pixel_overlap._strip` == `constraint_index._edge_bytes`), `static func classes(cls_map: PackedInt32Array, img_w: int, depth, start, along, inward, span) -> PackedInt32Array` (verbatim `_strip_classes`), and `static func side(side: String, part_size: Vector2i) -> Dictionary` returning `{start, along, inward, span}` for `"right"/"left"/"bottom"/"top"`, plus `const SIDES := ["right", "left", "bottom", "top"]` (the loop order 4.2 iterates) | new file |
 | 4.2 | `pixel_overlap.extract`: build the four strips by looping `StripUtil.SIDES` + `side()` instead of the four inline `_strip`/`_strip_classes` call groups (the `strips[p.id]` dict keys stay `"right"`, `"right_cls"`, `"right_loose"`, …). Delete `_strip`/`_strip_classes`. `_strip_loose` stays (no twin) | `pixel_overlap.gd` (76–107, 297–317, 378–395) |
 | 4.3 | `constraint_index._edge_signature_key`: replace the local `sides` array + `_edge_bytes` + inline class loop with `StripUtil.side()` + `StripUtil.bytes/classes`. **Preserve the difference:** this site uses `d_eff = mini(depth, mini(size.x, size.y))` (clamped depth) while pixel_overlap skips parts smaller than depth entirely — keep each caller's own depth handling. Delete `_edge_bytes` | `constraint_index.gd` (412–480) |
 | 4.4 | Post-R3 each caller already owns its preamble (`duplicate()` → `ImageOps.to_rgba8`); share only the class-map half as `static func class_map(img: Image, decoded: Array) -> PackedInt32Array` on `StripUtil` (`TerrainMapper.apply_mapped(img, decoded)`; empty when `decoded` is empty). The combined `classified_rgba8` shape from the audit was rejected in review: a helper returning only the cls map cannot also hand callers the converted image their byte strips need, and mutating its input would contradict `ImageOps` semantics | `pixel_overlap.gd` (78–80), `constraint_index.gd` (427–429) |
@@ -193,6 +196,12 @@ line solver. Mechanical move only.
 |---|---|---|
 | 6.1 | New `scripts/core/techniques/tile_collapse_session.gd`: `class_name TileCollapseSession extends SynthesisSession`; move the `Session` class body verbatim; `TileCollapse.create_session` returns `TileCollapseSession.new(...)`. No delegates needed — tests go through `create_session` | new file, `tile_collapse.gd` |
 
+The split creates a two-file class reference cycle: the moved Session calls
+`TileCollapse._render` (454, 500) while `create_session` references
+`TileCollapseSession`. Usage-level cycles (no `extends` or preload edge) are
+fine on Godot 4.7; if the analyzer complains anyway, move `_render` (100–119)
+into the session file (adapter ≈ 230 lines).
+
 Acceptance: suite green; `tile_collapse.gd` ≈ 250 lines (adapter + render),
 solver independently openable.
 
@@ -227,6 +236,7 @@ persistence.
 |---|---|---|
 | 8.1 | New `scripts/core/project_codec.gd`: `class_name ProjectCodec extends RefCounted`, static: `encode(images: Array, state: Dictionary) -> Dictionary` (the version-2 payload builder, 618–634), `write(path: String, data: Dictionary) -> bool`, `read(path: String) -> Dictionary` (JSON open/parse, empty on failure), `decode(payload: Variant) -> Dictionary` (JsonCodec.decode + `_decode_tag_edits` (714–724) + rules/tag-rules/terrain adoption incl. the legacy `terrain_keys` fallback, 670–692; `_max_*_number` (727–742) stay in AppData — they feed the counter re-derivation 8.2 keeps) | new file |
 | 8.2 | `AppData.save_project` = gather state → `ProjectCodec.encode/write`. `load_project` = `ProjectCodec.read/decode` → **AppData keeps** the state reset, counter re-derivation, image loading, and all eight signal emissions (641–711 stays; only the decode tail moves) | `app_data.gd` (616–742) |
+| 8.3 | Repoint the one test that calls the moved helper directly (found by grepping `tests/` — the 1.7 lesson): `fresh._decode_tag_edits({...})` → `ProjectCodec._decode_tag_edits({...})`; it pins the empty/non-string entry filtering, which moves with the function | `tests/test_app_data_layers.gd` (329–334) |
 
 `test_app_data_layers.gd` pins the save/load round trip (incl. version-2 format
 and legacy-key adoption).

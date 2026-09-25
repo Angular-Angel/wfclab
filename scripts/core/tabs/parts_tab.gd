@@ -15,8 +15,7 @@ var _enabled_check: CheckButton
 var _transforms_box: VBoxContainer
 var _transform_note: Label
 var _transform_checks: Dictionary = {}
-var _override_check: CheckButton
-var _weight_spin: SpinBox
+var _override_row: WeightOverrideEditor
 var _pin_button: Button
 var _compare_box: VBoxContainer
 var _cmp_pinned: TextureRect
@@ -115,17 +114,9 @@ func _ready() -> void:
 	_transform_note = UiKit.status_label("")
 	_transforms_box.add_child(_transform_note)
 
-	var weight_row := HBoxContainer.new()
-	right.add_child(weight_row)
-	_override_check = CheckButton.new()
-	_override_check.text = "Weight override"
-	_override_check.toggled.connect(_on_override_toggled)
-	weight_row.add_child(_override_check)
-	_weight_spin = SpinBox.new()
-	_weight_spin.min_value = 0.0
-	_weight_spin.max_value = 99999.0
-	_weight_spin.value_changed.connect(_on_weight_changed)
-	weight_row.add_child(_weight_spin)
+	_override_row = WeightOverrideEditor.new()
+	right.add_child(_override_row)
+	_override_row.override_changed.connect(_on_override_changed)
 
 	_pin_button = Button.new()
 	_pin_button.text = "Pin for comparison"
@@ -278,8 +269,8 @@ func _show_part(part: Part) -> void:
 	_info.text = _part_info_text(part)
 	_enabled_check.set_pressed_no_signal(part.enabled)
 	_refresh_transform_controls(part)
-	_override_check.set_pressed_no_signal(part.weight_override != null)
-	_weight_spin.set_value_no_signal(part.get_effective_weight())
+	_override_row.set_silent(part.weight_override != null,
+			part.get_effective_weight())
 
 	_occurrence_data = part.occurrences.duplicate()
 	_occurrences.clear()
@@ -341,17 +332,11 @@ func _on_enabled_toggled(pressed: bool) -> void:
 	_info.text = _part_info_text(_selected)
 
 
-func _on_override_toggled(pressed: bool) -> void:
+func _on_override_changed(enabled: bool, value: float) -> void:
 	if _selected == null:
 		return
 	AppData.edit_part(_selected.id, "weight_override",
-		_weight_spin.value if pressed else null)
-
-
-func _on_weight_changed(value: float) -> void:
-	if _selected == null or not _override_check.button_pressed:
-		return
-	AppData.edit_part(_selected.id, "weight_override", value)
+			value if enabled else null)
 
 
 func _refresh_tags() -> void:

@@ -16,8 +16,7 @@ var _constraint_list: ItemList
 var _evidence_list: ItemList
 
 var _c_enabled_check: CheckButton
-var _c_override_check: CheckButton
-var _c_weight_spin: SpinBox
+var _override_row: WeightOverrideEditor
 var _editing_constraint_id := ""
 
 var _matrix_parts: Array[Part] = []
@@ -94,17 +93,9 @@ func _ready() -> void:
 	_c_enabled_check.text = "Enabled"
 	_c_enabled_check.toggled.connect(_on_c_enabled_toggled)
 	right.add_child(_c_enabled_check)
-	var weight_row := HBoxContainer.new()
-	right.add_child(weight_row)
-	_c_override_check = CheckButton.new()
-	_c_override_check.text = "Weight override"
-	_c_override_check.toggled.connect(_on_c_override_toggled)
-	weight_row.add_child(_c_override_check)
-	_c_weight_spin = SpinBox.new()
-	_c_weight_spin.min_value = 0.0
-	_c_weight_spin.max_value = 99999.0
-	_c_weight_spin.value_changed.connect(_on_c_weight_changed)
-	weight_row.add_child(_c_weight_spin)
+	_override_row = WeightOverrideEditor.new()
+	right.add_child(_override_row)
+	_override_row.override_changed.connect(_on_c_override_changed)
 
 	right.add_child(UiKit.label("Authored Rules"))
 	_rules_status = UiKit.status_label("")
@@ -147,7 +138,7 @@ func _rebuild() -> void:
 	_pair_info.text = "Click a matrix cell"
 	_editing_constraint_id = ""
 	_c_enabled_check.set_pressed_no_signal(false)
-	_c_override_check.set_pressed_no_signal(false)
+	_override_row.set_enabled_silent(false)
 
 	var parts := AppData.get_part_list()
 	if parts.is_empty():
@@ -298,8 +289,7 @@ func _on_constraint_selected(index: int) -> void:
 	var c: Constraint = _selected_constraints[index]
 	_editing_constraint_id = c.id
 	_c_enabled_check.set_pressed_no_signal(c.enabled)
-	_c_override_check.set_pressed_no_signal(c.weight_override != null)
-	_c_weight_spin.set_value_no_signal(c.get_effective_weight())
+	_override_row.set_silent(c.weight_override != null, c.get_effective_weight())
 	for e_index in c.evidence.size():
 		var ev: Dictionary = c.evidence[e_index]
 		_evidence_list.add_item(_evidence_text(ev))
@@ -325,17 +315,11 @@ func _on_c_enabled_toggled(pressed: bool) -> void:
 	AppData.edit_constraint(_editing_constraint_id, "enabled", pressed)
 
 
-func _on_c_override_toggled(pressed: bool) -> void:
+func _on_c_override_changed(enabled: bool, value: float) -> void:
 	if _editing_constraint_id.is_empty():
 		return
 	AppData.edit_constraint(_editing_constraint_id, "weight_override",
-		_c_weight_spin.value if pressed else null)
-
-
-func _on_c_weight_changed(value: float) -> void:
-	if _editing_constraint_id.is_empty() or not _c_override_check.button_pressed:
-		return
-	AppData.edit_constraint(_editing_constraint_id, "weight_override", value)
+			value if enabled else null)
 
 
 func _on_evidence_selected(index: int) -> void:

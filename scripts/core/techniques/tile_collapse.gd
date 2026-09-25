@@ -244,7 +244,6 @@ class Session extends SynthesisSession:
 	var _queue_head := 0
 	var _in_queue: PackedByteArray = PackedByteArray()
 	var _trail: Array = []                     # {slot: int, removed: PackedInt64Array}
-	var _trail_marks: Array[int] = []          # (kept for pins/parity; decisions live in _decisions)
 	var nparts := 0                            # FAMILY count (not part count)
 	var nwords := 0                            # 64-bit words per family mask
 	var _full_mask: PackedInt64Array = PackedInt64Array()
@@ -303,14 +302,13 @@ class Session extends SynthesisSession:
 		_size.fill(0)              # REQUIRED — stale sizes corrupt bucket bookkeeping
 		_in_queue.resize(_out_w * _out_h)
 		_in_queue.fill(0)          # defensive — don't rely on resize zeroing
-		_in_queue.clear(); _in_queue.resize(_out_w * _out_h)
 		_buckets.clear()
 		for i in nparts + 1:
 			_buckets.append({})
 		_min_bucket = 1
 		_queue_clear_all()
 		_decisions.clear()
-		_trail.clear(); _trail_marks.clear()
+		_trail.clear()
 		last_slot = -1
 		_collapsed = 0
 		for slot: int in _pinned.keys():
@@ -785,7 +783,6 @@ class Session extends SynthesisSession:
 			return false
 
 		_pinned[slot] = part_id
-		_trail_marks.clear()
 		_trail.clear()
 		_decisions.clear()
 		last_rejection = ""
@@ -803,7 +800,6 @@ class Session extends SynthesisSession:
 			"collapsed": _collapsed,
 			"decisions": _decisions.duplicate(),
 			"trail": _trail.duplicate(),
-			"trail_marks": _trail_marks.duplicate(),
 			"min_bucket": _min_bucket,
 		}
 
@@ -818,7 +814,6 @@ class Session extends SynthesisSession:
 		_collapsed = int(s["collapsed"])
 		_decisions = s["decisions"]
 		_trail = s["trail"]
-		_trail_marks = s["trail_marks"]
 		_min_bucket = int(s["min_bucket"])
 		_refresh_buckets()
 
@@ -854,47 +849,6 @@ class Session extends SynthesisSession:
 				_pinned[slot] = old_pin
 			return false
 		last_slot = slot
-		return true
-
-
-	func _rebuild_domains_from_assignments() -> bool:
-		## Recreate the monotonic AC-3 state from current assignments so
-		## removals can expand domains. Clears decisions/trail: nothing
-		## above a rebuild is undoable.
-		var full := TileCollapse.mask_full(nwords, nparts)
-		_full_mask = full
-		_buckets.clear()
-		for i in nparts + 1:
-			_buckets.append({})
-		_min_bucket = 1
-		_queue_clear_all()
-		_decisions.clear()
-		_trail.clear()
-		_trail_marks.clear()
-		dom.clear()
-		dom.resize(_out_w * _out_h)
-		_size.resize(_out_w * _out_h)
-		_size.fill(0)
-		_collapsed = 0
-		for i in dom.size():
-			var m: PackedInt64Array
-			if assigned[i] != "":
-				m = TileCollapse.mask_empty(nwords)
-				var afi := _index.family_of_part_id(assigned[i])
-				if afi >= 0:
-					TileCollapse.mask_set(m, afi)
-				_collapsed += 1
-				_queue_append(i)
-			else:
-				m = full.duplicate()
-				if _bordered:
-					_queue_append(i)
-			_set_dom(i, m)
-		var trace: Array = []
-		if not _propagate(trace):
-			if not trace.is_empty():
-				last_wipe = _describe_wipe(trace[0])
-			return false
 		return true
 
 
